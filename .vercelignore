@@ -1,0 +1,10 @@
+main.py
+requirements.txt
+data/
+legacy/
+.env
+.env.*
+.env.example
+README.md
+node_modules/
+__pycache__/
