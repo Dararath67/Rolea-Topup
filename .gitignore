@@ -10,6 +10,7 @@ Thumbs.db
 # Environment & local secrets / runtime customer data
 .env
 .env.*
+!.env.example
 data/settings.json
 data/admin_security.json
 data/inventory.json

@@ -33,6 +33,22 @@ MEDIA_DIR = PUBLIC_DIR / "media"
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(MEDIA_DIR, exist_ok=True)
 
+# Optional .env loader (for Apsara Hosting / cloud panel deployments)
+_env_file = BASE_DIR / ".env"
+if _env_file.exists():
+    try:
+        for _line in _env_file.read_text(encoding="utf-8").splitlines():
+            _line = _line.strip()
+            if not _line or _line.startswith("#") or "=" not in _line:
+                continue
+            _k, _v = _line.split("=", 1)
+            _k = _k.strip()
+            _v = _v.strip().strip('"').strip("'")
+            if _k and _k not in os.environ:
+                os.environ[_k] = _v
+    except Exception:
+        pass
+
 # File paths
 DB_PATH = DATA_DIR / "orders.json"
 PACKAGES_PATH = DATA_DIR / "packages.json"
@@ -105,7 +121,7 @@ settings: Dict[str, Any] = {
     "telegram_handle": "putireach",
     "khqr_merchant_name": "Rolea",
     "khqr_account": "bakong@rolea",
-    "khqrpay_api_key": "sk_52b3f4ed679f5de854a6dfae6a500a368a6e11e77670c8e7",
+    "khqrpay_api_key": os.environ.get("KHQRPAY_API_KEY", ""),
     "khqrpay_base_url": "https://khqrpay.site",
     "home_banner": "/media/banner1.webp",
     "roblox_banner": "/media/roblox-banner.webp",
@@ -146,6 +162,14 @@ def save_json(path: Path, data: Any):
 orders = load_json(DB_PATH, orders)
 packages = load_json(PACKAGES_PATH, packages)
 settings = load_json(SETTINGS_PATH, settings)
+for _env_k, _set_k in (
+    ("TELEGRAM_BOT_TOKEN", "telegram_bot_token"),
+    ("KHQRPAY_API_KEY", "khqrpay_api_key"),
+    ("SMTP_EMAIL", "smtp_email"),
+    ("SMTP_PASSWORD", "smtp_password"),
+):
+    if not settings.get(_set_k) and os.environ.get(_env_k):
+        settings[_set_k] = os.environ[_env_k]
 games = load_json(GAMES_PATH, games)
 users = load_json(USERS_PATH, users)
 coupons = load_json(COUPONS_PATH, coupons)
@@ -947,6 +971,19 @@ app = FastAPI(title="Rolea Topup API", version="2.0.0")
 HOME_WIFI_NETWORK = ipaddress.ip_network("192.168.100.0/24", strict=False)
 _blocked_ip_log_cooldown: Dict[str, float] = {}
 
+def _get_extra_admin_networks() -> List[Any]:
+    raw = os.environ.get("ADMIN_ALLOWED_IPS", "").strip()
+    nets = []
+    for part in raw.split(","):
+        part = part.strip()
+        if not part or part == "*":
+            continue
+        try:
+            nets.append(ipaddress.ip_network(part, strict=False))
+        except ValueError:
+            pass
+    return nets
+
 def _is_single_ip_allowed(ip_str: str) -> bool:
     if not ip_str:
         return False
@@ -958,9 +995,23 @@ def _is_single_ip_allowed(ip_str: str) -> bool:
             return True
         if isinstance(ip_obj, ipaddress.IPv4Address) and ip_obj in HOME_WIFI_NETWORK:
             return True
+        for net in _get_extra_admin_networks():
+            if ip_obj in net:
+                return True
     except ValueError:
         return False
     return False
+
+def _is_trusted_proxy_peer(ip_str: str) -> bool:
+    if not ip_str:
+        return False
+    try:
+        ip_obj = ipaddress.ip_address(ip_str)
+        if getattr(ip_obj, "ipv4_mapped", None):
+            ip_obj = ip_obj.ipv4_mapped
+        return ip_obj.is_loopback or ip_obj.is_private
+    except ValueError:
+        return False
 
 def get_admin_effective_ip(request: Request) -> str:
     cf_ip = request.headers.get("cf-connecting-ip", "").strip()
@@ -975,10 +1026,18 @@ def get_admin_effective_ip(request: Request) -> str:
     return request.client.host if request.client else ""
 
 def is_admin_ip_allowed(request: Request) -> tuple[bool, str]:
-    peer_ip = request.client.host if request.client else ""
-    if not _is_single_ip_allowed(peer_ip):
-        return False, peer_ip or "unknown"
     effective_ip = get_admin_effective_ip(request)
+    allowed_env = os.environ.get("ADMIN_ALLOWED_IPS", "").strip()
+    if allowed_env == "*" or settings.get("admin_ip_restriction") is False:
+        return True, effective_ip or "remote"
+    # On managed Python hosts (e.g., Apsara Hosting / Pterodactyl setting SERVER_PORT),
+    # allow remote Admin login protected by PBKDF2 + 2FA + lockout unless ADMIN_ALLOWED_IPS restricts it.
+    if os.environ.get("SERVER_PORT") and not allowed_env:
+        return True, effective_ip or "cloud"
+
+    peer_ip = request.client.host if request.client else ""
+    if not (_is_single_ip_allowed(peer_ip) or _is_trusted_proxy_peer(peer_ip)):
+        return False, peer_ip or "unknown"
     if not _is_single_ip_allowed(effective_ip):
         return False, effective_ip or "unknown"
     return True, effective_ip
@@ -4506,7 +4565,7 @@ app.mount("/", StaticFiles(directory=str(PUBLIC_DIR)), name="public")
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get("PORT", 3000))
+    port = int(os.environ.get("SERVER_PORT") or os.environ.get("PORT") or os.environ.get("APP_PORT") or 3000)
     print(f"===============================================")
     print(f"ROLEA TOPUP FastAPI Server running at:")
     print(f"- http://localhost:{port}")
@@ -4514,4 +4573,4 @@ if __name__ == "__main__":
     print(f"- http://localhost:{port}/check-order")
     print(f"- http://localhost:{port}/admin (Admin Console Protected)")
     print(f"===============================================")
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False, proxy_headers=True, forwarded_allow_ips="*")

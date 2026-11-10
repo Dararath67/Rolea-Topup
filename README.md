@@ -4,25 +4,31 @@ A high-fidelity, fully interactive website for **Rolea Topup** focusing on **Rob
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start (Python FastAPI / Apsara Hosting)
 
-### 1. Requirements
-- Node.js (v18+)
-
-### 2. Run the Web Server
+### 1. Local Setup (Python 3.10+)
 ```bash
-# Navigate to project folder
-cd C:\Users\PC\.gemini\antigravity\scratch\yuki-topup
-
-# Start server
-node server.js
+git clone https://github.com/Dararath67/Rolea-Topup.git
+cd Rolea-Topup
+pip install -r requirements.txt
+python main.py
 ```
+
+### 2. Deploy on Apsara Hosting Python (Pterodactyl / Python Panel)
+1. Upload or `git clone https://github.com/Dararath67/Rolea-Topup.git`.
+2. Install packages from `requirements.txt`.
+3. Set Startup / Main File to `main.py` (or run `uvicorn main:app --host 0.0.0.0 --port $SERVER_PORT --proxy-headers`).
+4. Copy `.env.example` to `.env` (or set Environment Variables in Panel):
+   - `ADMIN_ALLOWED_IPS=*` *(allows remote `/admin` access behind PBKDF2 + 2FA + IP lockout)*
+   - Optional: `TELEGRAM_BOT_TOKEN`, `KHQRPAY_API_KEY`, `SMTP_EMAIL`, `SMTP_PASSWORD` (can also be configured in `/admin` → Settings).
 
 ### 3. Open in Browser
 - **Homepage (Storefront)**: [http://localhost:3000](http://localhost:3000)
 - **Roblox Robux Send**: [http://localhost:3000/game/roblox](http://localhost:3000/game/roblox)
+- **Lucky Spin Robux**: [http://localhost:3000/spin](http://localhost:3000/spin)
+- **My Account**: [http://localhost:3000/my-account](http://localhost:3000/my-account)
 - **Check Order / My Orders**: [http://localhost:3000/check-order](http://localhost:3000/check-order)
-- **Admin Panel**: [http://localhost:3000/admin](http://localhost:3000/admin) *(Username: `admin`, Password: `admin123`)*
+- **Admin Panel**: [http://localhost:3000/admin](http://localhost:3000/admin)
 
 ---
 
