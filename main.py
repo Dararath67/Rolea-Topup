@@ -11,7 +11,9 @@ import re
 import secrets
 import smtplib
 import ssl
+import threading
 import time
+from urllib.parse import urlparse, unquote
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime, timezone, timedelta
@@ -142,14 +144,139 @@ wallet_transactions: List[Dict[str, Any]] = []
 # token -> {"userId": ..., "expiresAt": timestamp_ms}
 sessions: Dict[str, Dict[str, Any]] = {}
 
+try:
+    import pymysql
+except ImportError:
+    pymysql = None
+
+_mysql_lock = threading.Lock()
+_mysql_conn = None
+_mysql_ready = False
+
+def _get_mysql_cfg() -> Optional[Dict[str, Any]]:
+    raw_url = (os.environ.get("MYSQL_URL") or os.environ.get("DATABASE_URL") or "").strip()
+    if raw_url:
+        if raw_url.startswith("jdbc:"):
+            raw_url = raw_url[5:]
+        u = urlparse(raw_url)
+        if u.hostname and u.username:
+            return {
+                "host": u.hostname,
+                "port": u.port or 3306,
+                "user": unquote(u.username),
+                "password": unquote(u.password or ""),
+                "database": (u.path or "/").lstrip("/") or "rolea_topup",
+            }
+    host = os.environ.get("MYSQL_HOST", "").strip()
+    user = os.environ.get("MYSQL_USER", "").strip()
+    db = os.environ.get("MYSQL_DATABASE", "").strip()
+    if host and user and db:
+        return {
+            "host": host,
+            "port": int(os.environ.get("MYSQL_PORT") or 3306),
+            "user": user,
+            "password": os.environ.get("MYSQL_PASSWORD", ""),
+            "database": db,
+        }
+    return None
+
+def _mysql_connect():
+    global _mysql_conn, _mysql_ready
+    if pymysql is None:
+        return None
+    cfg = _get_mysql_cfg()
+    if not cfg:
+        return None
+    if _mysql_conn is not None:
+        try:
+            _mysql_conn.ping(reconnect=True)
+            return _mysql_conn
+        except Exception:
+            _mysql_conn = None
+    _mysql_conn = pymysql.connect(
+        host=cfg["host"],
+        port=cfg["port"],
+        user=cfg["user"],
+        password=cfg["password"],
+        database=cfg["database"],
+        charset="utf8mb4",
+        autocommit=True,
+        connect_timeout=6,
+        read_timeout=10,
+        write_timeout=10,
+    )
+    if not _mysql_ready:
+        with _mysql_conn.cursor() as cur:
+            cur.execute(
+                "CREATE TABLE IF NOT EXISTS rolea_store ("
+                "store_key VARCHAR(64) PRIMARY KEY, "
+                "payload LONGTEXT NOT NULL, "
+                "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+            )
+        _mysql_ready = True
+        print(f"[MySQL] Connected & initialized rolea_store on {cfg['host']}/{cfg['database']}")
+    return _mysql_conn
+
+def _mysql_get(store_key: str) -> Optional[Any]:
+    if not _get_mysql_cfg() or pymysql is None:
+        return None
+    with _mysql_lock:
+        try:
+            conn = _mysql_connect()
+            if not conn:
+                return None
+            with conn.cursor() as cur:
+                cur.execute("SELECT payload FROM rolea_store WHERE store_key = %s", (store_key,))
+                row = cur.fetchone()
+                if row and row[0]:
+                    return json.loads(row[0])
+        except Exception as e:
+            print(f"[MySQL] Read failed ({store_key}): {e}")
+    return None
+
+def _mysql_set(store_key: str, data: Any):
+    if not _get_mysql_cfg() or pymysql is None:
+        return
+    with _mysql_lock:
+        try:
+            conn = _mysql_connect()
+            if not conn:
+                return
+            payload_str = json.dumps(data, ensure_ascii=False)
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO rolea_store (store_key, payload) VALUES (%s, %s) "
+                    "ON DUPLICATE KEY UPDATE payload = VALUES(payload)",
+                    (store_key, payload_str),
+                )
+        except Exception as e:
+            print(f"[MySQL] Write failed ({store_key}): {e}")
+
 def load_json(path: Path, default: Any) -> Any:
+    key = path.stem
+    db_val = _mysql_get(key)
+    if db_val is not None:
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(db_val, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+        return db_val
+
+    loaded = default
+    found_local = False
     if path.exists():
         try:
             with open(path, "r", encoding="utf-8") as f:
-                return json.load(f)
+                loaded = json.load(f)
+                found_local = True
         except Exception as e:
             print(f"Error loading {path}: {e}")
-    return default
+
+    if found_local and _get_mysql_cfg():
+        _mysql_set(key, loaded)
+    return loaded
 
 def save_json(path: Path, data: Any):
     try:
@@ -157,6 +284,7 @@ def save_json(path: Path, data: Any):
             json.dump(data, f, indent=2, ensure_ascii=False)
     except Exception as e:
         print(f"Error saving {path}: {e}")
+    _mysql_set(path.stem, data)
 
 # Load initial data
 orders = load_json(DB_PATH, orders)
