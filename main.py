@@ -1309,7 +1309,7 @@ async def security_and_no_cache_middleware(request: Request, call_next):
             return RedirectResponse(url="/admin/login", status_code=302)
 
     response = await call_next(request)
-    if path.endswith((".js", ".css", ".html")) or path in ("/", "/spin", "/admin", "/admin/login", "/signin", "/game/roblox", "/my-account", "/check-order") or response.headers.get("content-type", "").startswith("text/html"):
+    if path.startswith("/api/") or path.endswith((".js", ".css", ".html")) or path in ("/", "/spin", "/admin", "/admin/login", "/signin", "/game/roblox", "/my-account", "/check-order") or response.headers.get("content-type", "").startswith("text/html"):
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"

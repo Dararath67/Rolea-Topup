@@ -109,7 +109,7 @@
 
   <!-- Hero Banner -->
   <div class="game-banner">
-    <img id="roblox-banner-img" src="/media/roblox-banner.webp" alt="Roblox Robux Send Banner">
+    <img id="roblox-banner-img" src="/media/banner_roblox_1794319177753.jpg" alt="Roblox Robux Send Banner">
   </div>
 
   <!-- Hero Header -->
@@ -658,8 +658,8 @@ bindDenoms();
 async function loadDynamicPackages() {
   try {
     const [resPkgs, resGame] = await Promise.all([
-      fetch('/api/packages?game=' + G).then(r => r.json()),
-      fetch('/api/game/' + G).then(r => r.json()).catch(() => null)
+      fetch('/api/packages?game=' + G, { cache: 'no-store' }).then(r => r.json()),
+      fetch('/api/game/' + G, { cache: 'no-store' }).then(r => r.json()).catch(() => null)
     ]);
 
     if (resGame && resGame.ok && resGame.game) {
@@ -667,7 +667,8 @@ async function loadDynamicPackages() {
       document.title = `${g.name} · Rolea Topup`;
       const bannerImg = $("roblox-banner-img");
       if (bannerImg) {
-        bannerImg.src = g.banner || (G === 'roblox' ? '/media/roblox-banner.webp' : '/media/banner1.webp');
+        bannerImg.src = g.banner || (G === 'roblox' ? '/media/banner_roblox_1794319177753.jpg' : '/media/banner_home_1794296823538.jpg');
+        bannerImg.dataset.lockedByGame = '1';
         bannerImg.alt = `${g.name} Banner`;
       }
       const heroThumb = document.querySelector('.g-thumb img');
@@ -763,10 +764,10 @@ async function loadDynamicPackages() {
 }
 loadDynamicPackages();
 
-fetch('/api/settings').then(r => r.json()).then(j => {
+fetch('/api/settings', { cache: 'no-store' }).then(r => r.json()).then(j => {
   if (G === 'roblox' && j && j.roblox_banner) {
     const b = $("roblox-banner-img");
-    if (b) b.src = j.roblox_banner;
+    if (b && !b.dataset.lockedByGame && b.getAttribute('src') !== j.roblox_banner) b.src = j.roblox_banner;
   }
   if (j && j.telegram_handle) {
     const handle = j.telegram_handle.replace(/^@/, '');

@@ -53,8 +53,8 @@ a{text-decoration:none;color:inherit}img{max-width:100%;display:block}
 /* game page */
 .breadcrumb{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:14px 14px 0;font-size:12.5px;font-weight:600;color:var(--muted)}
 .breadcrumb a:hover{color:var(--primary)}.breadcrumb .sep{color:#cbd5e1}.breadcrumb .current{color:var(--text)}
-.game-banner{margin:12px 14px 0;border-radius:18px;overflow:hidden;height:148px;background:#130f22;box-shadow:var(--shadow)}
-.game-banner img{width:100%;height:100%;object-fit:cover}
+.game-banner{margin:12px 14px 0;border-radius:18px;overflow:hidden;height:auto;background:#ffffff;box-shadow:var(--shadow)}
+.game-banner img{width:100%;height:auto;display:block;object-fit:contain}
 .game-hero{display:flex;align-items:center;gap:12px;margin:12px 14px 0;padding:12px;border-radius:16px;background:#fff;border:1px solid var(--line);box-shadow:0 4px 14px rgba(30,27,58,.05)}
 .g-thumb{width:64px;height:64px;flex:none;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:linear-gradient(160deg,#f7f4ff,#ece7fb);position:relative}
 .g-thumb img{width:100%;height:100%;object-fit:cover}
@@ -180,7 +180,7 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgb(va
   .container{max-width:1180px;margin:0 auto;padding:8px 36px 28px}
   .slider,.banner,.game-banner{max-width:1108px;margin:28px auto 8px;border-radius:24px}
   .slider img,.banner img{height:280px}
-  .game-banner{height:240px}
+  .game-banner{height:auto}
   .section-head{margin-top:28px}
   .section-head h3{font-size:24px}
   .accent{height:24px;width:5px}
