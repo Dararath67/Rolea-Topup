@@ -76,6 +76,7 @@
 
       if (profile && profile.email) {
         await authenticateWithBackend({
+          access_token: accessToken,
           email: profile.email,
           name: profile.name || profile.email.split('@')[0],
           avatar: profile.picture || '',

@@ -525,7 +525,7 @@
     } else {
       // Lazy load google_chooser.js if not yet loaded
       const s = document.createElement('script');
-      s.src = '/google_chooser.js';
+      s.src = '/google_chooser.js?v=20261110_v2';
       s.onload = () => { if (window.RoleaGoogleChooser) window.RoleaGoogleChooser.open(); };
       document.body.appendChild(s);
     }

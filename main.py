@@ -473,7 +473,7 @@ def generate_khqr_data_url(khqr_payload: str) -> str:
 # External API helpers
 async def create_khqrpay_order(amount: float, order_id: str) -> Optional[Dict[str, Any]]:
     base_url = (settings.get("khqrpay_base_url") or "https://khqrpay.site").rstrip("/")
-    api_key = settings.get("khqrpay_api_key") or "sk_52b3f4ed679f5de854a6dfae6a500a368a6e11e77670c8e7"
+    api_key = settings.get("khqrpay_api_key") or os.environ.get("KHQRPAY_API_KEY", "")
     try:
         async with httpx.AsyncClient(timeout=6.0) as client:
             res = await client.post(
@@ -495,7 +495,7 @@ async def create_khqrpay_order(amount: float, order_id: str) -> Optional[Dict[st
 
 async def check_khqrpay_status(payment_id: str) -> Optional[Dict[str, Any]]:
     base_url = (settings.get("khqrpay_base_url") or "https://khqrpay.site").rstrip("/")
-    api_key = settings.get("khqrpay_api_key") or "sk_52b3f4ed679f5de854a6dfae6a500a368a6e11e77670c8e7"
+    api_key = settings.get("khqrpay_api_key") or os.environ.get("KHQRPAY_API_KEY", "")
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             res = await client.get(
@@ -942,6 +942,79 @@ async def telegram_polling_loop():
             pass
         await asyncio.sleep(3.5)
 
+# Security Concurrency & Anti-DDoS Guards
+_tx_lock = asyncio.Lock()
+_rate_buckets: Dict[str, List[float]] = {}
+_credited_khqr_ids: set = set()
+
+MAX_JSON_BODY_BYTES = 2 * 1024 * 1024   # 2 MB limit on public/API payloads
+MAX_UPLOAD_BODY_BYTES = 10 * 1024 * 1024  # 10 MB limit for admin image uploads
+
+def _sanitize_plain(val: Any, max_len: int = 200) -> str:
+    s = str(val or "").strip()
+    s = re.sub(r"<[^>]*>", "", s)
+    s = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", s)
+    return s[:max_len]
+
+def _get_rate_tier(path: str) -> tuple[str, int, int]:
+    if path in (
+        "/api/auth/forgot-password", "/api/auth/verify-reset-code", "/api/auth/reset-password",
+        "/api/admin/forgot-password", "/api/admin/verify-reset-code", "/api/admin/reset-password"
+    ):
+        return ("otp", 8, 60)
+    if path in ("/api/auth/login", "/api/auth/register", "/api/auth/google", "/api/admin/login"):
+        return ("auth", 15, 60)
+    if path in ("/api/create-order", "/api/wallet/topup", "/api/spin/create-ticket"):
+        return ("pay_create", 15, 60)
+    if path in ("/api/check-id", "/api/promo/apply", "/api/check-order", "/api/reviews/submit"):
+        return ("lookup", 30, 60)
+    if path.startswith("/api/"):
+        return ("api_general", 120, 60)
+    return ("static", 300, 60)
+
+def _check_rate_limit(ip: str, path: str) -> tuple[bool, int]:
+    tier, max_req, window_sec = _get_rate_tier(path)
+    now_ts = time.time()
+    key = f"{tier}:{ip}"
+    if len(_rate_buckets) > 10000:
+        stale_keys = [k for k, v in _rate_buckets.items() if not v or (now_ts - v[-1]) > 120]
+        for k in stale_keys[:5000]:
+            _rate_buckets.pop(k, None)
+        if len(_rate_buckets) > 10000:
+            _rate_buckets.clear()
+
+    hist = [t for t in _rate_buckets.get(key, []) if now_ts - t < window_sec]
+    if len(hist) >= max_req:
+        retry_after = max(1, int(window_sec - (now_ts - hist[0])))
+        _rate_buckets[key] = hist
+        return False, retry_after
+    hist.append(now_ts)
+    _rate_buckets[key] = hist
+    return True, 0
+
+def verify_khqr_bank_payment(live: Optional[Dict[str, Any]], expected_amount: float) -> tuple[bool, str]:
+    """Strict server-side bank/KHQR verification (status + paid amount + currency + non-negative guard)."""
+    if not isinstance(live, dict):
+        return False, "invalid_payload"
+    st = str(live.get("status", "")).lower().strip()
+    if st not in ("paid", "success", "completed"):
+        return False, st or "pending"
+
+    raw_amt = live.get("amount")
+    if raw_amt is not None:
+        try:
+            paid_amt = float(raw_amt)
+        except (ValueError, TypeError):
+            return False, "invalid_amount"
+        if not math.isfinite(paid_amt) or paid_amt < round(float(expected_amount) - 0.01, 2):
+            return False, "amount_mismatch"
+
+    curr = str(live.get("currency") or "USD").upper().strip()
+    if curr not in ("USD", ""):
+        return False, "currency_mismatch"
+
+    return True, "paid"
+
 # Initialize FastAPI App
 app = FastAPI(title="Rolea Topup API", version="2.0.0")
 
@@ -1022,6 +1095,33 @@ def is_admin_ip_allowed(request: Request) -> tuple[bool, str]:
 @app.middleware("http")
 async def security_and_no_cache_middleware(request: Request, call_next):
     path = request.url.path
+    raw_qs = request.url.query or ""
+
+    # 1. Path traversal / null-byte guard
+    if ".." in path or "\x00" in path or "%00" in path.lower() or ".." in raw_qs:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid request path"})
+
+    # 2. Request payload size guard (Anti-Payload Flood)
+    cl_hdr = request.headers.get("content-length")
+    if cl_hdr:
+        try:
+            cl_val = int(cl_hdr)
+            is_upload = path in ("/api/admin/upload-banner", "/api/admin/games/upload-logo")
+            max_bytes = MAX_UPLOAD_BODY_BYTES if is_upload else MAX_JSON_BODY_BYTES
+            if cl_val > max_bytes or cl_val < 0:
+                return JSONResponse(status_code=413, content={"ok": False, "error": "Payload too large"})
+        except ValueError:
+            return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid Content-Length"})
+
+    # 3. Anti-DDoS sliding-window rate limiter per client IP
+    eff_ip = get_admin_effective_ip(request) or "unknown"
+    ok_rate, retry_after = _check_rate_limit(eff_ip, path)
+    if not ok_rate:
+        return JSONResponse(
+            status_code=429,
+            headers={"Retry-After": str(retry_after)},
+            content={"ok": False, "error": f"Too many requests. Please wait {retry_after}s and try again."}
+        )
 
     is_admin_route = (
         path == "/admin"
@@ -1078,6 +1178,10 @@ async def security_and_no_cache_middleware(request: Request, call_next):
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
     return response
 
 app.add_middleware(
@@ -1329,51 +1433,58 @@ async def create_spin_ticket(request: Request):
     if not username or len(username) < 2:
         return JSONResponse(status_code=400, content={"ok": False, "error": "Please enter your Roblox username first."})
 
-    client_ip = request.client.host if request.client else ""
+    if pay_method not in ("wallet", "khqr"):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid payment method"})
+
+    client_ip = get_admin_effective_ip(request)
     blocked, b_reason = is_blacklisted(player_id=username, username=username, ip=client_ip)
     if blocked:
         return JSONResponse(status_code=403, content={"ok": False, "error": f"Account blocked: {b_reason}"})
 
     price = round(float(spin_data.get("spin_price_usd", 0.50)), 2)
+    if not math.isfinite(price) or price < 0.05:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid spin ticket configuration."})
+
     spin_id = "SPIN" + secrets.token_hex(4).upper()
     current_user = get_user_from_req(request)
 
     if pay_method == "wallet":
         if not current_user:
             return JSONResponse(status_code=401, content={"ok": False, "error": "Please sign in to spin using your Rolea Wallet balance."})
-        if float(current_user.get("balance", 0.0)) < price:
-            return JSONResponse(status_code=400, content={"ok": False, "error": f"Insufficient Rolea Wallet balance (${float(current_user.get('balance', 0.0)):.2f}). Please top up first or use KHQR."})
+        async with _tx_lock:
+            if float(current_user.get("balance", 0.0)) < price:
+                return JSONResponse(status_code=400, content={"ok": False, "error": f"Insufficient Rolea Wallet balance (${float(current_user.get('balance', 0.0)):.2f}). Please top up first or use KHQR."})
 
-        current_user["balance"] = round(float(current_user.get("balance", 0.0)) - price, 2)
-        save_users()
-        wallet_transactions.insert(0, {
-            "id": "wtx_" + secrets.token_hex(4),
-            "user_id": current_user["id"],
-            "type": "spend",
-            "amount": -price,
-            "order_id": spin_id,
-            "product": "Lucky Robux Spin Ticket",
-            "date": datetime.now(timezone.utc).isoformat()
-        })
-        save_wallet_tx()
+            current_user["balance"] = round(float(current_user.get("balance", 0.0)) - price, 2)
+            save_users()
+            wallet_transactions.insert(0, {
+                "id": "wtx_" + secrets.token_hex(4),
+                "user_id": current_user["id"],
+                "type": "spend",
+                "amount": -price,
+                "order_id": spin_id,
+                "product": "Lucky Robux Spin Ticket",
+                "date": datetime.now(timezone.utc).isoformat()
+            })
+            save_wallet_tx()
 
-        roll = perform_spin_roll()
-        sl = roll["slice"]
-        order_id = _finalize_spin_win_order(username, roblox_id, avatar, display_name, "Rolea Wallet", spin_id, sl, current_user, roll["guard_triggered"])
-        return {
-            "ok": True,
-            "paid": True,
-            "spin_id": spin_id,
-            "slice_index": roll["slice_index"],
-            "slice": {
-                "id": sl.get("id"),
-                "label": sl.get("label"),
-                "robux": int(sl.get("robux", 0)),
-                "color": sl.get("color")
-            },
-            "order_id": order_id,
-            "remaining_balance": current_user["balance"]
-        }
+            roll = perform_spin_roll()
+            sl = roll["slice"]
+            order_id = _finalize_spin_win_order(username, roblox_id, avatar, display_name, "Rolea Wallet", spin_id, sl, current_user, roll["guard_triggered"])
+            return {
+                "ok": True,
+                "paid": True,
+                "spin_id": spin_id,
+                "slice_index": roll["slice_index"],
+                "slice": {
+                    "id": sl.get("id"),
+                    "label": sl.get("label"),
+                    "robux": int(sl.get("robux", 0)),
+                    "color": sl.get("color")
+                },
+                "order_id": order_id,
+                "remaining_balance": current_user["balance"]
+            }
 
     # KHQR payment ticket
     khqr_res = await create_khqrpay_order(price, spin_id)
@@ -1435,31 +1546,37 @@ async def check_spin_ticket(spin_id: str):
     if not tkt["paid"] and tkt.get("khqrpay_id"):
         live = await check_khqrpay_status(tkt["khqrpay_id"])
         if live:
-            st = str(live.get("status", "")).lower()
-            if st in ["paid", "success", "completed"]:
-                tkt["paid"] = True
-            elif st in ["expired", "failed"]:
-                return {"ok": True, "paid": False, "status": st}
+            verified_paid, v_st = verify_khqr_bank_payment(live, float(tkt.get("amount", 0.50)))
+            if verified_paid:
+                async with _tx_lock:
+                    kid = str(tkt["khqrpay_id"])
+                    if not tkt["paid"] and kid not in _credited_khqr_ids:
+                        _credited_khqr_ids.add(kid)
+                        tkt["paid"] = True
+            elif v_st in ["expired", "failed"]:
+                return {"ok": True, "paid": False, "status": v_st}
 
     if tkt["paid"] and not tkt["spun"]:
-        tkt["spun"] = True
-        roll = perform_spin_roll()
-        sl = roll["slice"]
-        u_obj = next((u for u in users if u.get("id") == tkt.get("user_id")), None) if tkt.get("user_id") else None
-        order_id = _finalize_spin_win_order(
-            tkt["username"], tkt.get("roblox_id"), tkt.get("avatar", "/media/robux-coin.svg"),
-            tkt.get("display_name", tkt["username"]), "ABA KHQR", spin_id, sl, u_obj, roll["guard_triggered"]
-        )
-        tkt["result"] = {
-            "slice_index": roll["slice_index"],
-            "slice": {
-                "id": sl.get("id"),
-                "label": sl.get("label"),
-                "robux": int(sl.get("robux", 0)),
-                "color": sl.get("color")
-            },
-            "order_id": order_id
-        }
+        async with _tx_lock:
+            if tkt["paid"] and not tkt["spun"]:
+                tkt["spun"] = True
+                roll = perform_spin_roll()
+                sl = roll["slice"]
+                u_obj = next((u for u in users if u.get("id") == tkt.get("user_id")), None) if tkt.get("user_id") else None
+                order_id = _finalize_spin_win_order(
+                    tkt["username"], tkt.get("roblox_id"), tkt.get("avatar", "/media/robux-coin.svg"),
+                    tkt.get("display_name", tkt["username"]), "ABA KHQR", spin_id, sl, u_obj, roll["guard_triggered"]
+                )
+                tkt["result"] = {
+                    "slice_index": roll["slice_index"],
+                    "slice": {
+                        "id": sl.get("id"),
+                        "label": sl.get("label"),
+                        "robux": int(sl.get("robux", 0)),
+                        "color": sl.get("color")
+                    },
+                    "order_id": order_id
+                }
 
     return {
         "ok": True,
@@ -1821,29 +1938,47 @@ async def customer_reset_password(request: Request):
 @app.post("/api/auth/google")
 async def auth_google(request: Request):
     body = await request.json() if (await request.body()) else {}
-    email = body.get("email", "").strip().lower()
-    name = body.get("name", "").strip()
-    avatar = body.get("avatar", "")
-    google_id = body.get("google_id", "")
-    credential = body.get("credential", "")
+    credential = str(body.get("credential") or "").strip()
+    access_token = str(body.get("access_token") or "").strip()
+    expected_cid = str(settings.get("google_client_id") or "220196407393-n5m72vbjquni5g4uuo9bfpdrmmn41c24.apps.googleusercontent.com").strip()
 
-    if credential:
-        try:
-            parts = credential.split(".")
-            if len(parts) >= 2:
-                import base64
-                payload_b64 = parts[1] + "=="
-                payload_json = base64.urlsafe_b64decode(payload_b64.encode("utf-8")).decode("utf-8")
-                claims = json.loads(payload_json)
-                email = claims.get("email", "").lower()
-                name = claims.get("name", "") or claims.get("given_name", "")
-                avatar = claims.get("picture", "")
-                google_id = claims.get("sub", "")
-        except Exception:
-            pass
+    email = ""
+    name = ""
+    avatar = ""
+    google_id = ""
 
-    if not email:
-        return JSONResponse(status_code=400, content={"ok": False, "error": "Google email is required"})
+    # Strictly verify token server-side with Google OAuth servers (never trust raw client email!)
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            if credential:
+                r = await client.get("https://oauth2.googleapis.com/tokeninfo", params={"id_token": credential})
+                if r.status_code == 200:
+                    claims = r.json()
+                    aud = str(claims.get("aud") or "").strip()
+                    verified = str(claims.get("email_verified") or "").lower() in ("true", "1")
+                    if verified and (not expected_cid or aud == expected_cid):
+                        email = str(claims.get("email") or "").strip().lower()
+                        name = _sanitize_plain(claims.get("name") or claims.get("given_name") or "", 60)
+                        avatar = str(claims.get("picture") or "").strip()
+                        google_id = str(claims.get("sub") or "").strip()
+            elif access_token:
+                ti = await client.get("https://oauth2.googleapis.com/tokeninfo", params={"access_token": access_token})
+                ui = await client.get("https://www.googleapis.com/oauth2/v3/userinfo", headers={"Authorization": f"Bearer {access_token}"})
+                if ti.status_code == 200 and ui.status_code == 200:
+                    ti_data = ti.json()
+                    ui_data = ui.json()
+                    aud = str(ti_data.get("aud") or ti_data.get("azp") or "").strip()
+                    verified = bool(ui_data.get("email_verified", True))
+                    if verified and (not expected_cid or aud == expected_cid):
+                        email = str(ui_data.get("email") or "").strip().lower()
+                        name = _sanitize_plain(ui_data.get("name") or ui_data.get("given_name") or "", 60)
+                        avatar = str(ui_data.get("picture") or "").strip()
+                        google_id = str(ui_data.get("sub") or "").strip()
+    except Exception:
+        return JSONResponse(status_code=502, content={"ok": False, "error": "Unable to verify Google Sign-In token"})
+
+    if not email or not google_id:
+        return JSONResponse(status_code=401, content={"ok": False, "error": "Invalid or unverified Google authentication token"})
 
     user = next((u for u in users if (u.get("email") and u.get("email", "").lower() == email) or (u.get("google_id") and u.get("google_id") == google_id)), None)
 
@@ -1995,8 +2130,9 @@ async def wallet_topup(request: Request):
     except (ValueError, TypeError):
         amount = 0.0
 
-    if amount < 0.50:
-        return JSONResponse(status_code=400, content={"ok": False, "error": "Minimum deposit is $0.50 USD"})
+    if not math.isfinite(amount) or amount < 0.50 or amount > 2000.00:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Deposit amount must be between $0.50 and $2,000.00 USD"})
+    amount = round(amount, 2)
 
     now = datetime.now(timezone.utc)
     order_id = "WLT" + hex(int(time.time()))[2:].upper() + secrets.token_hex(2).upper()
@@ -2151,12 +2287,12 @@ async def submit_review(request: Request):
 
     new_rev = {
         "id": "rev_" + secrets.token_hex(4),
-        "order_id": (body.get("order_id") or "").strip(),
+        "order_id": _sanitize_plain(body.get("order_id") or "", 48),
         "game": game_key,
-        "game_name": g.get("name") or "Store Top-up",
-        "username": masked,
-        "rating": rating,
-        "comment": comment.strip(),
+        "game_name": _sanitize_plain(g.get("name") or "Store Top-up", 80),
+        "username": _sanitize_plain(masked, 40),
+        "rating": max(1, min(5, int(rating))),
+        "comment": _sanitize_plain(comment, 400),
         "created_at": datetime.now(timezone.utc).isoformat(),
         "approved": True
     }
@@ -2198,129 +2334,142 @@ async def get_live_proof():
 async def create_order(request: Request):
     try:
         body = await request.json() if (await request.body()) else {}
-        client_ip = request.client.host if request.client else ""
+        if not isinstance(body, dict):
+            return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid JSON payload"})
+        client_ip = get_admin_effective_ip(request)
         blocked, b_reason = is_blacklisted(player_id=body.get("player_id", ""), username=body.get("username", ""), email=body.get("email", ""), ip=client_ip)
         if blocked:
             return JSONResponse(status_code=403, content={"ok": False, "error": f"គណនី ឬ IP របស់អ្នកត្រូវបានបិទ (Blacklisted) ដោយសារការសង្ស័យបន្លំ: {b_reason}"})
-        client_ip = request.client.host if request.client else ""
-        blocked, b_reason = is_blacklisted(player_id=body.get("player_id", ""), username=body.get("username", ""), email=body.get("email", ""), ip=client_ip)
-        if blocked:
-            return JSONResponse(status_code=403, content={"ok": False, "error": f"គណនី ឬ IP របស់អ្នកត្រូវបានបិទ (Blacklisted) ដោយសារការសង្ស័យបន្លំ: {b_reason}"})
-        game_key = body.get("game") or "roblox"
-        game_data = games.get(game_key, {"name": "Roblox Robux Send", "type": "roblox"})
-        game_packages = [p for p in packages if p.get("game", "roblox") == game_key]
+
+        game_key = _sanitize_plain(body.get("game") or "roblox", 40)
+        game_data = games.get(game_key)
+        if not game_data or game_data.get("enabled") is False:
+            return JSONResponse(status_code=400, content={"ok": False, "error": "Selected product is unavailable."})
+
         pkg_id = body.get("package_id")
-        pkg = next((p for p in packages if p.get("id") == pkg_id), None)
-        if not pkg:
-            pkg = game_packages[0] if game_packages else (packages[0] if packages else {"price": 1.0, "name": "Standard Package", "id": "default"})
-        if pkg.get("in_stock") is False:
-            return JSONResponse(status_code=400, content={"ok": False, "error": f"កញ្ចប់ '{pkg.get('name')}' គឺអស់ពីស្តុកបណ្តោះអាសន្ន (Out of Stock)។ សូមជ្រើសរើសកញ្ចប់ផ្សេង។"})
+        if pkg_id:
+            pkg = next((p for p in packages if p.get("id") == pkg_id and p.get("game", "roblox") == game_key), None)
+        else:
+            game_packages = [p for p in packages if p.get("game", "roblox") == game_key and p.get("ok", 1)]
+            pkg = game_packages[0] if game_packages else None
+        if not pkg or not pkg.get("ok", 1):
+            return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid or unavailable package."})
         if pkg.get("in_stock") is False:
             return JSONResponse(status_code=400, content={"ok": False, "error": f"កញ្ចប់ '{pkg.get('name')}' គឺអស់ពីស្តុកបណ្តោះអាសន្ន (Out of Stock)។ សូមជ្រើសរើសកញ្ចប់ផ្សេង។"})
 
         now = datetime.now(timezone.utc)
-        order_id = body.get("checkout_ref") or ("PR" + hex(int(time.time()))[2:].upper() + secrets.token_hex(3).upper())
-        token = body.get("receipt_token") or secrets.token_hex(16)
-        amount = float(pkg.get("price", 1.0))
+        raw_ref = str(body.get("checkout_ref") or "").strip()
+        if re.fullmatch(r"[A-Za-z0-9_-]{8,40}", raw_ref) and not any(o.get("order_id") == raw_ref for o in orders):
+            order_id = raw_ref
+        else:
+            order_id = "PR" + hex(int(time.time()))[2:].upper() + secrets.token_hex(3).upper()
+        # Always generate random receipt token server-side
+        token = secrets.token_hex(16)
+
+        amount = round(float(pkg.get("price", 0)), 2)
+        if not math.isfinite(amount) or amount < 0.01:
+            return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid package pricing."})
         original_amount = amount
         discount = 0.0
         applied_promo = None
-
-        promo_code = body.get("promo_code")
-        if promo_code and isinstance(promo_code, str):
-            code_upper = promo_code.strip().upper()
-            cp = next((c for c in coupons if c.get("code", "").upper() == code_upper and c.get("enabled")), None)
-            if cp and (not cp.get("max_uses") or cp.get("used_count", 0) < cp["max_uses"]) and amount >= float(cp.get("min_spend", 0)):
-                if cp.get("type") == "percentage":
-                    discount = amount * (float(cp.get("value", 0)) / 100)
-                else:
-                    discount = float(cp.get("value", 0))
-                discount = min(discount, max(0.0, amount - 0.05))
-                discount = round(discount, 2)
-                amount = round(amount - discount, 2)
-                applied_promo = cp["code"]
-                cp["used_count"] = cp.get("used_count", 0) + 1
-                save_coupons()
-
         current_user = get_user_from_req(request)
 
-        # 1-Click Wallet Checkout
-        if body.get("payment_method") == "wallet":
-            if not current_user:
-                return JSONResponse(status_code=401, content={"ok": False, "error": "Please log in to pay with your Rolea Wallet balance"})
-            if float(current_user.get("balance", 0.0)) < amount:
-                return JSONResponse(status_code=400, content={"ok": False, "error": f"Insufficient wallet balance (${float(current_user.get('balance', 0)):.2f} USD). Please top up first."})
+        async with _tx_lock:
+            promo_code = body.get("promo_code")
+            if promo_code and isinstance(promo_code, str):
+                code_upper = promo_code.strip().upper()
+                cp = next((c for c in coupons if c.get("code", "").upper() == code_upper and c.get("enabled")), None)
+                if cp and (not cp.get("max_uses") or cp.get("used_count", 0) < cp["max_uses"]) and amount >= float(cp.get("min_spend", 0)):
+                    val = float(cp.get("value", 0))
+                    if math.isfinite(val) and val > 0:
+                        if cp.get("type") == "percentage":
+                            discount = amount * (min(100.0, val) / 100.0)
+                        else:
+                            discount = val
+                        discount = min(discount, max(0.0, amount - 0.05))
+                        discount = round(discount, 2)
+                        amount = round(max(0.05, amount - discount), 2)
+                        applied_promo = cp["code"]
+                        cp["used_count"] = cp.get("used_count", 0) + 1
+                        save_coupons()
 
-            current_user["balance"] = round(float(current_user.get("balance", 0.0)) - amount, 2)
-            save_users()
+            # 1-Click Wallet Checkout (atomic inside _tx_lock)
+            if body.get("payment_method") == "wallet":
+                if not current_user:
+                    return JSONResponse(status_code=401, content={"ok": False, "error": "Please log in to pay with your Rolea Wallet balance"})
+                if float(current_user.get("balance", 0.0)) < amount:
+                    return JSONResponse(status_code=400, content={"ok": False, "error": f"Insufficient wallet balance (${float(current_user.get('balance', 0)):.2f} USD). Please top up first."})
 
-            wallet_transactions.insert(0, {
-                "id": "wtx_" + secrets.token_hex(4),
-                "user_id": current_user["id"],
-                "type": "spend",
-                "amount": -amount,
-                "order_id": order_id,
-                "product": f"{game_data.get('name')} - {pkg.get('name')}",
-                "date": now.isoformat()
-            })
-            save_wallet_tx()
+                current_user["balance"] = round(float(current_user.get("balance", 0.0)) - amount, 2)
+                save_users()
 
-            auto_del = bool(settings.get("auto_deliver", False))
-            is_smm = (game_data.get("type") == "smm") or (game_key == "tiktok")
-            t_input = str(body.get("player_id") or "").strip()
-            tt_link = t_input if (t_input.startswith("http://") or t_input.startswith("https://")) else (f"https://www.tiktok.com/@{t_input.replace('@', '')}" if t_input else "")
-            new_order = {
-                "order_id": order_id,
-                "token": token,
-                "user_id": current_user["id"],
-                "buyer_account": current_user["username"],
-                "game": game_key,
-                "product_name": game_data.get("name"),
-                "product_type": game_data.get("type"),
-                "package": pkg.get("name"),
-                "package_id": pkg.get("id"),
-                "robux_amount": pkg.get("robux", 0),
-                "original_amount": original_amount,
-                "discount": discount,
-                "promo_code": applied_promo,
-                "amount": amount,
-                "payment_method": "Rolea Wallet",
-                "player_id": body.get("player_id", ""),
-                "roblox_username": body.get("username") or body.get("player_id") or "",
-                "display_name": (body.get("username") or body.get("player_id") or current_user["username"]) if not is_smm else "TikTok Customer",
-                "roblox_id": None if is_smm else str(abs(sum(ord(c) for c in (body.get("player_id") or "12345678")))),
-                "profile_url": tt_link if is_smm else (f"https://www.roblox.com/users/1/profile" if game_key == "roblox" else ""),
-                "avatar": "/media/tiktok-thumb.svg" if is_smm else "/media/robux-coin.svg",
-                "target_url": t_input if is_smm else "",
-                "status": "completed" if auto_del else "paid",
-                "step": "delivered" if auto_del else "sending",
-                "paid": True,
-                "delivered": auto_del,
-                "created_at": now.isoformat(),
-                "label": "Payment confirmed via Wallet & items delivered" if auto_del else "Payment confirmed via Wallet. Processing delivery…"
-            }
+                wallet_transactions.insert(0, {
+                    "id": "wtx_" + secrets.token_hex(4),
+                    "user_id": current_user["id"],
+                    "type": "spend",
+                    "amount": -amount,
+                    "order_id": order_id,
+                    "product": f"{game_data.get('name')} - {pkg.get('name')}",
+                    "date": now.isoformat()
+                })
+                save_wallet_tx()
 
-            orders.insert(0, new_order)
-            if len(orders) > 500: orders[:] = orders[:500]
-            save_orders()
-            asyncio.create_task(send_telegram_paid_alert(new_order))
-            if auto_del:
-                asyncio.create_task(notify_customer_order_completed(new_order))
+                auto_del = bool(settings.get("auto_deliver", False))
+                is_smm = (game_data.get("type") == "smm") or (game_key == "tiktok")
+                t_input = _sanitize_plain(body.get("player_id") or "", 180)
+                tt_link = t_input if (t_input.startswith("http://") or t_input.startswith("https://")) else (f"https://www.tiktok.com/@{t_input.replace('@', '')}" if t_input else "")
+                new_order = {
+                    "order_id": order_id,
+                    "token": token,
+                    "user_id": current_user["id"],
+                    "buyer_account": current_user["username"],
+                    "game": game_key,
+                    "product_name": game_data.get("name"),
+                    "product_type": game_data.get("type"),
+                    "package": pkg.get("name"),
+                    "package_id": pkg.get("id"),
+                    "robux_amount": pkg.get("robux", 0),
+                    "original_amount": original_amount,
+                    "discount": discount,
+                    "promo_code": applied_promo,
+                    "amount": amount,
+                    "payment_method": "Rolea Wallet",
+                    "player_id": t_input,
+                    "roblox_username": _sanitize_plain(body.get("username") or t_input, 60),
+                    "display_name": _sanitize_plain((body.get("username") or t_input or current_user["username"]) if not is_smm else "TikTok Customer", 60),
+                    "roblox_id": None if is_smm else str(abs(sum(ord(c) for c in (t_input or "12345678")))),
+                    "profile_url": tt_link if is_smm else (f"https://www.roblox.com/users/1/profile" if game_key == "roblox" else ""),
+                    "avatar": "/media/tiktok-thumb.svg" if is_smm else "/media/robux-coin.svg",
+                    "target_url": t_input if is_smm else "",
+                    "status": "completed" if auto_del else "paid",
+                    "step": "delivered" if auto_del else "sending",
+                    "paid": True,
+                    "delivered": auto_del,
+                    "created_at": now.isoformat(),
+                    "label": "Payment confirmed via Wallet & items delivered" if auto_del else "Payment confirmed via Wallet. Processing delivery…"
+                }
 
-            return {
-                "ok": True,
-                "paid_with_wallet": True,
-                "order_id": new_order["order_id"],
-                "receipt_token": new_order["token"],
-                "amount": new_order["amount"],
-                "original_amount": new_order["original_amount"],
-                "discount": new_order["discount"],
-                "promo_code": new_order["promo_code"],
-                "status": new_order["status"],
-                "step": new_order["step"],
-                "remaining_balance": current_user["balance"],
-                "label": new_order["label"]
-            }
+                orders.insert(0, new_order)
+                if len(orders) > 500: orders[:] = orders[:500]
+                save_orders()
+                asyncio.create_task(send_telegram_paid_alert(new_order))
+                if auto_del:
+                    asyncio.create_task(notify_customer_order_completed(new_order))
+
+                return {
+                    "ok": True,
+                    "paid_with_wallet": True,
+                    "order_id": new_order["order_id"],
+                    "receipt_token": new_order["token"],
+                    "amount": new_order["amount"],
+                    "original_amount": new_order["original_amount"],
+                    "discount": new_order["discount"],
+                    "promo_code": new_order["promo_code"],
+                    "status": new_order["status"],
+                    "step": new_order["step"],
+                    "remaining_balance": current_user["balance"],
+                    "label": new_order["label"]
+                }
 
         # KHQR Checkout
         khqr_res = await create_khqrpay_order(amount, order_id)
@@ -2409,7 +2558,7 @@ async def create_order(request: Request):
         }
     except Exception as err:
         print("Create order error:", err)
-        return JSONResponse(status_code=500, content={"ok": False, "error": str(err)})
+        return JSONResponse(status_code=500, content={"ok": False, "error": "Unable to process order right now. Please try again."})
 
 @app.get("/api/order-status/{order_id}")
 async def get_order_status(order_id: str):
@@ -2420,58 +2569,62 @@ async def get_order_status(order_id: str):
     if order.get("khqrpay_id") and not order.get("paid") and order.get("status") not in ["completed", "expired"]:
         live = await check_khqrpay_status(order["khqrpay_id"])
         if live:
-            st = str(live.get("status", "")).lower()
-            if st in ["paid", "success", "completed"]:
-                order["paid"] = True
-                if order.get("type") == "wallet_topup":
-                    order["status"] = "completed"
-                    order["step"] = "delivered"
-                    order["delivered"] = True
-                    if not order.get("wallet_credited"):
-                        order["wallet_credited"] = True
-                        u = next((usr for usr in users if usr.get("id") == order.get("user_id")), None)
-                        if u:
-                            u["balance"] = round(float(u.get("balance", 0.0)) + float(order["amount"]), 2)
-                            save_users()
-                            wallet_transactions.insert(0, {
-                                "id": "wtx_" + secrets.token_hex(4),
-                                "user_id": u["id"],
-                                "type": "deposit",
-                                "amount": float(order["amount"]),
-                                "order_id": order["order_id"],
-                                "product": "Wallet Top-up",
-                                "date": datetime.now(timezone.utc).isoformat()
-                            })
-                            save_wallet_tx()
-                    order["label"] = f"Wallet successfully topped up (+${float(order['amount']):.2f} USD)"
-                else:
-                    order["status"] = "paid"
-                    auto_del = bool(settings.get("auto_deliver", False))
-                    order["step"] = "delivered" if auto_del else "sending"
-                    if auto_del:
-                        order["delivered"] = True
-                        order["status"] = "completed"
-                        order["label"] = "Payment confirmed & items delivered"
-                    else:
-                        order["delivered"] = False
-                        order["status"] = "paid"
-                        order["label"] = "Payment confirmed. Waiting for Admin to deliver Robux…"
-                    asyncio.create_task(send_telegram_paid_alert(order))
-                save_orders()
-            elif st == "scanned" and order.get("status") == "pending":
+            verified_paid, v_st = verify_khqr_bank_payment(live, float(order.get("amount", 0)))
+            if verified_paid:
+                async with _tx_lock:
+                    kid = str(order["khqrpay_id"])
+                    if not order.get("paid") and kid not in _credited_khqr_ids:
+                        _credited_khqr_ids.add(kid)
+                        order["paid"] = True
+                        if order.get("type") == "wallet_topup":
+                            order["status"] = "completed"
+                            order["step"] = "delivered"
+                            order["delivered"] = True
+                            if not order.get("wallet_credited"):
+                                order["wallet_credited"] = True
+                                u = next((usr for usr in users if usr.get("id") == order.get("user_id")), None)
+                                if u:
+                                    u["balance"] = round(float(u.get("balance", 0.0)) + float(order["amount"]), 2)
+                                    save_users()
+                                    wallet_transactions.insert(0, {
+                                        "id": "wtx_" + secrets.token_hex(4),
+                                        "user_id": u["id"],
+                                        "type": "deposit",
+                                        "amount": float(order["amount"]),
+                                        "order_id": order["order_id"],
+                                        "product": "Wallet Top-up",
+                                        "date": datetime.now(timezone.utc).isoformat()
+                                    })
+                                    save_wallet_tx()
+                            order["label"] = f"Wallet successfully topped up (+${float(order['amount']):.2f} USD)"
+                        else:
+                            order["status"] = "paid"
+                            auto_del = bool(settings.get("auto_deliver", False))
+                            order["step"] = "delivered" if auto_del else "sending"
+                            if auto_del:
+                                order["delivered"] = True
+                                order["status"] = "completed"
+                                order["label"] = "Payment confirmed & items delivered"
+                            else:
+                                order["delivered"] = False
+                                order["status"] = "paid"
+                                order["label"] = "Payment confirmed. Waiting for Admin to deliver Robux…"
+                            asyncio.create_task(send_telegram_paid_alert(order))
+                        save_orders()
+            elif v_st == "scanned" and order.get("status") == "pending":
                 order["status"] = "scanned"
                 order["step"] = "scanned"
                 order["label"] = "QR Scanned in ABA Mobile"
                 save_orders()
-            elif st == "expired":
+            elif v_st == "expired":
                 order["status"] = "expired"
                 order["step"] = "expired"
                 order["label"] = "Payment expired"
                 save_orders()
-            elif st == "failed":
+            elif v_st in ("failed", "amount_mismatch", "currency_mismatch"):
                 order["status"] = "failed"
                 order["step"] = "failed"
-                order["label"] = "Payment failed"
+                order["label"] = "Payment verification failed"
                 save_orders()
 
     # Expiry check
@@ -2530,7 +2683,10 @@ async def check_single_order(request: Request):
             "error": "Receipt token does not match. For privacy, use the token saved on this device or contact support."
         })
 
-    return {"ok": True, "order": order}
+    if token_match:
+        return {"ok": True, "order": order}
+    safe_order = {k: v for k, v in order.items() if k not in ("token", "khqrpay_id", "qr_url", "payment_url", "aba_deeplink")}
+    return {"ok": True, "order": safe_order}
 
 @app.post("/api/customer-orders")
 async def get_customer_orders(request: Request):
@@ -2545,6 +2701,8 @@ async def get_customer_orders(request: Request):
 
 @app.post("/api/simulate-pay")
 async def simulate_pay(request: Request):
+    if not verify_admin_session(request):
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Forbidden: Admin authentication required"})
     body = await request.json() if (await request.body()) else {}
     order_id = body.get("order_id")
     action = body.get("action")
@@ -2604,7 +2762,7 @@ async def simulate_pay(request: Request):
 
 @app.post("/api/admin/login")
 async def admin_login(request: Request):
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = get_admin_effective_ip(request) or "unknown"
     now_ts = time.time()
 
     # Check IP lockout (Brute-force protection)
