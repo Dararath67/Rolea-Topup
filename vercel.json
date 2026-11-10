@@ -1,21 +1,19 @@
 {
-  "framework": null,
-  "buildCommand": "",
   "outputDirectory": "public",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "http://51.81.90.228:35507/api/$1" },
     { "source": "/media/(.*)", "destination": "http://51.81.90.228:35507/media/$1" },
-    { "source": "/admin", "destination": "http://51.81.90.228:35507/admin" },
-    { "source": "/admin/(.*)", "destination": "http://51.81.90.228:35507/admin/$1" },
-    { "source": "/game/(.*)", "destination": "http://51.81.90.228:35507/game/$1" },
-    { "source": "/order/(.*)", "destination": "http://51.81.90.228:35507/order/$1" },
     { "source": "/games", "destination": "/index.html" },
+    { "source": "/game/(.*)", "destination": "/roblox.html" },
     { "source": "/spin", "destination": "/spin.html" },
     { "source": "/check-order", "destination": "/check_order.html" },
     { "source": "/my-account", "destination": "/my_account.html" },
     { "source": "/profile", "destination": "/my_account.html" },
     { "source": "/signin", "destination": "/signin.html" },
     { "source": "/login", "destination": "/signin.html" },
-    { "source": "/register", "destination": "/signin.html" }
+    { "source": "/register", "destination": "/signin.html" },
+    { "source": "/order/success/(.*)", "destination": "/receipt.html" },
+    { "source": "/admin", "destination": "/admin.html" },
+    { "source": "/admin/login", "destination": "/admin_login.html" }
   ]
 }
