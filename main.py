@@ -176,36 +176,13 @@ coupons = load_json(COUPONS_PATH, coupons)
 reviews = load_json(REVIEWS_PATH, reviews)
 wallet_transactions = load_json(WALLET_TX_PATH, wallet_transactions)
 inventory: Dict[str, Any] = load_json(INVENTORY_PATH, {
-    "manual_stock_enabled": True,
+    "manual_stock_enabled": False,
     "manual_stock_robux": 0,
     "low_stock_threshold": 5000,
     "telegram_alert_enabled": True,
     "last_alert_sent_at": None,
-    "bots": [
-        {
-            "id": "bot_main",
-            "name": "Rolea Payout Main Bot",
-            "cookie": "",
-            "group_id": "35291048",
-            "group_name": "Rolea Store Community",
-            "group_funds": 50000,
-            "user_robux": 1250,
-            "status": "active",
-            "last_synced": "2026-11-10 10:00",
-            "notes": "Primary Group Funds Pool"
-        }
-    ],
-    "history": [
-        {
-            "id": "inv_init_01",
-            "timestamp": "2026-11-10 10:00:00",
-            "type": "restock",
-            "amount": 50000,
-            "balance": 50000,
-            "order_id": "-",
-            "note": "Initial inventory pool configured (50,000 Robux)"
-        }
-    ]
+    "bots": [],
+    "history": []
 })
 
 def save_orders(): save_json(DB_PATH, orders)
@@ -2209,15 +2186,7 @@ async def get_live_proof():
             if len(live_list) >= 15:
                 break
 
-    if len(live_list) < 5:
-        now_ms = time.time()
-        seeds = [
-            {"order_id": "PR8912A0", "username": "Vann***", "game": "Roblox Robux Send", "package": "800 Robux", "amount": 10.00, "time": datetime.fromtimestamp(now_ms - 180, timezone.utc).isoformat()},
-            {"order_id": "PR7831B2", "username": "Soph***", "game": "TikTok SMM Services", "package": "1000 Followers", "amount": 6.00, "time": datetime.fromtimestamp(now_ms - 420, timezone.utc).isoformat()},
-            {"order_id": "PR6543C9", "username": "Kosa***", "game": "Roblox Robux Send", "package": "400 Robux", "amount": 5.00, "time": datetime.fromtimestamp(now_ms - 840, timezone.utc).isoformat()},
-            {"order_id": "PR9012D4", "username": "Chan***", "game": "Mobile Legends Diamonds", "package": "257 Diamonds", "amount": 3.75, "time": datetime.fromtimestamp(now_ms - 1320, timezone.utc).isoformat()},
-        ]
-        live_list.extend(seeds)
+    # Only return real paid orders (no fake seed entries)
 
     return {"ok": True, "live_proof": live_list}
 
@@ -3667,7 +3636,7 @@ async def admin_get_inventory():
         "is_low_stock": is_low,
         "orders_covered": orders_covered,
         "manual_stock_enabled": bool(inventory.get("manual_stock_enabled", True)),
-        "manual_stock_robux": int(inventory.get("manual_stock_robux", 50000)),
+        "manual_stock_robux": int(inventory.get("manual_stock_robux", 0)),
         "telegram_alert_enabled": bool(inventory.get("telegram_alert_enabled", True)),
         "bots": inventory.get("bots", []),
         "history": inventory.get("history", [])[:50]
