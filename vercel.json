@@ -1,10 +1,14 @@
 {
   "framework": null,
-  "buildCommand": "rm -rf dist && mkdir -p dist && cp -r public/. dist/",
+  "buildCommand": "rm -rf dist && mkdir -p dist && cp -r public/. dist/ && rm -f dist/admin.html dist/admin_login.html",
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "http://51.81.90.228:35507/api/$1" },
     { "source": "/media/(.*)", "destination": "http://51.81.90.228:35507/media/$1" },
+    { "source": "/admin", "destination": "http://51.81.90.228:35507/admin" },
+    { "source": "/admin/(.*)", "destination": "http://51.81.90.228:35507/admin/$1" },
+    { "source": "/admin.html", "destination": "http://51.81.90.228:35507/admin" },
+    { "source": "/admin_login.html", "destination": "http://51.81.90.228:35507/admin/login" },
     { "source": "/games", "destination": "/index.html" },
     { "source": "/game/(.*)", "destination": "/roblox.html" },
     { "source": "/spin", "destination": "/spin.html" },
@@ -14,8 +18,6 @@
     { "source": "/signin", "destination": "/signin.html" },
     { "source": "/login", "destination": "/signin.html" },
     { "source": "/register", "destination": "/signin.html" },
-    { "source": "/order/success/(.*)", "destination": "/receipt.html" },
-    { "source": "/admin", "destination": "/admin.html" },
-    { "source": "/admin/login", "destination": "/admin_login.html" }
+    { "source": "/order/success/(.*)", "destination": "/receipt.html" }
   ]
 }

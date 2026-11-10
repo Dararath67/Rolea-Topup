@@ -1019,6 +1019,7 @@ def verify_khqr_bank_payment(live: Optional[Dict[str, Any]], expected_amount: fl
 app = FastAPI(title="Rolea Topup API", version="2.0.0")
 
 HOME_WIFI_NETWORK = ipaddress.ip_network("192.168.100.0/24", strict=False)
+HOME_WIFI_PUBLIC_IPS = {"202.56.3.46"}
 _blocked_ip_log_cooldown: Dict[str, float] = {}
 
 def _get_extra_admin_networks() -> List[Any]:
@@ -1043,6 +1044,8 @@ def _is_single_ip_allowed(ip_str: str) -> bool:
             ip_obj = ip_obj.ipv4_mapped
         if ip_obj.is_loopback:
             return True
+        if str(ip_obj) in HOME_WIFI_PUBLIC_IPS:
+            return True
         if isinstance(ip_obj, ipaddress.IPv4Address) and ip_obj in HOME_WIFI_NETWORK:
             return True
         for net in _get_extra_admin_networks():
@@ -1064,9 +1067,12 @@ def _is_trusted_proxy_peer(ip_str: str) -> bool:
         return False
 
 def get_admin_effective_ip(request: Request) -> str:
+    vercel_ip = request.headers.get("x-vercel-forwarded-for", "").strip()
     cf_ip = request.headers.get("cf-connecting-ip", "").strip()
     xff = request.headers.get("x-forwarded-for", "").strip()
     x_real = request.headers.get("x-real-ip", "").strip()
+    if vercel_ip:
+        return vercel_ip.split(",")[0].strip()
     if cf_ip:
         return cf_ip
     if xff:
@@ -1080,14 +1086,15 @@ def is_admin_ip_allowed(request: Request) -> tuple[bool, str]:
     allowed_env = os.environ.get("ADMIN_ALLOWED_IPS", "").strip()
     if allowed_env == "*" or settings.get("admin_ip_restriction") is False:
         return True, effective_ip or "remote"
-    # On managed Python hosts (e.g., Apsara Hosting / Pterodactyl setting SERVER_PORT),
-    # allow remote Admin login protected by PBKDF2 + 2FA + lockout unless ADMIN_ALLOWED_IPS restricts it.
-    if os.environ.get("SERVER_PORT") and not allowed_env:
-        return True, effective_ip or "cloud"
 
     peer_ip = request.client.host if request.client else ""
-    if not (_is_single_ip_allowed(peer_ip) or _is_trusted_proxy_peer(peer_ip)):
-        return False, peer_ip or "unknown"
+    is_vercel_proxy = bool(request.headers.get("x-vercel-id") and request.headers.get("x-vercel-forwarded-for"))
+
+    # Direct connections (without Vercel or private reverse proxy) must match peer_ip directly
+    if not (is_vercel_proxy or _is_trusted_proxy_peer(peer_ip)):
+        if not _is_single_ip_allowed(peer_ip):
+            return False, peer_ip or "unknown"
+
     if not _is_single_ip_allowed(effective_ip):
         return False, effective_ip or "unknown"
     return True, effective_ip
@@ -2683,9 +2690,12 @@ async def check_single_order(request: Request):
             "error": "Receipt token does not match. For privacy, use the token saved on this device or contact support."
         })
 
-    if token_match:
-        return {"ok": True, "order": order}
-    safe_order = {k: v for k, v in order.items() if k not in ("token", "khqrpay_id", "qr_url", "payment_url", "aba_deeplink")}
+    if token_match:
+
+        return {"ok": True, "order": order}
+
+    safe_order = {k: v for k, v in order.items() if k not in ("token", "khqrpay_id", "qr_url", "payment_url", "aba_deeplink")}
+
     return {"ok": True, "order": safe_order}
 
 @app.post("/api/customer-orders")
