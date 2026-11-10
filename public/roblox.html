@@ -686,7 +686,8 @@ async function loadDynamicPackages() {
       document.title = `${g.name} · Rolea Topup`;
       const bannerImg = $("roblox-banner-img");
       if (bannerImg) {
-        bannerImg.src = g.banner || (G === 'roblox' ? '/media/banner_roblox_1794319177753.jpg' : '/media/banner_home_1794296823538.jpg');
+        bannerImg.src = g.banner || (G === 'roblox' ? '/media/banner_roblox_1794319177753.jpg' : '/media/banner_home_1794296823538.jpg');
+
         bannerImg.dataset.lockedByGame = '1';
         bannerImg.alt = `${g.name} Banner`;
       }
@@ -784,10 +785,7 @@ async function loadDynamicPackages() {
 loadDynamicPackages();
 
 fetch('/api/settings', { cache: 'no-store' }).then(r => r.json()).then(j => {
-  if (G === 'roblox' && j && j.roblox_banner) {
-    const b = $("roblox-banner-img");
-    if (b && !b.dataset.lockedByGame && b.getAttribute('src') !== j.roblox_banner) b.src = j.roblox_banner;
-  }
+  // Game banner is loaded exclusively via /api/game/${G} to prevent flicker
   if (j && j.telegram_handle) {
     const handle = j.telegram_handle.replace(/^@/, '');
     document.querySelectorAll('a[href*="t.me/"]').forEach(a => {
