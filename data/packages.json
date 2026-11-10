@@ -1,0 +1,123 @@
+[
+  {
+    "id": "6aedea450bc5af89ab0ba8b1",
+    "game": "roblox",
+    "robux": 50.0,
+    "price": 0.05,
+    "name": "50 Robux",
+    "ok": 1,
+    "badge": "STARTER",
+    "icon": "/media/rolea-logo.webp",
+    "in_stock": true
+  },
+  {
+    "id": "6aee1ad13f2228cb3063790e",
+    "game": "roblox",
+    "robux": 100,
+    "price": 1,
+    "name": "100 Robux",
+    "ok": 1,
+    "badge": "POPULAR",
+    "icon": "/media/rolea-logo.webp",
+    "in_stock": true
+  },
+  {
+    "id": "6aeecd78ad6c8e40c695d3f4",
+    "game": "roblox",
+    "robux": 200,
+    "price": 2,
+    "name": "200 Robux",
+    "ok": 1,
+    "badge": "HOT",
+    "icon": "/media/rolea-logo.webp",
+    "in_stock": true
+  },
+  {
+    "id": "6aeedcb28916fe345e816ddd",
+    "game": "roblox",
+    "robux": 300,
+    "price": 2.9,
+    "name": "300 Robux",
+    "ok": 1,
+    "badge": "SAVE 3%",
+    "icon": "/media/rolea-logo.webp",
+    "in_stock": true
+  },
+  {
+    "id": "6af086a373d46597668e1216",
+    "game": "roblox",
+    "robux": 400,
+    "price": 4,
+    "name": "400 Robux",
+    "ok": 1,
+    "badge": "",
+    "icon": "/media/rolea-logo.webp",
+    "in_stock": true
+  },
+  {
+    "id": "6aeecd78ad6c8e40c695d3f5",
+    "game": "roblox",
+    "robux": 500,
+    "price": 4.75,
+    "name": "500 Robux",
+    "ok": 1,
+    "badge": "BEST VALUE",
+    "icon": "/media/rolea-logo.webp",
+    "in_stock": true
+  },
+  {
+    "id": "6aeecd78ad6c8e40c695d3f6",
+    "game": "roblox",
+    "robux": 1000,
+    "price": 9.5,
+    "name": "1000 Robux",
+    "ok": 1,
+    "badge": "VIP SAVER",
+    "icon": "/media/rolea-logo.webp",
+    "in_stock": true
+  },
+  {
+    "id": "6aeecd78ad6c8e40c695d3f7",
+    "game": "roblox",
+    "robux": 2000,
+    "price": 19,
+    "name": "2000 Robux",
+    "ok": 1,
+    "badge": "MEGA PACK",
+    "icon": "/media/rolea-logo.webp",
+    "in_stock": true
+  },
+  {
+    "id": "tiktok_100",
+    "game": "tiktok",
+    "robux": 100,
+    "price": 0.8,
+    "name": "100 Followers",
+    "ok": 1,
+    "badge": "STARTER",
+    "icon": "/media/tiktok-thumb.svg",
+    "in_stock": true
+  },
+  {
+    "id": "tiktok_500",
+    "game": "tiktok",
+    "robux": 500,
+    "price": 3.5,
+    "name": "500 Followers",
+    "ok": 1,
+    "badge": "POPULAR",
+    "icon": "/media/tiktok-thumb.svg",
+    "in_stock": true
+  },
+  {
+    "id": "tiktok_1000",
+    "game": "tiktok",
+    "robux": 1000,
+    "price": 6,
+    "name": "1000 Followers",
+    "ok": 1,
+    "badge": "HOT",
+    "icon": "/media/tiktok-thumb.svg",
+    "in_stock": true
+  }
+]

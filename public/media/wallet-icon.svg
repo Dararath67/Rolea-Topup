@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <defs>
+    <linearGradient id="roleaWalletGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" rx="14" fill="url(#roleaWalletGrad)"/>
+  <path d="M38 17H12a4 4 0 0 0-4 4v16a4 4 0 0 0 4 4h26a4 4 0 0 0 4-4V21a4 4 0 0 0-4-4z" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M32 11H16a4 4 0 0 0-4 4v2h24v-2a4 4 0 0 0-4-4z" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="29" y="24" width="9" height="7" rx="2" fill="#ffffff"/>
+  <circle cx="33.5" cy="27.5" r="1.2" fill="#059669"/>
+</svg>

@@ -1,0 +1,1130 @@
+<!doctype html>
+<html lang="km">
+<head>
+  <script src="/page_loader.js?v=20261110_v1"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#10234b">
+  <title>Roblox Robux Send · Rolea Topup</title>
+  <meta name="description" content="Roblox Robux Send with username verification and KHQR payment.">
+  <link rel="icon" href="/favicon.png" type="image/png" sizes="64x64">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+Khmer:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    /* Interactive Simulator floating bar inside QR modal */
+    .sim-bar {
+      margin-top: 14px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: #f8fafc;
+      border: 1px dashed #cbd5e1;
+      text-align: left;
+    }
+    .sim-bar-title {
+      font-size: 11px;
+      font-weight: 800;
+      color: #64748b;
+      letter-spacing: .5px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .sim-btns {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .sim-btn {
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      color: #1e293b;
+      transition: all .15s ease;
+    }
+    .sim-btn:hover {
+      background: #f1f5f9;
+      border-color: #94a3b8;
+    }
+    .sim-btn.pay-btn {
+      background: #22c55e;
+      color: #fff;
+      border-color: #16a34a;
+    }
+    .sim-btn.pay-btn:hover {
+      background: #16a34a;
+    }
+  </style>
+</head>
+<body>
+
+<span id="top"></span>
+
+<!-- Desktop Navigation Header -->
+<nav class="desktop-nav" id="dn">
+  <a class="brand" href="/">
+    <img class="brand-logo" src="/media/logo.webp" alt="Rolea Topup">
+    <span class="brand-copy"><span class="brand-name">Rolea Topup</span></span>
+  </a>
+  <form class="nav-search" onsubmit="return false">
+    <span>
+      <svg class="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>
+      </svg>
+    </span>
+    <input type="text" class="gq" placeholder="Search products..." autocomplete="off" aria-label="Search games">
+  </form>
+  <div class="nav-links">
+    <a href="/">Home</a>
+    <a href="/#games">Products</a>
+    <a href="/my-account">My Account</a>
+    <a href="/check-order">Check order</a>
+    <a href="#footer">Contact</a>
+  </div>
+</nav>
+
+<div class="app">
+  <header class="app-header">
+    <a class="brand" href="/">
+      <img class="brand-logo" src="/media/logo.webp" alt="Rolea Topup">
+      <span class="brand-copy"><span class="brand-name">Rolea Topup</span></span>
+    </a>
+    <div class="header-actions">
+      
+    </div>
+  </header>
+
+  <!-- Breadcrumbs -->
+  <nav class="breadcrumb">
+    <a href="/">Home</a><span class="sep">/</span>
+    <a href="/#games">Games</a><span class="sep">/</span>
+    <span class="current">Roblox Robux Send</span>
+  </nav>
+
+  <!-- Hero Banner -->
+  <div class="game-banner">
+    <img id="roblox-banner-img" src="/media/roblox-banner.webp" alt="Roblox Robux Send Banner">
+  </div>
+
+  <!-- Hero Header -->
+  <div class="game-hero">
+    <div class="g-thumb">
+      <img src="/media/roblox-thumb.webp" alt="Roblox Robux Send">
+    </div>
+    <div>
+      <h1>Roblox Robux Send</h1>
+      <div class="g-badges">
+        <span class="g-badge">
+          <svg class="i" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M13 2L4 14h7l-1 8 9-12h-7z"/>
+          </svg>
+          Order tracking
+        </span>
+        <span class="g-badge">
+          <svg class="i" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>
+          </svg>
+          Safe payment
+        </span>
+        <span class="g-badge">
+          <svg class="i" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>
+          </svg>
+          <span id="badge-verify-text">Username verification</span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top-up Flow Form -->
+  <div class="buy-wrap">
+    <div class="buy-main">
+
+      <!-- Step 1: Roblox Username -->
+      <section class="step">
+        <div class="step-head">
+          <span class="step-num">1</span>
+          <h4 id="step1-title">Enter your account</h4>
+        </div>
+        <div class="row">
+          <input type="text" id="pid" inputmode="text" maxlength="25" placeholder="Roblox Username (e.g. Cambodia546)" autocomplete="off">
+        </div>
+        <p style="margin-top:12px">
+          <button class="btn sm" id="chk" type="button">Check username</button>
+        </p>
+        <div class="msg" id="umsg"></div>
+        <div class="verified-profile" id="verified-profile" hidden>
+          <img id="user-avatar" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E" alt="Roblox avatar">
+          <div>
+            <b id="verified-display"></b>
+            <small id="verified-user"></small>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 2: Choose Denomination -->
+      <section class="step">
+        <div class="step-head">
+          <span class="step-num">2</span>
+          <h4>Choose a top-up</h4>
+        </div>
+        <div class="denoms">
+          <div class="denom" data-id="6aedea450bc5af89ab0ba8b1" data-robux="50" data-price="0.60" data-name="50 Robux" data-ok="1">
+            <span class="d-check"></span>
+            <span class="d-ico"><img class="pico" src="/media/rolea-logo.webp" alt="50 Robux" width="60" height="60"></span>
+            <div class="d-name">50 Robux</div>
+            <div class="d-price">$0.60</div>
+          </div>
+
+          <div class="denom" data-id="6aee1ad13f2228cb3063790e" data-robux="100" data-price="1.00" data-name="100 Robux" data-ok="1">
+            <span class="d-check"></span>
+            <span class="d-ico"><img class="pico" src="/media/rolea-logo.webp" alt="100 Robux" width="60" height="60"></span>
+            <div class="d-name">100 Robux</div>
+            <div class="d-price">$1.00</div>
+          </div>
+
+          <div class="denom" data-id="6aeecd78ad6c8e40c695d3f4" data-robux="200" data-price="2.00" data-name="200 Robux" data-ok="1">
+            <span class="d-check"></span>
+            <span class="d-ico"><img class="pico" src="/media/rolea-logo.webp" alt="200 Robux" width="60" height="60"></span>
+            <div class="d-name">200 Robux</div>
+            <div class="d-price">$2.00</div>
+          </div>
+
+          <div class="denom" data-id="6aeedcb28916fe345e816ddd" data-robux="300" data-price="2.90" data-name="300 Robux" data-ok="1">
+            <span class="d-check"></span>
+            <span class="d-ico"><img class="pico" src="/media/rolea-logo.webp" alt="300 Robux" width="60" height="60"></span>
+            <div class="d-name">300 Robux</div>
+            <div class="d-price">$2.90</div>
+          </div>
+
+          <div class="denom" data-id="6af086a373d46597668e1216" data-robux="400" data-price="4.00" data-name="400 Robux" data-ok="1">
+            <span class="d-check"></span>
+            <span class="d-ico"><img class="pico" src="/media/rolea-logo.webp" alt="400 Robux" width="60" height="60"></span>
+            <div class="d-name">400 Robux</div>
+            <div class="d-price">$4.00</div>
+          </div>
+
+          <div class="denom" data-id="6aeecd78ad6c8e40c695d3f5" data-robux="500" data-price="4.75" data-name="500 Robux" data-ok="1">
+            <span class="d-check"></span>
+            <span class="d-ico"><img class="pico" src="/media/rolea-logo.webp" alt="500 Robux" width="60" height="60"></span>
+            <div class="d-name">500 Robux</div>
+            <div class="d-price">$4.75</div>
+          </div>
+
+          <div class="denom" data-id="6aeecd78ad6c8e40c695d3f6" data-robux="1000" data-price="9.50" data-name="1000 Robux" data-ok="1">
+            <span class="d-check"></span>
+            <span class="d-ico"><img class="pico" src="/media/rolea-logo.webp" alt="1000 Robux" width="60" height="60"></span>
+            <div class="d-name">1000 Robux</div>
+            <div class="d-price">$9.50</div>
+          </div>
+
+          <div class="denom" data-id="6aeecd78ad6c8e40c695d3f7" data-robux="2000" data-price="19.00" data-name="2000 Robux" data-ok="1">
+            <span class="d-check"></span>
+            <span class="d-ico"><img class="pico" src="/media/rolea-logo.webp" alt="2000 Robux" width="60" height="60"></span>
+            <div class="d-name">2000 Robux</div>
+            <div class="d-price">$19.00</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 3: Payment Method -->
+      <section class="step">
+        <div class="step-head">
+          <span class="step-num">3</span>
+          <h4>Payment Method</h4>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          
+          <!-- Option 1: ABA KHQR -->
+          <div class="pay pay-method-card active" id="pay-method-khqr" onclick="selectPayMethod('khqr')" style="cursor:pointer;border:2px solid #0056b3;border-radius:14px;padding:12px;background:#f0f7ff;display:flex;align-items:center;gap:12px;transition:all 0.2s">
+            <img src="/media/aba-khqr.webp" alt="ABA KHQR" style="width:40px;height:40px;border-radius:8px;object-fit:contain">
+            <div style="flex:1">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <b style="color:#0f172a;font-size:13px">ABA KHQR · Scan to Pay</b>
+                <span style="background:#0056b3;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px">Instant QR</span>
+              </div>
+              <p style="font-size:11px;color:#64748b;margin:2px 0 0">Pay with ABA Mobile, Bakong, or any Cambodian bank</p>
+            </div>
+          </div>
+
+          <!-- Option 2: Rolea Customer Wallet (Visible only when registered/logged in) -->
+          <div class="pay pay-method-card" id="pay-method-wallet" onclick="selectPayMethod('wallet')" style="display:none;cursor:pointer;border:1.5px solid #e2e8f0;border-radius:14px;padding:12px;background:#fff;align-items:center;gap:14px;transition:all 0.2s">
+            <img src="/media/wallet-icon.svg" alt="Rolea Wallet" style="width:44px;height:44px;border-radius:12px;box-shadow:0 4px 12px rgba(16,185,129,0.25);flex-shrink:0">
+            <div style="flex:1">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                <b style="color:#0f172a;font-size:13px">Rolea Wallet (1-Click Pay)</b>
+                <div id="wallet-action-slot" style="display:flex;align-items:center;gap:6px">
+                  <span id="wallet-balance-badge" style="background:#10b981;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:6px;transition:all 0.2s">Balance: $0.00</span>
+                </div>
+              </div>
+              <p style="font-size:11px;color:#64748b;margin:3px 0 0" id="wallet-balance-desc">Instant delivery from your wallet balance without scanning</p>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Order Summary Aside -->
+    <aside class="summary">
+      <h4>Order summary</h4>
+      <div class="sum-row"><span>Game</span><b id="sg">Roblox Robux Send</b></div>
+      <div class="sum-row"><span id="su-label">Player</span><b id="su">—</b></div>
+      <div class="sum-row"><span>Package</span><b id="sp">—</b></div>
+
+      <!-- Promo Code Box -->
+      <div style="margin-top:14px;margin-bottom:14px;padding:12px;background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:12px">
+        <label style="display:block;font-size:11px;font-weight:700;color:#475569;margin-bottom:6px">Have a Promo Code / Voucher?</label>
+        <div style="display:flex;gap:6px">
+          <input type="text" id="input-promo" placeholder="e.g. WELCOME10" style="flex:1;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:12px;text-transform:uppercase;font-weight:600">
+          <button type="button" id="btn-apply-promo" onclick="applyPromoCode()" style="padding:8px 12px;background:#0056b3;color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer">Apply</button>
+        </div>
+        <div id="promo-status" style="font-size:11px;font-weight:600;margin-top:6px;display:none"></div>
+      </div>
+
+      <div class="sum-row" id="row-discount" style="display:none;color:#10b981"><span>Promo Discount</span><b id="sdiscount">-$0.00</b></div>
+      <div class="sum-total"><span>Total</span><b id="stt">$0.00</b></div>
+      <label class="chk" id="agree-label">
+        <input type="checkbox" id="agree"> <span id="agree-text">I agree to the terms and confirm my Roblox username is correct.</span>
+      </label>
+      <button class="btn big" id="pay" type="button" disabled>Pay now</button>
+      <div class="msg err" id="pmsg"></div>
+    </aside>
+  </div>
+
+  <!-- KHQR Payment Modal Dialog (#ov) -->
+  <div id="ov">
+    <div class="sheet qr-sheet" role="dialog" aria-modal="true" aria-labelledby="payment-title">
+      <div class="payment-dialog-layout">
+        
+        <!-- Left Pane: QR Code & Status -->
+        <section class="payment-qr-pane" aria-label="KHQR payment">
+          <div class="khqr-head">
+            <span class="khqr-tag">SECURE KHQR PAYMENT</span>
+            <h4 id="payment-title">KHQR PAY</h4>
+            <div class="amt" id="qa">$0.00</div>
+            <div class="timer" id="qt" aria-live="off">--:--</div>
+          </div>
+          
+          <div class="khqr-display" id="qr-frame" aria-label="KHQR code">
+            <div id="qbusy" class="qr-loading" role="status">
+              <span class="qr-spinner" aria-hidden="true"></span>
+              <span id="qbusy-text">Creating your secure QR…</span>
+            </div>
+            <img class="qr" id="qi" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E" alt="Scan this KHQR code to pay" decoding="async" fetchpriority="high" hidden>
+          </div>
+          
+          <div class="khqr-actions" id="qrow" hidden>
+            <span>Scan with ABA or any KHQR banking app</span> · 
+            <a id="qd" href="#" download="rolea-topup-khqr.png">Save QR</a>
+          </div>
+
+          <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px;align-items:center;">
+            <a id="qaba" class="aba-deep-btn" href="#" target="_blank" rel="noopener noreferrer" style="display:none;background:#005c8a;color:#ffffff;font-size:12.5px;font-weight:700;padding:8px 16px;border-radius:10px;text-decoration:none;align-items:center;gap:6px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+              Open in ABA Mobile App
+            </a>
+            <p class="khqr-hosted" style="margin:0">
+              <a id="qopen" href="#" target="_blank" rel="noopener noreferrer" hidden>Open secure KHQR checkout ↗</a>
+            </p>
+          </div>
+
+          <div class="payment-status-line" aria-live="polite">
+            <span class="st pending" id="qs">Preparing</span>
+            <span id="slabel">Creating secure KHQR…</span>
+          </div>
+        </section>
+
+        <!-- Right Pane: Order Summary & Player Account -->
+        <section class="payment-summary-pane" aria-label="Order details">
+          <div class="payment-summary-heading">
+            <span class="payment-summary-eyebrow">YOUR ORDER</span>
+            <h3 id="modal-summary-game-title">Robux Send</h3>
+            <p id="modal-summary-game-hint">Check your account before completing payment.</p>
+          </div>
+
+          <div class="payment-order-card">
+            <div class="payment-order-title">ORDER DETAILS</div>
+            <div class="payment-profile">
+              <span class="payment-profile-avatar">
+                <img id="qavatar" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E" alt="Player avatar" hidden decoding="async">
+                <span id="qavatar-fallback">P</span>
+              </span>
+              <div class="payment-profile-text">
+                <b id="qdisplay">Player</b>
+                <span id="quser">@username</span>
+                <a id="qprofile" target="_blank" rel="noopener noreferrer" hidden>View profile</a>
+              </div>
+              <div class="payment-robux">
+                <b id="qrobux">—</b>
+                <span id="qcurrency-unit">Units</span>
+              </div>
+            </div>
+
+            <div class="payment-order-foot"><span>Order ID</span><b id="qo">Preparing…</b></div>
+            <div class="payment-order-foot"><span>Payment</span><b id="qpay">Waiting</b></div>
+            <div class="payment-order-foot"><span>Delivery</span><b id="qdel">Not yet</b></div>
+          </div>
+
+          <div class="status-box wait payment-note" id="sbox">
+            <span id="snote">Please do not close or retry while the payment QR is being created.</span>
+          </div>
+
+          <p class="payment-security-hint" id="payment-security-text">Items are sent only after payment is confirmed.</p>
+          <a id="q-tg-track" href="/check-order" style="display:none;margin-top:10px;padding:9px 14px;background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:10px;text-decoration:none;font-size:12px;font-weight:700;align-items:center;justify-content:center;gap:6px">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>
+            Track Order Status Live
+          </a>
+          <button class="btn sm dark payment-close" id="qc" type="button">Close payment</button>
+        </section>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="site-footer" id="footer">
+    <div class="footer-inner">
+      <div>
+        <a class="brand" href="/">
+          <img class="brand-logo" src="/media/logo.webp" alt="Rolea Topup">
+          <span class="brand-copy"><span class="brand-name">Rolea Topup</span></span>
+        </a>
+        <p style="margin-top:14px">GAME TOPUP & SERVICES SMM. Choose your product and pay securely with KHQR.</p>
+      </div>
+      <div>
+        <h5>Help</h5>
+        <ul>
+          <li><a href="/#games">All products</a></li>
+          <li><a href="/check-order">Check my order</a></li>
+        </ul>
+      </div>
+      <div>
+        <h5>Get in touch</h5>
+        <ul>
+          <li>
+            <svg class="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 3L10 14"/><path d="M21 3l-7 18-4-7-7-4z"/>
+            </svg>
+            <a href="https://t.me/putireach" target="_blank" rel="noopener">Telegram support</a>
+          </li>
+          <li>Support 24/7</li>
+          <li>Order processing after payment confirmation</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© Rolea Topup. All rights reserved.</span>
+      <a href="#top">Back to top</a>
+    </div>
+  </footer>
+</div>
+
+<!-- Mobile Bottom Navigation -->
+<nav class="bottom-nav">
+  <a class="nav-item" href="/">
+    <svg class="i" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>
+    </svg>
+    Home
+  </a>
+  <a class="nav-item" href="/spin">
+    <svg class="i" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 3"/>
+    </svg>
+    Spin
+  </a>
+  <a class="nav-item" href="/check-order">
+    <svg class="i" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>
+    </svg>
+    Orders
+  </a>
+  <a class="nav-item" href="/signin" id="nav-item-account">
+    <svg class="i" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+    </svg>
+    Account
+  </a>
+</nav>
+
+<script src="/order_history.js"></script>
+<script>
+const pathParts = window.location.pathname.split('/').filter(Boolean);
+const G = (pathParts[0] === 'game' && pathParts[1]) ? pathParts[1] : 'roblox';
+const $ = i => document.getElementById(i);
+const CK = '<svg class="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>';
+let pkg = null, uname = "", off = 0, cur = null, tm = null, poll = null, verifiedProfile = null, payPending = false, receiptToken = "", leavingForReceipt = false;
+
+let selectedPaymentMethod = 'khqr';
+let appliedPromoData = null;
+let currentPackagePrice = 0;
+
+function selectPayMethod(method) {
+  selectedPaymentMethod = method;
+  const khqrEl = document.getElementById('pay-method-khqr');
+  const wltEl = document.getElementById('pay-method-wallet');
+  if (khqrEl) {
+    khqrEl.style.borderColor = method === 'khqr' ? '#0056b3' : '#e2e8f0';
+    khqrEl.style.background = method === 'khqr' ? '#f0f7ff' : '#fff';
+  }
+  if (wltEl) {
+    wltEl.style.borderColor = method === 'wallet' ? '#10b981' : '#e2e8f0';
+    wltEl.style.background = method === 'wallet' ? '#ecfdf5' : '#fff';
+  }
+  const user = window.RoleaAuth ? window.RoleaAuth.getUser() : null;
+  if (method === 'wallet' && !user) {
+    if (window.RoleaAuth) window.RoleaAuth.openAuthModal('login');
+  }
+  updatePayButtonText();
+}
+
+function updatePayButtonText() {
+  const user = window.RoleaAuth ? window.RoleaAuth.getUser() : null;
+  const wltEl = document.getElementById('pay-method-wallet');
+  const slot = document.getElementById('wallet-action-slot');
+  const desc = document.getElementById('wallet-balance-desc');
+  const finalPrice = appliedPromoData ? appliedPromoData.new_amount : currentPackagePrice;
+
+  if (wltEl) {
+    if (user) {
+      wltEl.style.display = 'flex';
+      if (slot) {
+        const bal = Number(user.balance || 0);
+        const isEnough = bal >= finalPrice && finalPrice > 0;
+        slot.innerHTML = `
+          <span id="wallet-balance-badge" style="background:${isEnough ? '#ecfdf5' : '#fef2f2'};color:${isEnough ? '#059669' : '#dc2626'};border:1px solid ${isEnough ? '#a7f3d0' : '#fecaca'};font-size:12px;font-weight:800;padding:3px 10px;border-radius:8px">
+            Balance: $${bal.toFixed(2)} USD
+          </span>
+          <button type="button" onclick="event.stopPropagation(); if (window.RoleaAuth) window.RoleaAuth.openWalletModal();" style="background:#10b981;color:#fff;border:none;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer" title="Deposit funds">
+            + Top Up
+          </button>
+        `;
+      }
+      if (desc) {
+        const bal = Number(user.balance || 0);
+        const isEnough = bal >= finalPrice && finalPrice > 0;
+        desc.innerHTML = `<span style="color:#0f172a;font-weight:700">Logged in as @${user.username}</span> · ${isEnough ? '<span style="color:#059669;font-weight:600">Ready for instant 1-click checkout</span>' : '<span style="color:#dc2626;font-weight:600">Balance too low for this item</span>'}`;
+      }
+    } else {
+      // User NOT logged in: completely hide Rolea Wallet payment option
+      wltEl.style.display = 'none';
+      if (selectedPaymentMethod === 'wallet') {
+        selectedPaymentMethod = 'khqr';
+        const khqrEl = document.getElementById('pay-method-khqr');
+        if (khqrEl) {
+          khqrEl.style.borderColor = '#0056b3';
+          khqrEl.style.background = '#f0f7ff';
+        }
+      }
+    }
+  }
+
+  const payBtn = $("pay");
+  if (!payBtn) return;
+
+  if (selectedPaymentMethod === 'wallet') {
+    if (!user) {
+      payBtn.textContent = `Pay now ($${finalPrice.toFixed(2)})`;
+    } else if (user.balance < finalPrice) {
+      payBtn.textContent = `Insufficient Wallet ($${user.balance.toFixed(2)}) - Top up`;
+    } else {
+      payBtn.textContent = `Pay from Wallet ($${finalPrice.toFixed(2)})`;
+    }
+  } else {
+    payBtn.textContent = `Pay now ($${finalPrice.toFixed(2)})`;
+  }
+}
+
+// Listen for auth changes
+window.addEventListener('rolea-auth-change', (e) => {
+  updatePayButtonText();
+});
+
+// Run immediate check when page loads
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', updatePayButtonText);
+} else {
+  updatePayButtonText();
+}
+setTimeout(updatePayButtonText, 300);
+setTimeout(updatePayButtonText, 1000);
+
+async function applyPromoCode() {
+  const code = $("input-promo").value.trim();
+  const statusEl = $("promo-status");
+  if (!code) {
+    statusEl.style.display = 'block';
+    statusEl.style.color = '#dc2626';
+    statusEl.textContent = 'Please enter a promo code';
+    return;
+  }
+  if (!currentPackagePrice) {
+    statusEl.style.display = 'block';
+    statusEl.style.color = '#dc2626';
+    statusEl.textContent = 'Please choose a package first';
+    return;
+  }
+
+  statusEl.style.display = 'block';
+  statusEl.style.color = '#64748b';
+  statusEl.textContent = 'Checking voucher code…';
+
+  try {
+    const res = await fetch('/api/promo/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code, amount: currentPackagePrice })
+    });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      appliedPromoData = j;
+      statusEl.style.color = '#10b981';
+      statusEl.textContent = `Applied! ${j.description} (-$${j.discount.toFixed(2)})`;
+      $("row-discount").style.display = 'flex';
+      $("sdiscount").textContent = `-$${j.discount.toFixed(2)}`;
+      $("stt").innerHTML = `<del style="color:#94a3b8;font-size:13px;font-weight:500;margin-right:6px">$${currentPackagePrice.toFixed(2)}</del> $${j.new_amount.toFixed(2)}`;
+      updatePayButtonText();
+    } else {
+      appliedPromoData = null;
+      statusEl.style.color = '#dc2626';
+      statusEl.textContent = j.error || 'Invalid promo code';
+      $("row-discount").style.display = 'none';
+      $("stt").textContent = '$' + currentPackagePrice.toFixed(2);
+      updatePayButtonText();
+    }
+  } catch (err) {
+    statusEl.style.color = '#dc2626';
+    statusEl.textContent = 'Network error checking coupon';
+  }
+}
+
+function post(u, b) {
+  const headers = { "Content-Type": "application/json" };
+  if (window.RoleaAuth && window.RoleaAuth.getAuthHeaders) {
+    Object.assign(headers, window.RoleaAuth.getAuthHeaders());
+  }
+  return fetch(u, {
+    method: "POST",
+    headers: headers,
+    body: JSON.stringify(b)
+  }).then(r => r.json().then(j => ({ ok: r.ok, j })));
+}
+
+function sum(e) {
+  if (e) {
+    currentPackagePrice = parseFloat(e.dataset.price) || 0;
+    $("sp").textContent = e.dataset.name;
+    if (appliedPromoData) {
+      $("stt").innerHTML = `<del style="color:#94a3b8;font-size:13px;font-weight:500;margin-right:6px">$${currentPackagePrice.toFixed(2)}</del> $${appliedPromoData.new_amount.toFixed(2)}`;
+    } else {
+      $("stt").textContent = "$" + currentPackagePrice.toFixed(2);
+    }
+    updatePayButtonText();
+  }
+  $("su").textContent = uname || $("pid").value.trim() || "—";
+}
+
+function ready() {
+  if (!$("pay")) return;
+  if (G === 'tiktok') {
+    const val = $("pid").value.trim();
+    uname = val.length > 3 ? val : "";
+  }
+  sum();
+  $("pay").disabled = !(pkg && uname && $("pid").value.trim() && $("agree").checked);
+}
+
+// Denominations selection
+function bindDenoms() {
+  document.querySelectorAll(".denom").forEach(e => e.onclick = () => {
+    if (e.dataset.ok !== "1") return;
+    document.querySelectorAll(".denom").forEach(x => x.classList.remove("sel"));
+    e.classList.add("sel");
+    pkg = e.dataset.id;
+    sum(e);
+    ready();
+  });
+}
+bindDenoms();
+
+async function loadDynamicPackages() {
+  try {
+    const [resPkgs, resGame] = await Promise.all([
+      fetch('/api/packages?game=' + G).then(r => r.json()),
+      fetch('/api/game/' + G).then(r => r.json()).catch(() => null)
+    ]);
+
+    if (resGame && resGame.ok && resGame.game) {
+      const g = resGame.game;
+      document.title = `${g.name} · Rolea Topup`;
+      const bannerImg = $("roblox-banner-img");
+      if (bannerImg) {
+        bannerImg.src = g.banner || (G === 'roblox' ? '/media/roblox-banner.webp' : '/media/banner1.webp');
+        bannerImg.alt = `${g.name} Banner`;
+      }
+      const heroThumb = document.querySelector('.g-thumb img');
+      if (heroThumb && g.logo) heroThumb.src = g.logo;
+      const heroTitle = document.querySelector('.game-hero h1');
+      if (heroTitle) heroTitle.textContent = g.name;
+      const breadcrumb = document.querySelector('.current');
+      if (breadcrumb) breadcrumb.textContent = g.name;
+      const summaryGame = $("sg");
+      if (summaryGame) summaryGame.textContent = g.name;
+
+      if ($("modal-summary-game-title")) $("modal-summary-game-title").textContent = g.name;
+      if ($("modal-summary-game-hint")) $("modal-summary-game-hint").textContent = `Check your ${g.name} account before completing payment.`;
+      if ($("qcurrency-unit")) $("qcurrency-unit").textContent = g.unit || 'Units';
+      if ($("payment-security-text")) $("payment-security-text").textContent = `${g.unit || 'Items'} are sent only after payment is confirmed.`;
+
+      const step1Title = $("step1-title");
+      const chkBtnWrap = $("chk") ? $("chk").parentElement : null;
+      const agreeText = $("agree-text");
+      const suLabel = $("su-label");
+      const badgeVerify = $("badge-verify-text");
+      const input = $("pid");
+
+      if (G === 'tiktok') {
+        if (step1Title) step1Title.textContent = "Enter your link Video";
+        if (input) {
+          input.placeholder = "Enter your TikTok Video link (e.g. https://vt.tiktok.com/...)";
+          input.maxLength = 500;
+        }
+        if (chkBtnWrap) chkBtnWrap.style.display = "none";
+        if (agreeText) agreeText.textContent = "I agree to the terms and confirm my TikTok video link is correct.";
+        if (suLabel) suLabel.textContent = "Video Link";
+        if (badgeVerify) badgeVerify.textContent = "Instant Video Delivery";
+        if ($("modal-summary-game-hint")) $("modal-summary-game-hint").textContent = "Check your TikTok video link before completing payment.";
+      } else {
+        if (step1Title) step1Title.textContent = "Enter your account";
+        if (input) {
+          if (G === 'mlbb') input.placeholder = "Enter MLBB User ID (e.g. 12345678)";
+          else if (G === 'freefire') input.placeholder = "Enter Free Fire Player ID (UID)";
+          else input.placeholder = "Roblox Username (e.g. Cambodia546)";
+          input.maxLength = 25;
+        }
+        if (chkBtnWrap) chkBtnWrap.style.display = "block";
+        if (agreeText) agreeText.textContent = "I agree to the terms and confirm my Roblox username is correct.";
+        if (suLabel) suLabel.textContent = "Player";
+        if (badgeVerify) badgeVerify.textContent = "Username verification";
+      }
+    }
+
+    if (resPkgs && resPkgs.ok && Array.isArray(resPkgs.packages) && resPkgs.packages.length > 0) {
+      const container = document.querySelector('.denoms');
+      if (!container) return;
+      container.innerHTML = '';
+      resPkgs.packages.forEach(p => {
+        const inStock = p.in_stock !== false && p.in_stock !== 0;
+        const d = document.createElement('div');
+        d.className = 'denom' + (inStock ? '' : ' out-of-stock');
+        d.dataset.id = p.id;
+        d.dataset.robux = p.robux;
+        d.dataset.price = p.price;
+        d.dataset.name = p.name;
+        d.dataset.ok = p.ok !== 0 ? "1" : "0";
+        d.dataset.inStock = inStock ? "1" : "0";
+        if (p.ok === 0) d.style.opacity = '0.5';
+        if (!inStock) {
+          d.style.opacity = '0.55';
+          d.style.cursor = 'not-allowed';
+          d.style.position = 'relative';
+        }
+        d.innerHTML = `
+          ${!inStock ? '<span style="position:absolute;top:6px;right:6px;background:#ef4444;color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;z-index:2;letter-spacing:0.3px">OUT OF STOCK</span>' : ''}
+          <span class="d-check"></span>
+          <span class="d-ico"><img class="pico" src="${p.icon || '/media/rolea-logo.webp'}" alt="${p.name}" width="60" height="60"></span>
+          <div class="d-name">${p.name}</div>
+          <div class="d-price" style="${!inStock ? 'color:#94a3b8;text-decoration:line-through' : ''}">$${Number(p.price).toFixed(2)}</div>
+        `;
+        d.onclick = () => {
+          if (d.dataset.ok !== "1") return;
+          if (d.dataset.inStock !== "1") {
+            toast('កញ្ចប់នេះអស់ពីស្តុកហើយ (Out of stock)! សូមជ្រើសរើសកញ្ចប់ផ្សេង។');
+            return;
+          }
+          document.querySelectorAll('.denom').forEach(x => x.classList.remove('sel'));
+          d.classList.add('sel');
+          pkg = d.dataset.id;
+          sum(d);
+          ready();
+        };
+        container.appendChild(d);
+      });
+    }
+  } catch(e) {}
+}
+loadDynamicPackages();
+
+fetch('/api/settings').then(r => r.json()).then(j => {
+  if (G === 'roblox' && j && j.roblox_banner) {
+    const b = $("roblox-banner-img");
+    if (b) b.src = j.roblox_banner;
+  }
+  if (j && j.telegram_handle) {
+    const handle = j.telegram_handle.replace(/^@/, '');
+    document.querySelectorAll('a[href*="t.me/"]').forEach(a => {
+      a.href = 'https://t.me/' + handle;
+    });
+  }
+}).catch(() => {});
+
+$("pid").oninput = $("agree").onchange = ready;
+
+// Check Roblox username
+$("chk").onclick = async () => {
+  const m = $("umsg");
+  const val = $("pid").value.trim();
+  if (!val) {
+    m.className = "msg err";
+    m.textContent = "Please enter your Roblox username.";
+    return;
+  }
+  m.className = "msg";
+  m.textContent = "Checking…";
+  $("chk").disabled = true;
+  uname = "";
+  verifiedProfile = null;
+  $("verified-profile").hidden = true;
+  ready();
+
+  try {
+    const { ok, j } = await post("/api/check-id", { game: G, player_id: val });
+    if (ok) {
+      uname = j.username;
+      verifiedProfile = {
+        username: uname,
+        display: j.display_name || uname,
+        id: String(j.roblox_id || ""),
+        avatar: j.avatar || ""
+      };
+      m.className = "msg ok";
+      m.innerHTML = CK;
+      m.appendChild(document.createTextNode(" @" + uname));
+      sum();
+      const box = $("verified-profile");
+      box.hidden = false;
+      $("verified-display").textContent = verifiedProfile.display;
+      $("verified-user").textContent = "@" + uname;
+      const avatar = $("user-avatar");
+      if (j.avatar) {
+        avatar.src = j.avatar;
+        avatar.style.display = "block";
+      }
+      ready();
+    } else {
+      m.className = "msg err";
+      m.textContent = j.error || "Could not verify username";
+    }
+  } catch (e) {
+    m.className = "msg err";
+    m.textContent = "Network error. Try again.";
+  }
+  $("chk").disabled = false;
+};
+
+$("pid").addEventListener("input", () => {
+  if (G === 'tiktok') {
+    uname = $("pid").value.trim();
+    ready();
+  } else {
+    uname = "";
+    verifiedProfile = null;
+    $("umsg").textContent = "";
+    $("verified-profile").hidden = true;
+  }
+  ready();
+});
+
+function openPaymentModal() {
+  $("ov").classList.add("on");
+  document.body.style.overflow = "hidden";
+}
+
+function setQRLoading(loading, message) {
+  $("qbusy").hidden = !loading;
+  $("qi").hidden = loading;
+  if (message) $("qbusy-text").textContent = message;
+}
+
+function renderOrderProfile(o) {
+  if (G === 'tiktok') {
+    const val = String((o && (o.target_url || o.player_id || o.roblox_username)) || $("pid").value || "").trim();
+    $("qdisplay").textContent = "TikTok Video / User";
+    $("quser").textContent = val.startsWith("http") ? (val.length > 28 ? val.substring(0, 26) + "…" : val) : ("@" + val.replace(/^@/, ""));
+    $("qavatar").src = "/media/tiktok-thumb.svg";
+    $("qavatar").hidden = false;
+    $("qavatar-fallback").style.display = "none";
+    $("qrobux").textContent = Number(o?.robux_amount || document.querySelector('.denom.sel')?.dataset.robux || 0).toLocaleString("en-US");
+    return;
+  }
+  const username = String((o && o.roblox_username) || verifiedProfile?.username || uname || $("pid").value || "").replace(/^@/, "");
+  const playerId = String((o && o.roblox_id) || verifiedProfile?.id || "");
+  const display = String((o && o.display_name) || verifiedProfile?.display || username);
+  $("qdisplay").textContent = display;
+  $("quser").textContent = "@" + username;
+  $("qrobux").textContent = Number(o?.robux_amount || document.querySelector('.denom.sel')?.dataset.robux || 0).toLocaleString("en-US");
+
+  const profile = $("qprofile");
+  if (playerId) {
+    profile.href = "https://www.roblox.com/users/" + playerId + "/profile";
+    profile.hidden = false;
+  } else {
+    profile.hidden = true;
+  }
+
+  const img = $("qavatar");
+  const thumbnail = verifiedProfile?.avatar;
+  if (thumbnail) {
+    img.src = thumbnail;
+    img.hidden = false;
+    $("qavatar-fallback").hidden = true;
+  } else {
+    img.hidden = true;
+    $("qavatar-fallback").hidden = false;
+  }
+}
+
+// Pay Now Click
+$("pay").onclick = async () => {
+  if ($("pay").disabled || payPending) return;
+  payPending = true;
+  $("pay").disabled = true;
+  $("pmsg").textContent = "";
+  $("pay").textContent = "Creating QR…";
+  cur = null;
+  receiptToken = "";
+  leavingForReceipt = false;
+  clearInterval(tm);
+  clearInterval(poll);
+  poll = null;
+
+  $("qa").textContent = $("stt").textContent;
+  $("qt").textContent = "--:--";
+  $("qt").className = "timer";
+  $("qo").textContent = "Preparing…";
+  $("qs").textContent = "Preparing";
+  $("qs").className = "st pending";
+  $("slabel").textContent = "Creating secure KHQR…";
+  $("sbox").className = "status-box wait payment-note";
+  $("snote").textContent = "Please wait while the payment QR is created.";
+  $("qpay").textContent = "Waiting";
+  $("qdel").textContent = "Not yet";
+  $("qrow").hidden = true;
+  $("qi").removeAttribute("src");
+
+  setQRLoading(true, "Creating secure KHQR…");
+  renderOrderProfile(null);
+  $("qc").disabled = true;
+  openPaymentModal();
+
+  if (selectedPaymentMethod === 'wallet') {
+    const user = window.RoleaAuth ? window.RoleaAuth.getUser() : null;
+    if (!user) {
+      payPending = false;
+      if (window.RoleaAuth) window.RoleaAuth.openAuthModal('login');
+      return;
+    }
+    const finalPrice = appliedPromoData ? appliedPromoData.new_amount : currentPackagePrice;
+    if (user.balance < finalPrice) {
+      payPending = false;
+      if (window.RoleaAuth) window.RoleaAuth.openWalletModal();
+      return;
+    }
+  }
+
+  let ok, j, checkout;
+  try {
+    checkout = window.PutiOrders ? PutiOrders.secureCheckout() : { order_id: "PR" + Date.now(), token: "demo" };
+    if (window.PutiOrders) PutiOrders.add(checkout.order_id, checkout.token);
+
+    ({ ok, j } = await post("/api/create-order", {
+      game: G,
+      package_id: pkg,
+      player_id: $("pid").value.trim(),
+      username: uname,
+      checkout_ref: checkout.order_id,
+      receipt_token: checkout.token,
+      promo_code: appliedPromoData ? appliedPromoData.code : undefined,
+      payment_method: selectedPaymentMethod
+    }));
+  } catch (e) {
+    ok = false;
+    j = { error: e?.message || "Connection error." };
+  }
+
+  if (j && j.paid_with_wallet) {
+    payPending = false;
+    $("pay").textContent = "Paid!";
+    if (window.RoleaAuth) window.RoleaAuth.checkCurrentUser();
+    alert(`Payment Successful with Rolea Wallet!\nRemaining Balance: $${Number(j.remaining_balance).toFixed(2)} USD\nRedirecting to your receipt...`);
+    window.location.href = `/order/success/${j.order_id}`;
+    return;
+  }
+
+  payPending = false;
+  $("qc").disabled = false;
+  $("pay").textContent = "Pay now";
+
+  if (!ok) {
+    if (window.PutiOrders && checkout) PutiOrders.remove(checkout.order_id);
+    $("slabel").textContent = "Could not create QR";
+    $("qs").textContent = "Unavailable";
+    $("qs").className = "st failed";
+    $("sbox").className = "status-box bad payment-note";
+    $("snote").textContent = j?.error || "Could not create payment.";
+    setQRLoading(false);
+    $("qi").hidden = true;
+    $("pmsg").textContent = j?.error || "Error";
+    ready();
+    return;
+  }
+
+  receiptToken = typeof j.receipt_token === "string" ? j.receipt_token : checkout.token;
+  if (window.PutiOrders) PutiOrders.add(j.order_id, receiptToken);
+  show(j);
+  ready();
+};
+
+function show(o) {
+  cur = o;
+  $("qa").textContent = "$" + (Number(o.amount) || 0).toFixed(2);
+  $("qo").textContent = o.order_id;
+  const tgTrack = $("q-tg-track");
+  if (tgTrack && o.order_id) {
+    tgTrack.href = "/check-order?order_id=" + encodeURIComponent(o.order_id);
+    tgTrack.style.display = "inline-flex";
+  }
+  renderOrderProfile(o);
+  openPaymentModal();
+  sync(o);
+  clearInterval(tm);
+  clearInterval(poll);
+  tm = setInterval(tick, 500);
+  tick();
+  poll = setInterval(ps, 3000);
+}
+
+function qr(o) {
+  const i = $("qi"), row = $("qrow");
+  const awaiting = ["pending", "scanned", "processing"].includes(o.status || "pending") && !o.paid;
+  if (!awaiting) {
+    i.hidden = true;
+    row.hidden = true;
+    $("qbusy").hidden = true;
+    if ($("qaba")) $("qaba").style.display = "none";
+    if ($("qopen")) $("qopen").hidden = true;
+    return;
+  }
+  if (o.qr_url) {
+    row.hidden = false;
+    $("qd").href = o.qr_url;
+    setQRLoading(false);
+    i.src = o.qr_url;
+    i.hidden = false;
+  }
+  if (o.aba_deeplink && $("qaba")) {
+    $("qaba").href = o.aba_deeplink;
+    $("qaba").style.display = "inline-flex";
+  } else if ($("qaba")) {
+    $("qaba").style.display = "none";
+  }
+  if (o.payment_url && $("qopen")) {
+    $("qopen").href = o.payment_url;
+    $("qopen").hidden = false;
+  } else if ($("qopen")) {
+    $("qopen").hidden = true;
+  }
+}
+
+function sync(o) {
+  if (!o) return;
+  cur = o;
+  off = new Date(o.server_now) - Date.now();
+  var box = $("sbox"), label = o.label || o.status, note = "Scan the QR. Robux are sent after confirmed payment.";
+  var pay = "Waiting", del = "Not yet", cls = "wait", showSt = o.status || "pending";
+
+  if (o.step === "delivered" || o.delivered || o.status === "completed") {
+    cls = "done"; pay = "Paid"; del = "Delivered"; showSt = "completed"; note = "Robux transfer confirmed.";
+  } else if (o.step === "sending" || o.status === "paid" || o.paid) {
+    cls = "paid"; pay = "Paid"; del = "Sending"; showSt = "paid"; note = "Payment confirmed. Robux transfer is queued or running.";
+  } else if (o.status === "scanned") {
+    cls = "wait"; pay = "Scanned"; del = "Not yet"; showSt = "scanned"; note = "QR scanned in ABA Mobile. Complete the payment.";
+  } else if (o.status === "expired") {
+    cls = "bad"; pay = "Expired"; del = "Not sent"; showSt = "expired"; note = "Payment expired. Close and order again.";
+  }
+
+  $("qs").textContent = showSt;
+  $("qs").className = "st " + showSt;
+  if (box) box.className = "status-box payment-note " + cls;
+  if ($("slabel")) $("slabel").textContent = label;
+  if ($("snote")) $("snote").textContent = note;
+  if ($("qpay")) $("qpay").textContent = pay;
+  if ($("qdel")) $("qdel").textContent = del;
+
+  // On payment success, forward to receipt page
+  if ((o.paid || o.delivered || o.status === "completed") && !leavingForReceipt) {
+    leavingForReceipt = true;
+    clearInterval(poll);
+    clearInterval(tm);
+    setTimeout(() => {
+      const target = receiptToken
+        ? "/order/success/" + encodeURIComponent(o.order_id) + "?token=" + encodeURIComponent(receiptToken)
+        : "/check-order?order_id=" + encodeURIComponent(o.order_id);
+      window.location.assign(target);
+    }, 1800);
+    return;
+  }
+
+  qr(o);
+}
+
+function tick() {
+  if (!cur || !$("qt")) return;
+  if (cur.step === "delivered" || cur.delivered || cur.status === "completed") {
+    $("qt").textContent = "DELIVERED";
+    $("qt").className = "timer done";
+    return;
+  }
+  if (cur.paid || cur.status === "paid" || cur.step === "sending") {
+    $("qt").textContent = "PAID";
+    $("qt").className = "timer paid";
+    return;
+  }
+  let s = Math.max(0, Math.floor((new Date(cur.expires_at) - (Date.now() + off)) / 1000));
+  $("qt").textContent = String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+  $("qt").className = "timer" + (s < 60 ? " low" : "");
+}
+
+let polling = false;
+async function ps() {
+  if (!cur || polling || document.hidden) return;
+  polling = true;
+  try {
+    const r = await fetch("/api/order-status/" + encodeURIComponent(cur.order_id));
+    if (r.ok) sync(await r.json());
+  } catch (e) {} finally {
+    polling = false;
+  }
+}
+
+$("qc").onclick = () => {
+  if (payPending) return;
+  $("ov").classList.remove("on");
+  document.body.style.overflow = "";
+  clearInterval(tm);
+  clearInterval(poll);
+  ready();
+};
+</script>
+<script src="/auth_wallet.js?v=20261110_v4"></script>
+  <script src="/google_chooser.js"></script>
+</body>
+</html>

@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="/page_loader.js?v=20261110_v1"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign in to Rolea Topup</title>
+  <link rel="icon" href="/favicon.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+Khmer:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      -webkit-font-smoothing: antialiased;
+      padding: 24px;
+    }
+
+    /* Top Navigation Header */
+    .signin-header {
+      width: 100%;
+      max-width: 960px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+    }
+
+    .brand-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: inherit;
+      transition: transform 0.15s ease;
+    }
+
+    .brand-link:hover {
+      transform: translateY(-1px);
+    }
+
+    .brand-link img {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      object-fit: cover;
+      box-shadow: 0 4px 14px rgba(0, 86, 179, 0.15);
+      border: 1px solid #e2e8f0;
+    }
+
+    .brand-text-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .brand-name {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 23px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      color: #0f172a;
+      line-height: 1.1;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .brand-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #0056b3;
+      display: inline-block;
+    }
+
+    .brand-sub {
+      font-size: 11px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .btn-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 20px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #334155;
+      background: #ffffff;
+      border: 1.5px solid #cbd5e1;
+      text-decoration: none;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+      transition: all 0.18s ease;
+    }
+
+    .btn-back:hover {
+      background: #f1f5f9;
+      color: #0f172a;
+      border-color: #94a3b8;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+      transform: translateX(-2px);
+    }
+
+    /* Main Container & Split Card */
+    .signin-container {
+      width: 100%;
+      max-width: 960px;
+      margin: 24px auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .auth-card {
+      width: 100%;
+      background: #ffffff;
+      border-radius: 28px;
+      border: 1.5px solid #e2e8f0;
+      box-shadow: 0 20px 50px -10px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+      display: grid;
+      grid-template-columns: 1fr 1.18fr;
+      overflow: hidden;
+      min-height: 560px;
+    }
+
+    /* Left Showcase Column (White / Light Mode) */
+    .auth-showcase {
+      background: linear-gradient(160deg, #f0f7ff 0%, #f8fafc 100%);
+      padding: 44px 38px 38px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      border-right: 1.5px solid #e2e8f0;
+    }
+
+    .showcase-kicker {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #0284c7;
+      margin-bottom: 12px;
+    }
+
+    .showcase-title {
+      font-size: 32px;
+      font-weight: 900;
+      line-height: 1.15;
+      color: #0f172a;
+      margin-bottom: 10px;
+      letter-spacing: -0.5px;
+    }
+
+    .showcase-title span {
+      background: linear-gradient(135deg, #0056b3 0%, #0284c7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: block;
+    }
+
+    .showcase-desc {
+      font-size: 13.5px;
+      color: #64748b;
+      line-height: 1.55;
+      max-width: 290px;
+    }
+
+    /* Mascot Center Area */
+    .mascot-area {
+      position: relative;
+      margin: 32px auto 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 190px;
+      height: 190px;
+    }
+
+    .sparkle-cross {
+      position: absolute;
+      top: 6px;
+      left: 10px;
+      color: #0284c7;
+      font-size: 22px;
+      font-weight: 800;
+      opacity: 0.85;
+      user-select: none;
+    }
+
+    .mascot-circle {
+      width: 165px;
+      height: 165px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(2, 132, 199, 0.1) 0%, rgba(240, 247, 255, 0.9) 70%);
+      border: 2px solid #bae6fd;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 12px 30px rgba(2, 132, 199, 0.12);
+    }
+
+    .mascot-circle img {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      object-fit: cover;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1);
+      border: 3px solid #ffffff;
+    }
+
+    .game-on-pill {
+      position: absolute;
+      bottom: 6px;
+      right: 0;
+      background: #ffffff;
+      border: 1.5px solid #bae6fd;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      font-weight: 800;
+      color: #0369a1;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 6px 18px rgba(2, 132, 199, 0.15);
+      user-select: none;
+    }
+
+    /* Showcase Footer Features */
+    .showcase-footer {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding-top: 14px;
+    }
+
+    .showcase-feature {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #0369a1;
+      text-transform: capitalize;
+    }
+
+    /* Right Form Column (White / Light Mode) */
+    .auth-form-pane {
+      background: #ffffff;
+      padding: 44px 42px 38px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .form-kicker {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #0284c7;
+      margin-bottom: 6px;
+    }
+
+    .form-title {
+      font-size: 27px;
+      font-weight: 900;
+      color: #0f172a;
+      margin-bottom: 4px;
+      letter-spacing: -0.4px;
+    }
+
+    .form-sub {
+      font-size: 13.5px;
+      color: #64748b;
+      margin-bottom: 24px;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 7px;
+    }
+
+    .input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .input-icon-left {
+      position: absolute;
+      left: 14px;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .input-wrap input {
+      width: 100%;
+      padding: 12px 14px 12px 42px;
+      background: #f8fafc;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 12px;
+      font-size: 14px;
+      color: #0f172a;
+      font-weight: 600;
+      outline: none;
+      transition: all 0.18s ease;
+      font-family: inherit;
+    }
+
+    .input-wrap input::placeholder {
+      color: #94a3b8;
+      font-weight: 500;
+    }
+
+    .input-wrap input:focus {
+      background: #ffffff;
+      border-color: #0056b3;
+      box-shadow: 0 0 0 3.5px rgba(0, 86, 179, 0.12);
+    }
+
+    .input-toggle-eye {
+      position: absolute;
+      right: 12px;
+      background: transparent;
+      border: none;
+      color: #64748b;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      border-radius: 6px;
+    }
+
+    .input-toggle-eye:hover {
+      color: #0f172a;
+    }
+
+    .error-msg {
+      color: #dc2626;
+      font-size: 12px;
+      font-weight: 700;
+      margin-top: 5px;
+      display: none;
+    }
+
+    /* Submit Button */
+    .btn-submit-gradient {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, #0056b3 0%, #0284c7 100%);
+      border: none;
+      border-radius: 12px;
+      color: #ffffff;
+      font-size: 14.5px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 8px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 14px rgba(0, 86, 179, 0.28);
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    .btn-submit-gradient:hover {
+      opacity: 0.95;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(0, 86, 179, 0.38);
+    }
+
+    .btn-submit-gradient:active {
+      transform: translateY(0);
+    }
+
+    /* Divider */
+    .auth-or-divider {
+      display: flex;
+      align-items: center;
+      text-align: center;
+      color: #94a3b8;
+      font-size: 11.5px;
+      font-weight: 700;
+      margin: 12px 0 16px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .auth-or-divider::before,
+    .auth-or-divider::after {
+      content: '';
+      flex: 1;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .auth-or-divider span {
+      padding: 0 12px;
+    }
+
+    /* Google Button */
+    .btn-google-sign {
+      width: 100%;
+      padding: 12px 16px;
+      background: #ffffff;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 12px;
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #1e293b;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.18s ease;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      font-family: inherit;
+    }
+
+    .btn-google-sign:hover {
+      background: #f8fafc;
+      border-color: #94a3b8;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+      transform: translateY(-1px);
+    }
+
+    /* Bottom Switch Mode Link */
+    .auth-switch-box {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 13px;
+      color: #64748b;
+    }
+
+    .auth-switch-link {
+      color: #0056b3;
+      font-weight: 800;
+      text-decoration: none;
+      cursor: pointer;
+      margin-left: 4px;
+      transition: color 0.15s ease;
+    }
+
+    .auth-switch-link:hover {
+      color: #0284c7;
+      text-decoration: underline;
+    }
+
+    /* Footer */
+    .signin-footer {
+      width: 100%;
+      max-width: 960px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 0;
+      font-size: 12.5px;
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    .signin-footer a {
+      color: #64748b;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    .signin-footer a:hover {
+      color: #0f172a;
+      text-decoration: underline;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .auth-card {
+        grid-template-columns: 1fr;
+      }
+      .auth-showcase {
+        display: none;
+      }
+      .auth-form-pane {
+        padding: 34px 24px;
+      }
+      body {
+        padding: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header Navigation -->
+  <header class="signin-header">
+    <a href="/" class="brand-link">
+      <img src="/media/logo.webp" alt="Rolea Topup">
+      <div class="brand-text-wrap">
+        <span class="brand-name">Rolea Topup <span class="brand-dot"></span></span>
+        <span class="brand-sub">Game Store & Topup</span>
+      </div>
+    </a>
+    <a href="/" class="btn-back">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      Back to store
+    </a>
+  </header>
+
+  <!-- Center Split Auth Card -->
+  <main class="signin-container">
+    <div class="auth-card">
+
+      <!-- Left Showcase Panel -->
+      <aside class="auth-showcase">
+        <div>
+          <div class="showcase-kicker">YOUR PLAYER ACCOUNT</div>
+          <h1 class="showcase-title">
+            Your games.
+            <span>Your space.</span>
+          </h1>
+          <p class="showcase-desc">Keep your orders close and get back to the games you love.</p>
+        </div>
+
+        <!-- Center Mascot Badge -->
+        <div class="mascot-area">
+          <span class="sparkle-cross">+</span>
+          <div class="mascot-circle">
+            <img src="/media/rolea-logo.webp" alt="Rolea Topup Mascot">
+          </div>
+          <div class="game-on-pill">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="15" y1="13" x2="15.01" y2="13"/><line x1="18" y1="11" x2="18.01" y2="11"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+            Game on.
+          </div>
+        </div>
+
+        <!-- Footer Feature Pills -->
+        <div class="showcase-footer">
+          <div class="showcase-feature">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="15" y1="13" x2="15.01" y2="13"/><line x1="18" y1="11" x2="18.01" y2="11"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+            Find your next top-up
+          </div>
+          <div class="showcase-feature">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            Track every order
+          </div>
+        </div>
+      </aside>
+
+      <!-- Right Form Panel -->
+      <section class="auth-form-pane">
+        <div class="form-kicker" id="form-kicker">WELCOME BACK</div>
+        <h2 class="form-title" id="form-title">Sign in to Rolea Topup</h2>
+        <p class="form-sub" id="form-sub">Your games and orders, all in one place.</p>
+
+        <form id="auth-form" onsubmit="handleAuthSubmit(event)">
+          <!-- Email / Username Field -->
+          <div class="form-group">
+            <label class="form-label" id="label-user">Email or username</label>
+            <div class="input-wrap">
+              <span class="input-icon-left">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              </span>
+              <input type="text" id="input-username" placeholder="Enter your email or username" required autocomplete="username">
+            </div>
+            <div class="error-msg" id="err-user">Please enter your username or email</div>
+          </div>
+
+          <!-- Register-Only Email Field (hidden during login) -->
+          <div class="form-group" id="group-email" style="display:none">
+            <label class="form-label">Email address (optional)</label>
+            <div class="input-wrap">
+              <span class="input-icon-left">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/></svg>
+              </span>
+              <input type="email" id="input-email" placeholder="customer@gmail.com" autocomplete="email">
+            </div>
+          </div>
+
+          <!-- Password Field -->
+          <div class="form-group" id="group-password">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
+              <label class="form-label" style="margin-bottom:0">Password</label>
+              <a href="javascript:void(0)" id="link-forgot-pw" onclick="openForgotPasswordMode()" style="font-size:12px;font-weight:700;color:#0284c7;text-decoration:none">Forgot password?</a>
+            </div>
+            <div class="input-wrap">
+              <span class="input-icon-left">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </span>
+              <input type="password" id="input-password" placeholder="Enter your password" required autocomplete="current-password" minlength="6">
+              <button type="button" class="input-toggle-eye" onclick="togglePasswordVisibility()" title="Show/Hide Password">
+                <svg id="eye-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <div class="error-msg" id="err-pass">Password must be at least 6 characters</div>
+          </div>
+
+          <!-- Global Form Error Alert -->
+          <div class="error-msg" id="form-general-error" style="margin-bottom:12px"></div>
+
+          <!-- Submit Action Button -->
+          <button type="submit" class="btn-submit-gradient" id="btn-submit">
+            <span id="btn-submit-text">Sign In</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+        </form>
+
+        <!-- Divider -->
+        <div class="auth-or-divider">
+          <span>or continue with</span>
+        </div>
+
+        <!-- Google Sign-In Action -->
+        <button type="button" class="btn-google-sign" onclick="openGoogleAuthModal()">
+          <svg width="18" height="18" viewBox="0 0 48 48">
+            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+          </svg>
+          <span>Continue with Google</span>
+        </button>
+
+        <!-- Forgot Password View (Strict 3-Step Flow) -->
+        <form id="forgot-form" style="display:none" onsubmit="handleForgotResetSubmit(event)">
+          <div id="fp-step1">
+            <div class="form-group">
+              <label class="form-label">Registered Email or Username</label>
+              <div class="input-wrap">
+                <span class="input-icon-left">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                </span>
+                <input type="text" id="fp-identifier" placeholder="Enter your registered email or username" required>
+              </div>
+            </div>
+          </div>
+
+          <div id="fp-step2" style="display:none">
+            <div class="form-group">
+              <label class="form-label">6-Digit Verification Code</label>
+              <div class="input-wrap">
+                <span class="input-icon-left">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </span>
+                <input type="text" id="fp-code" placeholder="Enter 6-digit code from Email" maxlength="6" inputmode="numeric" style="letter-spacing:3px;font-family:'JetBrains Mono',monospace;font-weight:700">
+              </div>
+            </div>
+          </div>
+
+          <div id="fp-step3" style="display:none">
+            <div class="form-group">
+              <label class="form-label">New Password (min 6 characters)</label>
+              <div class="input-wrap">
+                <span class="input-icon-left">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                </span>
+                <input type="password" id="fp-new-pw" placeholder="Enter new password" minlength="6">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Confirm New Password</label>
+              <div class="input-wrap">
+                <span class="input-icon-left">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </span>
+                <input type="password" id="fp-conf-pw" placeholder="Confirm new password" minlength="6">
+              </div>
+            </div>
+          </div>
+
+          <div id="fp-status" style="display:none;margin-bottom:12px;padding:10px 12px;border-radius:10px;font-size:12.5px;font-weight:700"></div>
+
+          <button type="submit" class="btn-submit-gradient" id="fp-submit-btn">
+            <span id="fp-btn-text">Send Verification Code</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+
+          <div style="text-align:center;margin-top:14px">
+            <a href="javascript:void(0)" onclick="closeForgotPasswordMode()" style="font-size:13px;font-weight:700;color:#64748b;text-decoration:none">← Back to Sign In</a>
+          </div>
+        </form>
+
+        <!-- Toggle Switcher between Login & Register -->
+        <div class="auth-switch-box" id="auth-switch-box">
+          <span id="switch-prompt">New to Rolea Topup?</span>
+          <a class="auth-switch-link" id="switch-action" onclick="toggleAuthMode()">Create an account</a>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Bottom Footer -->
+  <footer class="signin-footer">
+    <div>Rolea Topup &copy; 2026. All rights reserved.</div>
+    <a href="https://t.me/putireach" target="_blank" rel="noopener">Need help? Contact support &rarr;</a>
+  </footer>
+
+  <script src="/google_chooser.js"></script>
+  <script>
+    let isRegisterMode = false;
+
+    // Check if query param ?mode=register
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('mode') === 'register' || window.location.pathname.includes('/register')) {
+      isRegisterMode = true;
+    }
+
+    function toggleAuthMode() {
+      isRegisterMode = !isRegisterMode;
+      applyAuthMode();
+    }
+
+    function applyAuthMode() {
+      const kicker = document.getElementById('form-kicker');
+      const title = document.getElementById('form-title');
+      const sub = document.getElementById('form-sub');
+      const grpEmail = document.getElementById('group-email');
+      const btnText = document.getElementById('btn-submit-text');
+      const prompt = document.getElementById('switch-prompt');
+      const action = document.getElementById('switch-action');
+      const labelUser = document.getElementById('label-user');
+      const errGen = document.getElementById('form-general-error');
+      const linkForgot = document.getElementById('link-forgot-pw');
+
+      errGen.style.display = 'none';
+      if (linkForgot) linkForgot.style.display = isRegisterMode ? 'none' : 'inline';
+
+      if (isRegisterMode) {
+        kicker.textContent = 'JOIN ROLEA TOPUP';
+        title.textContent = 'Create your account';
+        sub.textContent = 'Start tracking orders and top up your wallet instantly.';
+        labelUser.textContent = 'Choose username';
+        grpEmail.style.display = 'block';
+        btnText.textContent = 'Create Account';
+        prompt.textContent = 'Already have an account?';
+        action.textContent = 'Sign in';
+      } else {
+        kicker.textContent = 'WELCOME BACK';
+        title.textContent = 'Sign in to Rolea Topup';
+        sub.textContent = 'Your games and orders, all in one place.';
+        labelUser.textContent = 'Email or username';
+        grpEmail.style.display = 'none';
+        btnText.textContent = 'Sign In';
+        prompt.textContent = 'New to Rolea Topup?';
+        action.textContent = 'Create an account';
+      }
+    }
+
+    function togglePasswordVisibility() {
+      const inp = document.getElementById('input-password');
+      const eye = document.getElementById('eye-icon');
+      if (inp.type === 'password') {
+        inp.type = 'text';
+        eye.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+      } else {
+        inp.type = 'password';
+        eye.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+      }
+    }
+
+    async function handleAuthSubmit(e) {
+      e.preventDefault();
+      const errGen = document.getElementById('form-general-error');
+      const errUser = document.getElementById('err-user');
+      const errPass = document.getElementById('err-pass');
+      const btn = document.getElementById('btn-submit');
+
+      errGen.style.display = 'none';
+      errUser.style.display = 'none';
+      errPass.style.display = 'none';
+
+      const username = document.getElementById('input-username').value.trim();
+      const password = document.getElementById('input-password').value;
+      const email = document.getElementById('input-email').value.trim();
+
+      if (!username) {
+        errUser.style.display = 'block';
+        return;
+      }
+      if (!password || password.length < 6) {
+        errPass.style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.style.opacity = '0.7';
+
+      try {
+        const endpoint = isRegisterMode ? '/api/auth/register' : '/api/auth/login';
+        const payload = isRegisterMode ? { username, password, email } : { username, password };
+
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        btn.disabled = false;
+        btn.style.opacity = '1';
+
+        if (res.ok && data.ok) {
+          localStorage.setItem('rolea_token', data.token);
+          localStorage.setItem('rolea_user', JSON.stringify(data.user));
+          const redirect = urlParams.get('redirect') || '/my-account';
+          window.location.replace(redirect);
+        } else {
+          errGen.textContent = data.error || 'Authentication failed. Please check credentials.';
+          errGen.style.display = 'block';
+        }
+      } catch (err) {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        errGen.textContent = 'Network error. Please try again.';
+        errGen.style.display = 'block';
+      }
+    }
+
+    // Google Sign-In Dialog (Dark Theme Account Chooser matching Google)
+    function openGoogleAuthModal() {
+      if (window.RoleaGoogleChooser) {
+        window.RoleaGoogleChooser.open();
+      }
+    }
+
+    // Auto-check if already logged in -> go to account
+    (async function checkAuth() {
+      const token = localStorage.getItem('rolea_token');
+      if (token) {
+        try {
+          const res = await fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } });
+          const j = await res.json();
+          if (res.ok && j.ok && j.user) {
+            const redirect = urlParams.get('redirect') || '/my-account';
+            window.location.replace(redirect);
+          }
+        } catch (e) {}
+      }
+    })();
+
+    let fpStage = 1; // 1 = send code, 2 = verify OTP, 3 = set new password
+    let fpResetToken = '';
+
+    function openForgotPasswordMode() {
+      fpStage = 1;
+      fpResetToken = '';
+      document.getElementById('auth-form').style.display = 'none';
+      document.querySelector('.auth-or-divider').style.display = 'none';
+      document.querySelector('.btn-google-sign').style.display = 'none';
+      document.getElementById('auth-switch-box').style.display = 'none';
+      document.getElementById('forgot-form').style.display = 'block';
+      document.getElementById('fp-step1').style.display = 'block';
+      document.getElementById('fp-step2').style.display = 'none';
+      document.getElementById('fp-step3').style.display = 'none';
+      document.getElementById('fp-identifier').readOnly = false;
+      document.getElementById('fp-code').value = '';
+      document.getElementById('fp-code').required = false;
+      document.getElementById('fp-new-pw').required = false;
+      document.getElementById('fp-conf-pw').required = false;
+      document.getElementById('fp-btn-text').textContent = 'Send Verification Code';
+      document.getElementById('fp-status').style.display = 'none';
+      document.getElementById('form-kicker').textContent = 'ACCOUNT RECOVERY';
+      document.getElementById('form-title').textContent = 'Reset your password';
+      document.getElementById('form-sub').textContent = 'Enter your registered email or username to receive a 6-digit Password Reset Code.';
+      const existingUser = document.getElementById('input-username').value.trim();
+      if (existingUser) document.getElementById('fp-identifier').value = existingUser;
+    }
+
+    function closeForgotPasswordMode() {
+      document.getElementById('forgot-form').style.display = 'none';
+      document.getElementById('auth-form').style.display = 'block';
+      document.querySelector('.auth-or-divider').style.display = 'flex';
+      document.querySelector('.btn-google-sign').style.display = 'flex';
+      document.getElementById('auth-switch-box').style.display = 'block';
+      applyAuthMode();
+    }
+
+    async function handleForgotResetSubmit(e) {
+      e.preventDefault();
+      const statusBox = document.getElementById('fp-status');
+      const btn = document.getElementById('fp-submit-btn');
+      const identifier = document.getElementById('fp-identifier').value.trim();
+      statusBox.style.display = 'none';
+      btn.disabled = true;
+
+      try {
+        if (fpStage === 1) {
+          const res = await fetch('/api/auth/forgot-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ identifier })
+          });
+          const j = await res.json();
+          if (res.ok && j.ok) {
+            fpStage = 2;
+            document.getElementById('fp-identifier').readOnly = true;
+            document.getElementById('fp-step2').style.display = 'block';
+            document.getElementById('fp-code').required = true;
+            document.getElementById('fp-code').focus();
+            document.getElementById('fp-btn-text').textContent = 'Verify 6-Digit Code';
+            statusBox.style.display = 'block';
+            statusBox.style.background = '#eff6ff';
+            statusBox.style.color = '#1e40af';
+            statusBox.textContent = j.message || 'Verification code sent!';
+          } else {
+            statusBox.style.display = 'block';
+            statusBox.style.background = '#fee2e2';
+            statusBox.style.color = '#b91c1c';
+            statusBox.textContent = j.error || 'Account not found.';
+          }
+        } else if (fpStage === 2) {
+          const code = document.getElementById('fp-code').value.trim();
+          const res = await fetch('/api/auth/verify-reset-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ identifier, code })
+          });
+          const j = await res.json();
+          if (res.ok && j.ok && j.reset_token) {
+            fpStage = 3;
+            fpResetToken = j.reset_token;
+            document.getElementById('fp-step2').style.display = 'none';
+            document.getElementById('fp-step3').style.display = 'block';
+            document.getElementById('fp-code').required = false;
+            document.getElementById('fp-new-pw').required = true;
+            document.getElementById('fp-conf-pw').required = true;
+            document.getElementById('fp-new-pw').focus();
+            document.getElementById('fp-btn-text').textContent = 'Save New Password';
+            statusBox.style.display = 'block';
+            statusBox.style.background = '#dcfce7';
+            statusBox.style.color = '#166534';
+            statusBox.textContent = j.message || 'Code verified! Enter your new password.';
+          } else {
+            statusBox.style.display = 'block';
+            statusBox.style.background = '#fee2e2';
+            statusBox.style.color = '#b91c1c';
+            statusBox.textContent = j.error || 'Incorrect verification code.';
+          }
+        } else if (fpStage === 3) {
+          const new_password = document.getElementById('fp-new-pw').value;
+          const confirm_password = document.getElementById('fp-conf-pw').value;
+          const res = await fetch('/api/auth/reset-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ identifier, reset_token: fpResetToken, new_password, confirm_password })
+          });
+          const j = await res.json();
+          if (res.ok && j.ok) {
+            statusBox.style.display = 'block';
+            statusBox.style.background = '#dcfce7';
+            statusBox.style.color = '#166534';
+            statusBox.textContent = j.message || 'Password reset successfully!';
+            document.getElementById('input-username').value = identifier;
+            setTimeout(() => { closeForgotPasswordMode(); }, 1500);
+          } else {
+            statusBox.style.display = 'block';
+            statusBox.style.background = '#fee2e2';
+            statusBox.style.color = '#b91c1c';
+            statusBox.textContent = j.error || 'Failed to reset password.';
+          }
+        }
+      } catch (err) {
+        statusBox.style.display = 'block';
+        statusBox.style.background = '#fee2e2';
+        statusBox.style.color = '#b91c1c';
+        statusBox.textContent = 'Network error. Please try again.';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    applyAuthMode();
+  </script>
+</body>
+</html>

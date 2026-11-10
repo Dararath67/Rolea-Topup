@@ -1,0 +1,82 @@
+{
+  "enabled": true,
+  "title": "Lucky Robux Spin",
+  "subtitle": "Spin to win instant Robux up to 1,000 R$!",
+  "spin_price_usd": 0.5,
+  "cost_per_1k_robux_usd": 4.0,
+  "big_prize_threshold_robux": 100,
+  "max_big_wins_per_day": 1,
+  "min_spins_between_big_wins": 25,
+  "require_profit_reserve": true,
+  "spins_since_last_big_win": 0,
+  "total_spins": 0,
+  "total_revenue_usd": 0.0,
+  "total_robux_awarded": 0,
+  "slices": [
+    {
+      "id": "sl_1",
+      "label": "Thank You",
+      "robux": 0,
+      "weight": 40.0,
+      "color": "#475569",
+      "text_color": "#ffffff"
+    },
+    {
+      "id": "sl_2",
+      "label": "10 Robux",
+      "robux": 10,
+      "weight": 30.0,
+      "color": "#2563eb",
+      "text_color": "#ffffff"
+    },
+    {
+      "id": "sl_3",
+      "label": "25 Robux",
+      "robux": 25,
+      "weight": 18.0,
+      "color": "#0284c7",
+      "text_color": "#ffffff"
+    },
+    {
+      "id": "sl_4",
+      "label": "50 Robux",
+      "robux": 50,
+      "weight": 8.0,
+      "color": "#059669",
+      "text_color": "#ffffff"
+    },
+    {
+      "id": "sl_5",
+      "label": "100 Robux",
+      "robux": 100,
+      "weight": 2.8,
+      "color": "#7c3aed",
+      "text_color": "#ffffff"
+    },
+    {
+      "id": "sl_6",
+      "label": "200 Robux",
+      "robux": 200,
+      "weight": 0.9,
+      "color": "#d97706",
+      "text_color": "#ffffff"
+    },
+    {
+      "id": "sl_7",
+      "label": "500 Robux",
+      "robux": 500,
+      "weight": 0.1,
+      "color": "#e11d48",
+      "text_color": "#ffffff"
+    },
+    {
+      "id": "sl_8",
+      "label": "1,000 Robux",
+      "robux": 1000,
+      "weight": 0.02,
+      "color": "#f59e0b",
+      "text_color": "#0f172a"
+    }
+  ],
+  "history": []
+}

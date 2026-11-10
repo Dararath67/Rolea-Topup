@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 700" width="1600" height="700">
+  <defs>
+    <linearGradient id="tt-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#08080c"/>
+      <stop offset="50%" stop-color="#120f1f"/>
+      <stop offset="100%" stop-color="#050508"/>
+    </linearGradient>
+    <radialGradient id="glow-cyan" cx="30%" cy="50%" r="40%">
+      <stop offset="0%" stop-color="#25F4EE" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#25F4EE" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow-pink" cx="75%" cy="45%" r="45%">
+      <stop offset="0%" stop-color="#FE2C55" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#FE2C55" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1600" height="700" fill="url(#tt-bg)"/>
+  <rect width="1600" height="700" fill="url(#glow-cyan)"/>
+  <rect width="1600" height="700" fill="url(#glow-pink)"/>
+
+  <!-- Grid overlay -->
+  <g opacity="0.05" stroke="#ffffff" stroke-width="1">
+    <line x1="0" y1="175" x2="1600" y2="175"/>
+    <line x1="0" y1="350" x2="1600" y2="350"/>
+    <line x1="0" y1="525" x2="1600" y2="525"/>
+    <line x1="400" y1="0" x2="400" y2="700"/>
+    <line x1="800" y1="0" x2="800" y2="700"/>
+    <line x1="1200" y1="0" x2="1200" y2="700"/>
+  </g>
+
+  <!-- Left Icon Area -->
+  <g transform="translate(160, 230)" filter="url(#shadow)">
+    <circle cx="120" cy="120" r="110" fill="#181528" stroke="#25F4EE" stroke-width="4" opacity="0.9"/>
+    <circle cx="120" cy="120" r="98" fill="#0d0c18"/>
+    <!-- TikTok Note Icon -->
+    <path d="M138 60 C145 78, 160 92, 180 95 L180 120 C165 120, 150 114, 138 105 L138 152 C138 180, 115 200, 88 198 C62 195, 45 172, 48 146 C50 122, 72 104, 96 106 L96 132 C86 130, 76 138, 75 148 C74 158, 82 168, 93 168 C104 168, 113 159, 113 148 L113 60 Z" fill="#25F4EE" transform="translate(-8, -8)" opacity="0.85"/>
+    <path d="M138 60 C145 78, 160 92, 180 95 L180 120 C165 120, 150 114, 138 105 L138 152 C138 180, 115 200, 88 198 C62 195, 45 172, 48 146 C50 122, 72 104, 96 106 L96 132 C86 130, 76 138, 75 148 C74 158, 82 168, 93 168 C104 168, 113 159, 113 148 L113 60 Z" fill="#FE2C55" transform="translate(8, 8)" opacity="0.85"/>
+    <path d="M138 60 C145 78, 160 92, 180 95 L180 120 C165 120, 150 114, 138 105 L138 152 C138 180, 115 200, 88 198 C62 195, 45 172, 48 146 C50 122, 72 104, 96 106 L96 132 C86 130, 76 138, 75 148 C74 158, 82 168, 93 168 C104 168, 113 159, 113 148 L113 60 Z" fill="#FFFFFF"/>
+  </g>
+
+  <!-- Typography Area -->
+  <g transform="translate(460, 230)">
+    <!-- Eyebrow Pill -->
+    <rect x="0" y="0" width="210" height="40" rx="20" fill="#FE2C55" fill-opacity="0.2" stroke="#FE2C55" stroke-width="1.5"/>
+    <text x="105" y="26" font-family="'Oxanium', 'Inter', sans-serif" font-size="14" font-weight="800" fill="#FE2C55" text-anchor="middle" letter-spacing="2">TIKTOK BOOST</text>
+
+    <!-- Main Title -->
+    <text x="0" y="110" font-family="'Oxanium', 'Inter', sans-serif" font-size="64" font-weight="900" fill="#FFFFFF" letter-spacing="1">TIKTOK SMM SERVICES</text>
+
+    <!-- Subtitle / Highlights -->
+    <text x="0" y="170" font-family="'Inter', sans-serif" font-size="24" font-weight="600" fill="#94A3B8">Followers • Likes • Video Views • 100% Safe Direct Delivery</text>
+
+    <!-- Features row -->
+    <g transform="translate(0, 215)">
+      <rect x="0" y="0" width="170" height="38" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+      <text x="85" y="24" font-family="sans-serif" font-size="13" font-weight="700" fill="#38BDF8" text-anchor="middle">INSTANT START</text>
+
+      <rect x="185" y="0" width="190" height="38" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+      <text x="280" y="24" font-family="sans-serif" font-size="13" font-weight="700" fill="#4ADE80" text-anchor="middle">NO PASSWORD NEEDED</text>
+
+      <rect x="390" y="0" width="180" height="38" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+      <text x="480" y="24" font-family="sans-serif" font-size="13" font-weight="700" fill="#FBBF24" text-anchor="middle">REAL ACCOUNTS</text>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="km">
+<head>
+  <script src="/page_loader.js?v=20261110_v1"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#10234b">
+  <title>Payment Receipt · Rolea Topup</title>
+  <link rel="icon" href="/favicon.png" type="image/png" sizes="64x64">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+Khmer:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .receipt-container {
+      max-width: 480px;
+      margin: 30px auto;
+      padding: 24px;
+      background: #ffffff;
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+    .success-icon-wrap {
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 16px;
+      border-radius: 50%;
+      background: #dcfce7;
+      color: #16a34a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: pop .3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes pop {
+      0% { transform: scale(0.6); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .receipt-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: #1e1b3a;
+      margin-bottom: 4px;
+    }
+    .receipt-subtitle {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 22px;
+    }
+    .receipt-amount-card {
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 20px;
+    }
+    .receipt-amount-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+    .receipt-amount-value {
+      font-size: 30px;
+      font-weight: 900;
+      color: var(--primary);
+      letter-spacing: -.5px;
+      margin-top: 2px;
+    }
+    .receipt-facts {
+      border-top: 1px dashed var(--line);
+      padding-top: 14px;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+    .receipt-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 6px 0;
+      font-size: 13px;
+    }
+    .receipt-row span {
+      color: var(--muted);
+    }
+    .receipt-row b {
+      color: var(--text);
+      font-weight: 700;
+      word-break: break-all;
+    }
+    .progress-box {
+      background: #f1f5f9;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+    .progress-bar-fill {
+      height: 6px;
+      background: linear-gradient(90deg, #10b981, #3b82f6);
+      border-radius: 4px;
+      width: 100%;
+      margin: 8px 0;
+    }
+    .progress-steps {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #64748b;
+      font-weight: 700;
+    }
+    .receipt-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .btn-receipt-action:hover {
+      background: #f1f5f9 !important;
+      border-color: #94a3b8 !important;
+    }
+  </style>
+</head>
+<body>
+
+<div class="app">
+  <header class="app-header">
+    <a class="brand" href="/">
+      <img class="brand-logo" src="/media/logo.webp" alt="Rolea Topup">
+      <span class="brand-copy"><span class="brand-name">Rolea Topup</span></span>
+    </a>
+  </header>
+
+  <div class="container">
+    <div class="receipt-container">
+      <div class="success-icon-wrap">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      </div>
+
+      <h1 class="receipt-title">Payment Successful!</h1>
+      <p class="receipt-subtitle">Your KHQR payment has been verified and processed.</p>
+
+      <div class="receipt-amount-card">
+        <div class="receipt-amount-label">Amount Paid (ABA KHQR)</div>
+        <div class="receipt-amount-value" id="rc-amt">$0.00</div>
+      </div>
+
+      <div class="receipt-facts">
+        <div class="receipt-row"><span>Order ID</span><b id="rc-order">—</b></div>
+        <div class="receipt-row"><span>Product</span><b id="rc-prod">—</b></div>
+        <div class="receipt-row"><span>Account</span><b id="rc-user">—</b></div>
+        <div class="receipt-row"><span>Status</span><b id="rc-status" style="color:#10b981">PAID · CONFIRMED</b></div>
+        <div class="receipt-row"><span>Time</span><b id="rc-time">—</b></div>
+      </div>
+
+      <div class="progress-box">
+        <div style="font-weight:700;font-size:12px;color:#1e293b;">Delivery Progress</div>
+        <div class="progress-bar-fill" id="rc-fill" style="width:60%"></div>
+        <div class="progress-steps">
+          <span style="color:#10b981">1. Paid</span>
+          <span style="color:#3b82f6">2. Order Verified</span>
+          <span id="rc-step3" style="color:#64748b">3. Waiting Admin</span>
+        </div>
+      </div>
+
+      <div class="receipt-actions">
+        <a id="rc-tg-btn" href="/check-order" class="btn" style="background:#2563eb;color:#ffffff;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700;border-radius:12px;padding:12px;text-decoration:none;font-size:13px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>
+          Track Live Order Status
+        </a>
+        <div style="display:flex;gap:10px">
+          <button onclick="window.print()" class="btn-receipt-action" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:700;border-radius:12px;padding:11px;border:1.5px solid #cbd5e1;background:#ffffff;color:#0f172a;cursor:pointer;font-size:13px;font-family:inherit;text-decoration:none;transition:background 0.15s">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            <span>Print Receipt</span>
+          </button>
+          <a id="rc-track" href="/my-account" class="btn-receipt-action" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:700;border-radius:12px;padding:11px;border:1.5px solid #cbd5e1;background:#ffffff;color:#0f172a;text-decoration:none;font-size:13px;font-family:inherit;transition:background 0.15s">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span>My Account</span>
+          </a>
+        </div>
+        <a href="/" class="btn dark sm" style="padding:12px;border-radius:12px;text-decoration:none;display:block">Back to Storefront</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const pathParts = window.location.pathname.split('/');
+  const orderId = pathParts[pathParts.length - 1];
+
+  async function updateStatus() {
+    try {
+      const res = await fetch('/api/order-status/' + encodeURIComponent(orderId));
+      if (!res.ok) return;
+      const data = await res.json();
+      document.getElementById('rc-amt').textContent = '$' + Number(data.amount || 0).toFixed(2);
+      document.getElementById('rc-order').textContent = data.order_id;
+      document.getElementById('rc-prod').textContent = data.package || data.product_name;
+      document.getElementById('rc-user').textContent = '@' + (data.roblox_username || data.display_name || 'Player');
+      document.getElementById('rc-time').textContent = data.created_at ? new Date(data.created_at).toLocaleTimeString() : new Date().toLocaleTimeString();
+      document.getElementById('rc-track').href = '/my-account';
+      const tgBtn = document.getElementById('rc-tg-btn');
+      if (tgBtn) tgBtn.href = '/check-order?order_id=' + encodeURIComponent(data.order_id);
+
+      const statusEl = document.getElementById('rc-status');
+      const step3El = document.getElementById('rc-step3');
+      const fillEl = document.getElementById('rc-fill');
+
+      if (data.delivered || data.status === 'completed') {
+        statusEl.textContent = 'COMPLETED · DELIVERED';
+        statusEl.style.color = '#10b981';
+        step3El.textContent = '3. Delivered';
+        step3El.style.color = '#10b981';
+        fillEl.style.width = '100%';
+      } else if (data.status === 'refunded') {
+        statusEl.textContent = 'REJECTED · REFUNDED';
+        statusEl.style.color = '#dc2626';
+        step3El.textContent = '3. Refunded';
+        step3El.style.color = '#dc2626';
+        fillEl.style.width = '100%';
+        fillEl.style.background = '#dc2626';
+      } else {
+        statusEl.textContent = 'PAID · WAITING FOR ADMIN';
+        statusEl.style.color = '#0284c7';
+        step3El.textContent = '3. Waiting Admin Approval';
+        step3El.style.color = '#d97706';
+        fillEl.style.width = '60%';
+      }
+    } catch (e) {}
+  }
+
+  updateStatus();
+  setInterval(updateStatus, 3500);
+})();
+</script>
+<script src="/auth_wallet.js?v=20261110_v4"></script>
+</body>
+</html>

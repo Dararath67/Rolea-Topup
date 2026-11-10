@@ -1,0 +1,21 @@
+# Dependencies & cache
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.log
+.DS_Store
+Thumbs.db
+
+# Environment & local secrets / runtime customer data
+.env
+.env.*
+data/settings.json
+data/admin_security.json
+data/inventory.json
+data/users.json
+data/orders.json
+data/wallet_transactions.json
+data/blacklist.json
+data/*.bak
+data/*.tmp

@@ -1,0 +1,1208 @@
+<!doctype html>
+<html lang="km">
+<head>
+  <script src="/page_loader.js?v=20261110_v1"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#10234b">
+  <title>Customer Dashboard & My Orders · Rolea Topup</title>
+  <meta name="description" content="View your profile, Rolea Wallet balance, order history, live status, and account settings.">
+  <link rel="icon" href="/favicon.png" type="image/png" sizes="64x64">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+Khmer:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    :root {
+      --card-bg: #ffffff;
+      --card-border: #e2e8f0;
+      --card-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+    }
+    .account-page {
+      max-width: 1040px;
+      margin: 24px auto 60px;
+      padding: 0 16px;
+    }
+    .profile-hero {
+      background: #ffffff;
+      color: #0f172a;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 20px;
+      padding: 28px 32px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+      position: relative;
+      overflow: hidden;
+    }
+    .profile-hero::after {
+      content: '';
+      position: absolute;
+      top: -60px;
+      right: -60px;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(37, 99, 235, 0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .profile-info {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex: 1;
+      min-width: 280px;
+    }
+    .profile-avatar-wrap {
+      width: 74px;
+      height: 74px;
+      border-radius: 50%;
+      border: 3px solid #e2e8f0;
+      overflow: hidden;
+      background: #f1f5f9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    }
+    .profile-avatar-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .profile-avatar-wrap .avatar-fallback {
+      font-size: 26px;
+      font-weight: 800;
+      color: #64748b;
+    }
+    .profile-meta h2 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 800;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .verified-pill {
+      font-size: 11px;
+      background: #ecfdf5;
+      color: #059669;
+      border: 1px solid #a7f3d0;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-weight: 700;
+    }
+    .profile-meta .profile-sub {
+      margin-top: 6px;
+      font-size: 13px;
+      color: #64748b;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+    .profile-meta .profile-sub span {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: #64748b;
+    }
+    .profile-meta .profile-sub span svg {
+      stroke: #64748b;
+    }
+
+    .profile-hero-stats {
+      display: flex;
+      align-items: stretch;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .stat-card-hero {
+      background: #f8fafc;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 14px 20px;
+      min-width: 150px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .stat-card-hero .stat-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .stat-card-hero .stat-val {
+      font-size: 24px;
+      font-weight: 800;
+      color: #0284c7;
+      margin-top: 2px;
+    }
+    .stat-card-hero.wallet-highlight {
+      background: #ecfdf5;
+      border-color: #a7f3d0;
+    }
+    .stat-card-hero.wallet-highlight .stat-label {
+      color: #047857;
+    }
+    .stat-card-hero.wallet-highlight .stat-val {
+      color: #059669;
+    }
+    .btn-topup-hero {
+      margin-top: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #059669;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    .btn-topup-hero:hover {
+      background: #047857;
+    }
+
+    /* Tabs Navigation */
+    .account-tabs {
+      display: flex;
+      gap: 8px;
+      margin: 28px 0 20px;
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 2px;
+      overflow-x: auto;
+    }
+    .account-tab-btn {
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #64748b;
+      background: transparent;
+      border: none;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -4px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .account-tab-btn:hover {
+      color: #0f172a;
+    }
+    .account-tab-btn.active {
+      color: #0056b3;
+      border-bottom-color: #0056b3;
+    }
+
+    /* Section Cards */
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.2s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .account-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      box-shadow: var(--card-shadow);
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .account-card-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .account-card-title > span {
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    #order-search {
+      width: 260px;
+      max-width: 100%;
+      height: 38px;
+      padding: 0 14px !important;
+      font-size: 13px !important;
+      border: 1.5px solid #cbd5e1 !important;
+      border-radius: 10px !important;
+      box-sizing: border-box;
+    }
+
+    /* Orders Table */
+    .orders-table-wrap {
+      overflow-x: auto;
+    }
+    .orders-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13px;
+    }
+    .orders-table th {
+      background: #f8fafc;
+      padding: 12px 14px;
+      font-weight: 700;
+      color: #475569;
+      border-bottom: 1.5px solid #e2e8f0;
+      white-space: nowrap;
+    }
+    .orders-table td {
+      padding: 14px;
+      border-bottom: 1px solid #f1f5f9;
+      color: #1e293b;
+      vertical-align: middle;
+    }
+    .orders-table tr:hover td {
+      background: #f8fafc;
+    }
+
+    .badge-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .badge-status.completed {
+      background: #ecfdf5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+    }
+    .badge-status.pending, .badge-status.sending {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+    }
+    .badge-status.scanned {
+      background: #fefce8;
+      color: #854d0e;
+      border: 1px solid #fde047;
+    }
+    .badge-status.refunded, .badge-status.failed {
+      background: #fef2f2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+    }
+
+    .btn-receipt-link {
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      background: #f0f7ff;
+      color: #0056b3;
+      border: 1px solid #bae6fd;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s;
+    }
+    .btn-receipt-link:hover {
+      background: #0056b3;
+      color: #fff;
+    }
+
+    /* Forms */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 18px;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .form-group label {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #334155;
+    }
+    .form-group input {
+      padding: 10px 14px;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 10px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    .form-group input:focus {
+      outline: none;
+      border-color: #0056b3;
+      box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.12);
+    }
+    .btn-save-settings {
+      padding: 11px 22px;
+      background: #0056b3;
+      color: #fff;
+      font-weight: 700;
+      font-size: 14px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      transition: background 0.2s;
+      align-self: flex-start;
+      margin-top: 8px;
+    }
+    .btn-save-settings:hover {
+      background: #004494;
+    }
+
+    /* Telegram Integration Banner */
+    .tg-banner {
+      background: #f0f9ff;
+      border: 1.5px solid #bae6fd;
+      border-radius: 14px;
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .tg-banner-info {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex: 1;
+      min-width: 260px;
+    }
+    .tg-banner-btn {
+      padding: 10px 18px;
+      background: #0088cc;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      border-radius: 10px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.2s;
+    }
+    .tg-banner-btn:hover {
+      background: #0077b5;
+    }
+
+    /* Unauthenticated State */
+    .unauth-card {
+      text-align: center;
+      padding: 60px 24px;
+      background: #fff;
+      border-radius: 20px;
+      border: 1px solid var(--card-border);
+      max-width: 520px;
+      margin: 40px auto;
+    }
+    .unauth-card h2 {
+      font-size: 22px;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 16px 0 8px;
+    }
+    .unauth-card p {
+      color: #64748b;
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+    .unauth-btns {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 36px 16px;
+      color: #64748b;
+      font-size: 13.5px;
+    }
+
+    /* Hide ugly scrollbars on account tabs */
+    .account-tabs {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      overflow: visible;
+    }
+    .account-tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* Mobile Cards for Orders / Wallet */
+    .mobile-cards-list {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .m-order-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .m-order-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .m-order-id {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 800;
+      color: #0f172a;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+    .m-order-mid {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .m-order-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 10px;
+      border-top: 1px dashed #cbd5e1;
+      gap: 8px;
+    }
+
+    @media (max-width: 768px) {
+      .account-page {
+        margin: 14px auto 96px;
+        padding: 0 12px;
+      }
+      .profile-hero {
+        padding: 18px 16px;
+        border-radius: 18px;
+        gap: 16px;
+      }
+      .profile-info {
+        min-width: 0;
+        width: 100%;
+        gap: 14px;
+      }
+      .profile-avatar-wrap {
+        width: 58px;
+        height: 58px;
+      }
+      .profile-meta {
+        min-width: 0;
+        flex: 1;
+      }
+      .profile-meta h2 {
+        font-size: 18px;
+        flex-wrap: wrap;
+        gap: 6px;
+        word-break: break-word;
+      }
+      .profile-meta .profile-sub {
+        flex-direction: column;
+        gap: 5px;
+        font-size: 12.5px;
+      }
+      .profile-meta .profile-sub span {
+        word-break: break-all;
+      }
+      .profile-hero-stats {
+        display: grid;
+        grid-template-columns: 1.35fr 0.85fr;
+        gap: 10px;
+        width: 100%;
+      }
+      .stat-card-hero {
+        min-width: 0;
+        padding: 12px 14px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .stat-card-hero .stat-label {
+        font-size: 10px;
+      }
+      .stat-card-hero .stat-val {
+        font-size: 21px;
+      }
+      .btn-topup-hero {
+        width: 100%;
+        justify-content: center;
+        padding: 8px 10px;
+        font-size: 12px;
+      }
+
+      /* Sleek Segmented Pill Tabs on Mobile (No cutoff / no scrollbars) */
+      .account-tabs {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+        margin: 18px 0 14px;
+        padding: 5px;
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        overflow: visible;
+      }
+      .account-tab-btn {
+        justify-content: center;
+        padding: 9px 6px;
+        font-size: 12.5px;
+        border-radius: 10px;
+        border-bottom: none;
+        margin-bottom: 0;
+        gap: 5px;
+      }
+      .account-tab-btn svg {
+        width: 14px;
+        height: 14px;
+        flex-shrink: 0;
+      }
+      .account-tab-btn.active {
+        background: #ffffff;
+        color: #2563eb;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+      }
+      .tab-label-long { display: none; }
+      .tab-label-short { display: inline; }
+
+      .account-card {
+        padding: 16px 14px;
+        border-radius: 16px;
+        margin-bottom: 16px;
+      }
+      .account-card-title {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        font-size: 16px;
+        margin-bottom: 14px;
+      }
+      #order-search,
+      .account-card-title input {
+        width: 100%;
+        height: auto;
+        box-sizing: border-box;
+        font-size: 15px !important;
+        padding: 10px 12px !important;
+      }
+      .form-grid {
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+      .form-group input {
+        font-size: 16px;
+      }
+      .btn-save-settings {
+        width: 100%;
+        text-align: center;
+      }
+
+      /* Show crisp mobile cards instead of horizontal scroll table on mobile */
+      .orders-table-wrap { display: none; }
+      .mobile-cards-list { display: flex; }
+    }
+
+    @media (min-width: 769px) {
+      .tab-label-short { display: none; }
+      .tab-label-long { display: inline; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Navigation Header -->
+<nav class="desktop-nav" id="dn">
+  <a class="brand" href="/">
+    <img class="brand-logo" src="/media/logo.webp" alt="Rolea Topup">
+    <span class="brand-copy"><span class="brand-name">Rolea Topup</span></span>
+  </a>
+  <form class="nav-search" onsubmit="return false">
+    <span>
+      <svg class="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>
+      </svg>
+    </span>
+    <input type="text" class="gq" placeholder="Search products..." autocomplete="off" aria-label="Search games">
+  </form>
+  <div class="nav-links">
+    <a href="/">Home</a>
+    <a href="/#games">Products</a>
+    <a href="/my-account" class="active">My Account</a>
+    <a href="/check-order">Check order</a>
+    <a href="/#footer">Contact</a>
+  </div>
+</nav>
+
+<div class="app">
+  <header class="app-header">
+    <a class="brand" href="/">
+      <img class="brand-logo" src="/media/logo.webp" alt="Rolea Topup">
+      <span class="brand-copy"><span class="brand-name">Rolea Topup</span></span>
+    </a>
+    <div class="header-actions">
+      
+    </div>
+  </header>
+
+  <div class="account-page">
+    
+    <!-- Unauthenticated View (Shown if not logged in) -->
+    <div id="unauth-view" class="unauth-card" style="display:none">
+      <div style="width:64px;height:64px;border-radius:50%;background:#f0f7ff;color:#0056b3;display:flex;align-items:center;justify-content:center;margin:0 auto">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+      <h2>Customer Dashboard</h2>
+      <p>Please sign in or create an account to view your Rolea Wallet balance, order history, and live tracking alerts.</p>
+      <div class="unauth-btns" style="display:flex;justify-content:center">
+        <button class="btn big" onclick="window.RoleaAuth.openAuthModal('login')" style="margin:0;padding:12px 28px;display:inline-flex;align-items:center;gap:8px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>Sign In</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Authenticated View -->
+    <div id="auth-view" style="display:none">
+      
+      <!-- Profile Hero Card -->
+      <div class="profile-hero">
+        <div class="profile-info">
+          <div class="profile-avatar-wrap">
+            <img id="usr-avatar" src="/media/rolea-logo.webp" alt="Avatar">
+          </div>
+          <div class="profile-meta">
+            <h2>
+              <span id="usr-username">Customer</span>
+              <span class="verified-pill">Verified Member</span>
+            </h2>
+            <div class="profile-sub">
+              <span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                <span id="usr-email">customer@rolea.com</span>
+              </span>
+              <span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 3L10 14"/><path d="M21 3l-7 18-4-7-7-4z"/></svg>
+                <span id="usr-tg">Telegram: Not linked</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="profile-hero-stats">
+          <div class="stat-card-hero wallet-highlight">
+            <div class="stat-label">Rolea Wallet Balance</div>
+            <div class="stat-val" id="usr-balance">$0.00</div>
+            <button class="btn-topup-hero" onclick="window.RoleaAuth.openWalletModal()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Top Up Balance
+            </button>
+          </div>
+          <div class="stat-card-hero">
+            <div class="stat-label">Total Orders</div>
+            <div class="stat-val" id="usr-order-count">0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="account-tabs">
+        <button class="account-tab-btn active" onclick="switchAccountTab('orders', this)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+          <span class="tab-label-long">My Orders History</span>
+          <span class="tab-label-short">Orders</span>
+        </button>
+        <button class="account-tab-btn" onclick="switchAccountTab('wallet', this)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><circle cx="16" cy="14" r="1.5"/></svg>
+          <span class="tab-label-long">Wallet Transactions</span>
+          <span class="tab-label-short">Wallet</span>
+        </button>
+        <button class="account-tab-btn" onclick="switchAccountTab('settings', this)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span class="tab-label-long">Account Settings &amp; Security</span>
+          <span class="tab-label-short">Settings</span>
+        </button>
+      </div>
+
+      <!-- Tab 1: Orders History -->
+      <div id="tab-orders" class="tab-content active">
+        <div class="account-card">
+          <div class="account-card-title">
+            <span>Orders Placed</span>
+            <input type="text" id="order-search" placeholder="Search order ID..." oninput="filterOrders()" style="font-size:12px;padding:6px 12px;border:1px solid #cbd5e1;border-radius:8px">
+          </div>
+          <div class="mobile-cards-list" id="orders-mobile-list">
+            <div class="empty-state">Loading your orders…</div>
+          </div>
+          <div class="orders-table-wrap">
+            <table class="orders-table">
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Product & Package</th>
+                  <th>Account</th>
+                  <th>Payment</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="orders-tbody">
+                <tr><td colspan="8" class="empty-state">Loading your orders…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Wallet Transactions -->
+      <div id="tab-wallet" class="tab-content">
+        <div class="account-card">
+          <div class="account-card-title">
+            <span>Rolea Wallet Ledger</span>
+            <button class="btn light sm" onclick="window.RoleaAuth.openWalletModal()" style="font-size:12px;padding:6px 14px">+ Deposit Balance</button>
+          </div>
+          <div class="mobile-cards-list" id="wallet-mobile-list">
+            <div class="empty-state">Loading transactions…</div>
+          </div>
+          <div class="orders-table-wrap">
+            <table class="orders-table">
+              <thead>
+                <tr>
+                  <th>Transaction ID</th>
+                  <th>Type</th>
+                  <th>Description</th>
+                  <th>Amount</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody id="wallet-tbody">
+                <tr><td colspan="5" class="empty-state">Loading transactions…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Account Settings & Security -->
+      <div id="tab-settings" class="tab-content">
+        <div class="account-card">
+          <div class="account-card-title">
+            <span>Profile Details & Notification Preferences</span>
+          </div>
+          <form onsubmit="handleUpdateProfile(event)" class="form-grid">
+            <div class="form-group">
+              <label>Username</label>
+              <input type="text" id="set-username" disabled style="background:#f8fafc;color:#64748b">
+            </div>
+            <div class="form-group">
+              <label>Email Address</label>
+              <input type="email" id="set-email" required placeholder="yourname@example.com">
+            </div>
+            <div class="form-group">
+              <label>Telegram Handle (for Order Alerts)</label>
+              <input type="text" id="set-telegram" placeholder="@username">
+            </div>
+            <div class="form-group" style="grid-column: 1 / -1">
+              <button type="submit" class="btn-save-settings">Save Profile Changes</button>
+              <span id="profile-msg" style="margin-left:12px;font-size:13px;font-weight:700"></span>
+            </div>
+          </form>
+        </div>
+
+        <div class="account-card">
+          <div class="account-card-title">
+            <span>Change Password</span>
+          </div>
+          <form onsubmit="handleChangePassword(event)" class="form-grid">
+            <div class="form-group">
+              <label>Current Password</label>
+              <input type="password" id="set-curr-pass" required placeholder="Enter current password">
+            </div>
+            <div class="form-group">
+              <label>New Password</label>
+              <input type="password" id="set-new-pass" required minlength="4" placeholder="Minimum 4 characters">
+            </div>
+            <div class="form-group">
+              <label>Confirm New Password</label>
+              <input type="password" id="set-conf-pass" required minlength="4" placeholder="Re-type new password">
+            </div>
+            <div class="form-group" style="grid-column: 1 / -1">
+              <button type="submit" class="btn-save-settings">Update Password</button>
+              <span id="pass-msg" style="margin-left:12px;font-size:13px;font-weight:700"></span>
+            </div>
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<nav class="bottom-nav">
+  <a class="nav-item" href="/">
+    <svg class="i" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>
+    </svg>
+    Home
+  </a>
+  <a class="nav-item" href="/spin">
+    <svg class="i" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 3"/>
+    </svg>
+    Spin
+  </a>
+  <a class="nav-item" href="/check-order">
+    <svg class="i" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>
+    </svg>
+    Orders
+  </a>
+  <a class="nav-item active" href="/my-account">
+    <svg class="i" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+    </svg>
+    Account
+  </a>
+</nav>
+
+<script src="/auth_wallet.js?v=20261110_v4"></script>
+<script>
+let allUserOrders = [];
+
+function switchAccountTab(tabName, btnEl) {
+  document.querySelectorAll('.account-tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  btnEl.classList.add('active');
+  const target = document.getElementById('tab-' + tabName);
+  if (target) target.classList.add('active');
+}
+
+async function loadDashboardData() {
+  const token = localStorage.getItem('rolea_token');
+  if (!token) {
+    document.getElementById('unauth-view').style.display = 'block';
+    document.getElementById('auth-view').style.display = 'none';
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } });
+    const j = await res.json();
+    if (!res.ok || !j.ok || !j.user) {
+      document.getElementById('unauth-view').style.display = 'block';
+      document.getElementById('auth-view').style.display = 'none';
+      return;
+    }
+
+    const u = j.user;
+    document.getElementById('unauth-view').style.display = 'none';
+    document.getElementById('auth-view').style.display = 'block';
+
+    document.getElementById('usr-username').textContent = u.username;
+    document.getElementById('usr-email').textContent = u.email || 'customer@rolea.com';
+    document.getElementById('usr-tg').textContent = u.telegram ? ('@' + u.telegram) : 'Telegram: Not linked';
+    document.getElementById('usr-balance').textContent = '$' + Number(u.balance || 0).toFixed(2);
+    if (u.avatar) document.getElementById('usr-avatar').src = u.avatar;
+
+    // Prefill settings form
+    document.getElementById('set-username').value = u.username;
+    document.getElementById('set-email').value = u.email || '';
+    document.getElementById('set-telegram').value = u.telegram ? ('@' + u.telegram) : '';
+
+    // Load Orders
+    loadOrders(token);
+    // Load Wallet Transactions
+    loadWalletTransactions(token);
+
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function loadOrders(token) {
+  try {
+    const res = await fetch('/api/auth/my-orders', { headers: { 'Authorization': 'Bearer ' + token } });
+    const j = await res.json();
+    if (j.ok && Array.isArray(j.orders)) {
+      allUserOrders = j.orders;
+      document.getElementById('usr-order-count').textContent = allUserOrders.length;
+      renderOrdersTable(allUserOrders);
+    }
+  } catch (e) {
+    document.getElementById('orders-tbody').innerHTML = '<tr><td colspan="8" class="empty-state">Failed to load orders.</td></tr>';
+  }
+}
+
+function renderOrdersTable(orders) {
+  const tbody = document.getElementById('orders-tbody');
+  const mobList = document.getElementById('orders-mobile-list');
+  if (!orders || orders.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No orders found yet. Browse games on our homepage to make your first top-up!</td></tr>';
+    if (mobList) {
+      mobList.innerHTML = `
+        <div class="empty-state" style="padding:28px 12px">
+          <div style="font-weight:700;color:#475569;margin-bottom:6px">No orders found yet</div>
+          <div style="font-size:12.5px;color:#94a3b8;margin-bottom:14px">Browse our top-up games or try the Lucky Spin wheel!</div>
+          <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+            <a href="/" style="padding:9px 16px;background:#2563eb;color:#fff;border-radius:10px;font-size:12.5px;font-weight:700;text-decoration:none">Browse Games</a>
+            <a href="/spin" style="padding:9px 16px;background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:10px;font-size:12.5px;font-weight:700;text-decoration:none">Lucky Spin</a>
+          </div>
+        </div>`;
+    }
+    return;
+  }
+
+  if (mobList) {
+    mobList.innerHTML = orders.map(o => {
+      const status = (o.status || 'pending').toLowerCase();
+      const isDelivered = o.delivered || status === 'completed';
+      const statusClass = isDelivered ? 'completed' : (status === 'refunded' ? 'refunded' : 'pending');
+      const statusText = isDelivered ? 'Completed' : (status === 'refunded' ? 'Refunded' : 'Processing');
+      const dateStr = o.created_at ? new Date(o.created_at).toLocaleDateString() : 'Recent';
+      const account = o.roblox_username || o.player_id || o.display_name || 'Player';
+      return `
+        <div class="m-order-card">
+          <div class="m-order-top">
+            <span class="m-order-id">#${o.order_id}</span>
+            <span class="badge-status ${statusClass}">${statusText}</span>
+          </div>
+          <div class="m-order-mid">
+            <div>
+              <div style="font-weight:800;font-size:14px;color:#0f172a">${o.package || o.product_name || 'Top-up'}</div>
+              <div style="font-size:12px;color:#64748b;margin-top:2px">@${account} · ${o.payment_method || 'KHQR'}</div>
+            </div>
+            <b style="font-size:16px;color:#2563eb">$${Number(o.amount || 0).toFixed(2)}</b>
+          </div>
+          <div class="m-order-foot">
+            <span style="font-size:11.5px;color:#94a3b8">${dateStr}</span>
+            <div style="display:flex;gap:6px">
+              <a href="/order/success/${o.order_id}" class="btn-receipt-link">Receipt</a>
+              <a href="/check-order?order_id=${encodeURIComponent(o.order_id)}" class="btn-receipt-link" style="background:#eff6ff;color:#2563eb;border-color:#bfdbfe">Track</a>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  tbody.innerHTML = orders.map(o => {
+    const status = (o.status || 'pending').toLowerCase();
+    const isDelivered = o.delivered || status === 'completed';
+    const statusClass = isDelivered ? 'completed' : (status === 'refunded' ? 'refunded' : 'pending');
+    const statusText = isDelivered ? 'Completed' : (status === 'refunded' ? 'Refunded' : 'Processing');
+    const dateStr = o.created_at ? new Date(o.created_at).toLocaleDateString() : 'Recent';
+    const account = o.roblox_username || o.player_id || o.display_name || 'Player';
+    const payMethod = o.payment_method || 'KHQR';
+    const tgParam = encodeURIComponent(o.order_id);
+
+    return `
+      <tr>
+        <td><b>#${o.order_id}</b></td>
+        <td>
+          <div style="font-weight:700">${o.package || o.product_name || 'Top-up'}</div>
+          <div style="font-size:11px;color:#64748b">${o.game || 'Roblox'}</div>
+        </td>
+        <td><code>@${account}</code></td>
+        <td><span style="font-size:12px;font-weight:600">${payMethod}</span></td>
+        <td><b style="color:#0056b3">$${Number(o.amount || 0).toFixed(2)}</b></td>
+        <td><span class="badge-status ${statusClass}">${statusText}</span></td>
+        <td style="color:#64748b;font-size:12px">${dateStr}</td>
+        <td>
+          <div style="display:flex;gap:6px">
+            <a href="/order/success/${o.order_id}" class="btn-receipt-link" title="View official receipt">Receipt</a>
+            <a href="/check-order?order_id=${encodeURIComponent(o.order_id)}" class="btn-receipt-link" style="background:#eff6ff;color:#2563eb;border-color:#bfdbfe" title="Track Live Order Status">Track</a>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function filterOrders() {
+  const q = document.getElementById('order-search').value.trim().toLowerCase();
+  if (!q) {
+    renderOrdersTable(allUserOrders);
+    return;
+  }
+  const filtered = allUserOrders.filter(o => 
+    (o.order_id && o.order_id.toLowerCase().includes(q)) ||
+    (o.package && o.package.toLowerCase().includes(q)) ||
+    (o.roblox_username && o.roblox_username.toLowerCase().includes(q))
+  );
+  renderOrdersTable(filtered);
+}
+
+async function loadWalletTransactions(token) {
+  try {
+    const res = await fetch('/api/wallet/transactions', { headers: { 'Authorization': 'Bearer ' + token } });
+    const j = await res.json();
+    const tbody = document.getElementById('wallet-tbody');
+    const mobWList = document.getElementById('wallet-mobile-list');
+    if (j.ok && Array.isArray(j.transactions) && j.transactions.length > 0) {
+      if (mobWList) {
+        mobWList.innerHTML = j.transactions.map(t => {
+          const isCredit = t.type === 'deposit' || t.type === 'admin_credit';
+          const sign = isCredit ? '+' : '-';
+          const color = isCredit ? '#059669' : '#dc2626';
+          const dateStr = t.date ? new Date(t.date).toLocaleDateString() : 'Recent';
+          return `
+            <div class="m-order-card">
+              <div class="m-order-top">
+                <span class="m-order-id">${t.id}</span>
+                <span class="badge-status ${isCredit ? 'completed' : 'pending'}">${t.type}</span>
+              </div>
+              <div class="m-order-mid">
+                <div>
+                  <div style="font-weight:700;font-size:13.5px;color:#0f172a">${t.product || 'Wallet Adjustment'}</div>
+                  <div style="font-size:11.5px;color:#94a3b8;margin-top:2px">${dateStr}</div>
+                </div>
+                <b style="font-size:15px;color:${color}">${sign}$${Math.abs(Number(t.amount || 0)).toFixed(2)}</b>
+              </div>
+            </div>`;
+        }).join('');
+      }
+      tbody.innerHTML = j.transactions.map(t => {
+        const isCredit = t.type === 'deposit' || t.type === 'admin_credit';
+        const sign = isCredit ? '+' : '-';
+        const color = isCredit ? '#059669' : '#dc2626';
+        const dateStr = t.date ? new Date(t.date).toLocaleString() : 'Recent';
+        return `
+          <tr>
+            <td><code>${t.id}</code></td>
+            <td><span class="badge-status ${isCredit ? 'completed' : 'pending'}">${t.type}</span></td>
+            <td>${t.product || 'Wallet Balance Adjustment'}</td>
+            <td><b style="color:${color}">${sign}$${Number(t.amount || 0).toFixed(2)} USD</b></td>
+            <td style="color:#64748b;font-size:12px">${dateStr}</td>
+          </tr>
+        `;
+      }).join('');
+    } else {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No wallet transactions yet. Top up your wallet to start instant 1-click purchases!</td></tr>';
+      if (mobWList) mobWList.innerHTML = '<div class="empty-state" style="padding:24px 12px">No wallet transactions yet. Top up your wallet to start instant 1-click purchases!</div>';
+    }
+  } catch (e) {
+    document.getElementById('wallet-tbody').innerHTML = '<tr><td colspan="5" class="empty-state">Failed to load transactions.</td></tr>';
+  }
+}
+
+async function handleUpdateProfile(e) {
+  e.preventDefault();
+  const token = localStorage.getItem('rolea_token');
+  const msgEl = document.getElementById('profile-msg');
+  msgEl.textContent = 'Saving...';
+  msgEl.style.color = '#0056b3';
+
+  const email = document.getElementById('set-email').value.trim();
+  const telegram = document.getElementById('set-telegram').value.trim();
+
+  try {
+    const res = await fetch('/api/auth/profile/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ email, telegram })
+    });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      msgEl.textContent = 'Profile updated successfully!';
+      msgEl.style.color = '#10b981';
+      setTimeout(() => loadDashboardData(), 1200);
+    } else {
+      msgEl.textContent = j.error || 'Update failed.';
+      msgEl.style.color = '#dc2626';
+    }
+  } catch (err) {
+    msgEl.textContent = 'Connection error.';
+    msgEl.style.color = '#dc2626';
+  }
+}
+
+async function handleChangePassword(e) {
+  e.preventDefault();
+  const token = localStorage.getItem('rolea_token');
+  const msgEl = document.getElementById('pass-msg');
+
+  const curr = document.getElementById('set-curr-pass').value;
+  const newp = document.getElementById('set-new-pass').value;
+  const conf = document.getElementById('set-conf-pass').value;
+
+  if (newp !== conf) {
+    msgEl.textContent = 'New passwords do not match.';
+    msgEl.style.color = '#dc2626';
+    return;
+  }
+
+  msgEl.textContent = 'Updating...';
+  msgEl.style.color = '#0056b3';
+
+  try {
+    const res = await fetch('/api/auth/profile/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ current_password: curr, new_password: newp })
+    });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      msgEl.textContent = 'Password updated successfully!';
+      msgEl.style.color = '#10b981';
+      document.getElementById('set-curr-pass').value = '';
+      document.getElementById('set-new-pass').value = '';
+      document.getElementById('set-conf-pass').value = '';
+    } else {
+      msgEl.textContent = j.error || 'Password update failed.';
+      msgEl.style.color = '#dc2626';
+    }
+  } catch (err) {
+    msgEl.textContent = 'Connection error.';
+    msgEl.style.color = '#dc2626';
+  }
+}
+
+// Listen for auth events
+window.addEventListener('rolea-auth-change', () => {
+  loadDashboardData();
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadDashboardData();
+});
+</script>
+  <script src="/google_chooser.js"></script>
+</body>
+</html>

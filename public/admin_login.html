@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="km">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin Sign In · Rolea Topup</title>
+  <link rel="icon" href="/favicon.png" type="image/png" sizes="64x64">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+Khmer:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    body {
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 16px;
+      font-family: 'Plus Jakarta Sans', 'Inter', 'Noto Sans Khmer', sans-serif;
+    }
+    .auth-card {
+      width: 100%;
+      max-width: 400px;
+      margin: 0 auto;
+      padding: 32px 28px;
+      background: #ffffff;
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      box-shadow: 0 20px 48px rgba(16, 35, 75, 0.1);
+    }
+    .security-badge {
+      margin-top: 18px;
+      padding: 10px 14px;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 10px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: #166534;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      line-height: 1.4;
+    }
+    .security-badge svg {
+      flex-shrink: 0;
+      color: #16a34a;
+    }
+    .login-err {
+      color: #e11d2e;
+      background: #fff1f2;
+      border: 1px solid #fecdd3;
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-size: 12.5px;
+      font-weight: 700;
+      margin-top: 12px;
+      display: none;
+    }
+    .pin-wrap {
+      margin-top: 14px;
+      padding: 12px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 12px;
+      display: none;
+    }
+    .pin-wrap label {
+      margin: 0;
+      color: #1e40af;
+      font-weight: 700;
+    }
+    .pin-wrap input {
+      margin-top: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: 4px;
+      font-size: 16px;
+      text-align: center;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+
+<form class="card auth-card" id="login-form">
+  <div class="auth-emblem">
+    <svg class="i" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>
+    </svg>
+  </div>
+  
+  <h2>Admin sign in</h2>
+  <p>Log in to manage your Rolea Topup store orders, pricing, and security settings.</p>
+
+  <label>
+    Email or Username
+    <input type="text" id="adm-user" placeholder="Enter admin email or username" autocomplete="username" required>
+  </label>
+  
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px">
+    <span style="font-size:12px;font-weight:700;color:#475569">Password</span>
+    <a href="javascript:void(0)" id="btn-adm-forgot" onclick="openAdminForgot()" style="font-size:12px;font-weight:700;color:#2563eb;text-decoration:none">Forgot password?</a>
+  </div>
+  <input type="password" id="adm-pass" placeholder="Enter password" autocomplete="current-password" required style="margin-top:6px">
+
+  <div class="pin-wrap" id="pin-wrap">
+    <label>
+      2FA Security PIN
+      <input type="password" id="adm-pin" placeholder="••••••" inputmode="numeric" maxlength="8" autocomplete="one-time-code">
+    </label>
+  </div>
+
+  <div class="login-err" id="login-err"></div>
+
+  <button class="btn big" id="login-btn" type="submit" style="margin-top:20px">Sign in to Console</button>
+
+  <div class="security-badge">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+    </svg>
+    <span>Protected by PBKDF2 Encryption &amp; Brute-Force Guard</span>
+  </div>
+
+  <a href="/" class="auth-switch">← Back to Storefront</a>
+</form>
+
+<form class="card auth-card" id="admin-forgot-form" style="display:none" onsubmit="handleAdminResetSubmit(event)">
+  <div class="auth-emblem">
+    <svg class="i" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+    </svg>
+  </div>
+  <h2>Admin Password Recovery</h2>
+  <p>Enter your Admin email to receive a 6-digit <b>Password Reset Code</b> (or send to Admin Telegram).</p>
+
+  <label>
+    Admin Recovery Email (optional)
+    <input type="email" id="adm-fp-email" placeholder="admin@gmail.com (or blank for Telegram)">
+  </label>
+
+  <div id="adm-fp-step2" style="display:none;margin-top:12px">
+    <label>
+      6-Digit Password Reset Code
+      <input type="text" id="adm-fp-code" placeholder="••••••" maxlength="6" inputmode="numeric" style="font-family:'JetBrains Mono',monospace;letter-spacing:4px;text-align:center;font-weight:700">
+    </label>
+  </div>
+  <div id="adm-fp-step3" style="display:none;margin-top:12px">
+    <label>
+      New Admin Password (min 6 chars)
+      <input type="password" id="adm-fp-newpw" placeholder="Enter new password" minlength="6" autocomplete="new-password">
+    </label>
+    <label style="margin-top:12px">
+      Confirm New Password
+      <input type="password" id="adm-fp-confpw" placeholder="Confirm new password" minlength="6" autocomplete="new-password">
+    </label>
+  </div>
+
+  <div id="adm-fp-msg" style="display:none;margin-top:12px;padding:10px 12px;border-radius:10px;font-size:12.5px;font-weight:700"></div>
+
+  <button class="btn big" id="adm-fp-btn" type="submit" style="margin-top:18px">Send Password Reset Code</button>
+  <a href="javascript:void(0)" onclick="closeAdminForgot()" class="auth-switch">← Back to Admin Sign In</a>
+</form>
+
+<script>
+document.getElementById('login-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('login-btn');
+  const err = document.getElementById('login-err');
+  const pinWrap = document.getElementById('pin-wrap');
+  const pinInput = document.getElementById('adm-pin');
+  const u = document.getElementById('adm-user').value.trim();
+  const p = document.getElementById('adm-pass').value;
+  const pin = pinInput ? pinInput.value.trim() : '';
+
+  btn.disabled = true;
+  btn.textContent = 'Verifying…';
+  err.style.display = 'none';
+
+  try {
+    const res = await fetch('/api/admin/login', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p, pin: pin })
+    });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      localStorage.setItem('rolea_admin_token', j.token);
+      window.location.assign('/admin');
+    } else if (j.require_pin) {
+      pinWrap.style.display = 'block';
+      pinInput.required = true;
+      pinInput.focus();
+      btn.disabled = false;
+      btn.textContent = 'Verify PIN & Sign In';
+    } else {
+      err.textContent = j.error || 'Invalid credentials.';
+      err.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = pinWrap.style.display === 'block' ? 'Verify PIN & Sign In' : 'Sign in to Console';
+    }
+  } catch (ex) {
+    err.textContent = 'Network error. Try again.';
+    err.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Sign in to Console';
+  }
+});
+
+let admFpStage = 1; // 1 = send code, 2 = verify OTP, 3 = new password
+let admResetToken = '';
+
+function openAdminForgot() {
+  admFpStage = 1;
+  admResetToken = '';
+  document.getElementById('login-form').style.display = 'none';
+  document.getElementById('admin-forgot-form').style.display = 'block';
+  document.getElementById('adm-fp-step2').style.display = 'none';
+  document.getElementById('adm-fp-step3').style.display = 'none';
+  document.getElementById('adm-fp-email').readOnly = false;
+  document.getElementById('adm-fp-code').value = '';
+  document.getElementById('adm-fp-code').required = false;
+  document.getElementById('adm-fp-newpw').required = false;
+  document.getElementById('adm-fp-confpw').required = false;
+  document.getElementById('adm-fp-msg').style.display = 'none';
+  document.getElementById('adm-fp-btn').textContent = 'Send Password Reset Code';
+}
+
+function closeAdminForgot() {
+  document.getElementById('admin-forgot-form').style.display = 'none';
+  document.getElementById('login-form').style.display = 'block';
+}
+
+async function handleAdminResetSubmit(e) {
+  e.preventDefault();
+  const btn = document.getElementById('adm-fp-btn');
+  const msg = document.getElementById('adm-fp-msg');
+  msg.style.display = 'none';
+  btn.disabled = true;
+
+  try {
+    if (admFpStage === 1) {
+      const recEmail = (document.getElementById('adm-fp-email')?.value || '').trim();
+      btn.textContent = recEmail ? 'Sending Code to Email…' : 'Sending Code…';
+      const res = await fetch('/api/admin/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: recEmail })
+      });
+      const j = await res.json();
+      if (res.ok && j.ok) {
+        admFpStage = 2;
+        document.getElementById('adm-fp-email').readOnly = true;
+        document.getElementById('adm-fp-step2').style.display = 'block';
+        document.getElementById('adm-fp-code').required = true;
+        document.getElementById('adm-fp-code').focus();
+        msg.style.display = 'block';
+        msg.style.background = '#eff6ff';
+        msg.style.color = '#1e40af';
+        msg.textContent = j.message || 'Check your email/Telegram for the 6-digit code!';
+        btn.textContent = 'Verify 6-Digit Code';
+      } else {
+        msg.style.display = 'block';
+        msg.style.background = '#fff1f2';
+        msg.style.color = '#e11d2e';
+        msg.textContent = j.error || 'Failed to send code.';
+        btn.textContent = 'Send Password Reset Code';
+      }
+    } else if (admFpStage === 2) {
+      const code = document.getElementById('adm-fp-code').value.trim();
+      btn.textContent = 'Verifying Code…';
+      const res = await fetch('/api/admin/verify-reset-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code })
+      });
+      const j = await res.json();
+      if (res.ok && j.ok && j.reset_token) {
+        admFpStage = 3;
+        admResetToken = j.reset_token;
+        document.getElementById('adm-fp-step2').style.display = 'none';
+        document.getElementById('adm-fp-step3').style.display = 'block';
+        document.getElementById('adm-fp-code').required = false;
+        document.getElementById('adm-fp-newpw').required = true;
+        document.getElementById('adm-fp-confpw').required = true;
+        document.getElementById('adm-fp-newpw').focus();
+        msg.style.display = 'block';
+        msg.style.background = '#dcfce7';
+        msg.style.color = '#166534';
+        msg.textContent = j.message || 'Code verified! Enter your new password.';
+        btn.textContent = 'Save New Password';
+      } else {
+        msg.style.display = 'block';
+        msg.style.background = '#fff1f2';
+        msg.style.color = '#e11d2e';
+        msg.textContent = j.error || 'Incorrect verification code.';
+        btn.textContent = 'Verify 6-Digit Code';
+      }
+    } else if (admFpStage === 3) {
+      const new_password = document.getElementById('adm-fp-newpw').value;
+      const confirm_password = document.getElementById('adm-fp-confpw').value;
+      btn.textContent = 'Saving Password…';
+      const res = await fetch('/api/admin/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reset_token: admResetToken, new_password, confirm_password })
+      });
+      const j = await res.json();
+      if (res.ok && j.ok) {
+        msg.style.display = 'block';
+        msg.style.background = '#dcfce7';
+        msg.style.color = '#166534';
+        msg.textContent = j.message || 'Password updated! Redirecting to Sign In…';
+        setTimeout(() => { closeAdminForgot(); }, 1500);
+      } else {
+        msg.style.display = 'block';
+        msg.style.background = '#fff1f2';
+        msg.style.color = '#e11d2e';
+        msg.textContent = j.error || 'Failed to reset password.';
+        btn.textContent = 'Save New Password';
+      }
+    }
+  } catch (err) {
+    msg.style.display = 'block';
+    msg.style.background = '#fff1f2';
+    msg.style.color = '#e11d2e';
+    msg.textContent = 'Network error. Please try again.';
+    btn.textContent = admFpStage === 1 ? 'Send Password Reset Code' : (admFpStage === 2 ? 'Verify 6-Digit Code' : 'Save New Password');
+  } finally {
+    btn.disabled = false;
+  }
+}
+</script>
+
+</body>
+</html>

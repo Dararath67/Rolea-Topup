@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="ttbg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f0c1b"/>
+      <stop offset="100%" stop-color="#180e29"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="36" fill="url(#ttbg)"/>
+  <!-- TikTok note with cyan and red 3D effect -->
+  <g transform="translate(18, 10)">
+    <!-- Cyan shadow -->
+    <path d="M120 40 C130 65 150 82 178 84 L178 114 C158 113 140 105 128 94 L128 152 C128 184 102 210 70 210 C38 210 12 184 12 152 C12 120 38 94 70 94 C76 94 82 95 88 97 L88 127 C82 125 76 124 70 124 C54 124 42 136 42 152 C42 168 54 180 70 180 C86 180 98 168 98 152 L98 40 Z" fill="#25F4EE" opacity="0.85" transform="translate(-4, -4)"/>
+    <!-- Red shadow -->
+    <path d="M120 40 C130 65 150 82 178 84 L178 114 C158 113 140 105 128 94 L128 152 C128 184 102 210 70 210 C38 210 12 184 12 152 C12 120 38 94 70 94 C76 94 82 95 88 97 L88 127 C82 125 76 124 70 124 C54 124 42 136 42 152 C42 168 54 180 70 180 C86 180 98 168 98 152 L98 40 Z" fill="#FE2C55" opacity="0.85" transform="translate(4, 4)"/>
+    <!-- White main -->
+    <path d="M120 40 C130 65 150 82 178 84 L178 114 C158 113 140 105 128 94 L128 152 C128 184 102 210 70 210 C38 210 12 184 12 152 C12 120 38 94 70 94 C76 94 82 95 88 97 L88 127 C82 125 76 124 70 124 C54 124 42 136 42 152 C42 168 54 180 70 180 C86 180 98 168 98 152 L98 40 Z" fill="#FFFFFF"/>
+  </g>
+  <text x="128" y="234" font-family="'Oxanium', sans-serif" font-weight="800" font-size="16" fill="#25F4EE" text-anchor="middle" letter-spacing="3">TIKTOK SMM</text>
+</svg>

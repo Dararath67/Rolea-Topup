@@ -1,0 +1,795 @@
+<!doctype html>
+<html lang="km">
+<head>
+  <script src="/page_loader.js?v=20261110_v1"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Lucky Spin Robux · Rolea Topup</title>
+  <link rel="icon" href="/favicon.png" type="image/png" sizes="64x64">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Noto+Sans+Khmer:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css?v=20261110_v3">
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', 'Inter', 'Noto Sans Khmer', sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    .spin-shell {
+      max-width: 1120px;
+      margin: 22px auto 60px;
+      padding: 0 18px;
+    }
+    .spin-hero-banner {
+      background: #ffffff;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 22px;
+      padding: 24px 28px;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 28px rgba(15, 23, 42, 0.04);
+    }
+    .spin-hero-banner h1 {
+      font-size: 26px;
+      font-weight: 800;
+      margin: 0 0 4px;
+      letter-spacing: -0.4px;
+      color: #0f172a;
+    }
+    .spin-hero-banner p {
+      margin: 0;
+      color: #64748b;
+      font-size: 13.5px;
+    }
+    .spin-price-pill {
+      background: #eff6ff;
+      border: 1.5px solid #bfdbfe;
+      border-radius: 14px;
+      padding: 10px 18px;
+      text-align: right;
+    }
+    .spin-price-pill span {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      color: #2563eb;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+    .spin-price-pill b {
+      font-size: 22px;
+      font-weight: 900;
+      color: #1d4ed8;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .spin-grid {
+      display: grid;
+      grid-template-columns: 1.08fr 0.92fr;
+      gap: 24px;
+      align-items: start;
+    }
+    .wheel-card, .ticket-card, .winners-card {
+      background: #ffffff;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 22px;
+      padding: 26px;
+      box-shadow: 0 8px 28px rgba(15, 23, 42, 0.04);
+    }
+    .wheel-stage {
+      position: relative;
+      width: 100%;
+      max-width: 400px;
+      aspect-ratio: 1 / 1;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .wheel-pointer {
+      position: absolute;
+      top: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      filter: drop-shadow(0 4px 8px rgba(15, 23, 42, 0.35));
+    }
+    .wheel-canvas-wrap {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      padding: 10px;
+      background: linear-gradient(145deg, #1e293b, #0f172a);
+      box-shadow: 0 18px 42px rgba(15, 23, 42, 0.22), inset 0 0 0 3px rgba(255, 255, 255, 0.14);
+      box-sizing: border-box;
+      position: relative;
+    }
+    #spin-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      border-radius: 50%;
+      transition: transform 4.8s cubic-bezier(0.12, 0.86, 0.22, 1);
+    }
+    .wheel-center-hub {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 4px solid #0f172a;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 15;
+    }
+    .wheel-center-hub img {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .ticket-step-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0 0 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .ticket-step-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 8px;
+      background: #2563eb;
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 800;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .user-verify-row {
+      display: flex;
+      gap: 8px;
+    }
+    .user-verify-row input {
+      flex: 1;
+      padding: 12px 14px;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 12px;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+    }
+    .user-verify-row input:focus {
+      border-color: #2563eb;
+    }
+    .btn-check-u {
+      padding: 0 16px;
+      border-radius: 12px;
+      border: 1.5px solid #cbd5e1;
+      background: #f8fafc;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      color: #0f172a;
+      font-family: inherit;
+    }
+    .verified-pill {
+      display: none;
+      margin-top: 10px;
+      padding: 10px 12px;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 12px;
+      align-items: center;
+      gap: 10px;
+    }
+    .verified-pill img {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1.5px solid #22c55e;
+    }
+    .spin-pay-btns {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .btn-spin-pay {
+      padding: 14px 18px;
+      border-radius: 14px;
+      font-size: 14.5px;
+      font-weight: 800;
+      cursor: pointer;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-family: inherit;
+      transition: all 0.15s ease;
+    }
+    .btn-spin-pay.wallet {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #ffffff;
+      box-shadow: 0 6px 18px rgba(37, 99, 235, 0.25);
+    }
+    .btn-spin-pay.khqr {
+      background: #0f172a;
+      color: #ffffff;
+    }
+    .btn-spin-pay:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .spin-err {
+      display: none;
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #fff1f2;
+      border: 1px solid #fecdd3;
+      color: #e11d2e;
+      font-size: 12.5px;
+      font-weight: 700;
+    }
+
+    .winners-card {
+      margin-top: 24px;
+    }
+    .winners-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .winner-item {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .winner-badge {
+      font-size: 12px;
+      font-weight: 800;
+      padding: 4px 9px;
+      border-radius: 8px;
+      background: #dcfce7;
+      color: #15803d;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Modals */
+    .spin-modal-bg {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 16px;
+    }
+    .spin-modal-bg.open { display: flex; }
+    .spin-modal-card {
+      background: #ffffff;
+      border-radius: 22px;
+      max-width: 410px;
+      width: 100%;
+      padding: 26px;
+      text-align: center;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+    }
+
+    @media (max-width: 860px) {
+      .spin-grid {
+        grid-template-columns: 1fr;
+      }
+      .spin-shell {
+        margin: 14px auto 90px;
+        padding: 0 12px;
+      }
+      .wheel-card, .ticket-card, .winners-card {
+        padding: 18px 14px;
+      }
+      .spin-hero-banner {
+        padding: 18px;
+      }
+      .spin-hero-banner h1 {
+        font-size: 21px;
+      }
+      .user-verify-row input {
+        font-size: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="desktop-nav">
+  <a class="brand" href="/">
+    <img class="brand-logo" src="/media/logo.webp" alt="Rolea Topup">
+    <span class="brand-copy"><span class="brand-name">Rolea Topup</span></span>
+  </a>
+  <form class="nav-search" onsubmit="return false">
+    <span class="s-ico">
+      <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/>
+      </svg>
+    </span>
+    <input type="text" class="gq" placeholder="Search Game Topup & SMM Services..." autocomplete="off">
+  </form>
+  <div class="nav-links">
+    <a href="/">Home</a>
+    <a href="/#games">Products</a>
+    <a href="/my-account">My Account</a>
+    <a href="/check-order">Check order</a>
+    <a href="/#footer">Contact</a>
+  </div>
+</nav>
+
+<div class="app">
+  <header class="app-header">
+    <a class="brand" href="/">
+      <img class="brand-logo" src="/media/logo.webp" alt="Rolea Topup">
+      <span class="brand-copy"><span class="brand-name">Rolea Topup</span></span>
+    </a>
+    <div class="header-actions"></div>
+  </header>
+
+  <div class="spin-shell">
+    <div class="spin-hero-banner">
+      <div>
+        <h1 id="spin-title">Lucky Robux Wheel</h1>
+        <p id="spin-sub">Spin to win instant Robux prizes directly to your account!</p>
+      </div>
+      <div class="spin-price-pill">
+        <span>Ticket Price</span>
+        <b id="spin-price-display">$0.50 USD</b>
+      </div>
+    </div>
+
+    <div class="spin-grid">
+      <!-- Left: Interactive Wheel -->
+      <div class="wheel-card">
+        <div class="wheel-stage">
+          <svg class="wheel-pointer" width="38" height="44" viewBox="0 0 38 44">
+            <path d="M19 42L4 8C2.5 4.5 5 1 9 1h20c4 0 6.5 3.5 5 7L19 42z" fill="#ef4444" stroke="#ffffff" stroke-width="3"/>
+          </svg>
+          <div class="wheel-canvas-wrap">
+            <canvas id="spin-canvas" width="520" height="520"></canvas>
+            <div class="wheel-center-hub">
+              <img src="/media/robux-coin.svg" alt="Robux">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Player & Payment -->
+      <div class="ticket-card">
+        <h3 class="ticket-step-title"><span class="ticket-step-num">1</span> Enter Roblox Username</h3>
+        <div class="user-verify-row">
+          <input type="text" id="spin-username" placeholder="Enter your Roblox username" autocomplete="off">
+          <button type="button" class="btn-check-u" id="btn-verify-u" onclick="verifyRobloxForSpin()">Check</button>
+        </div>
+
+        <div class="verified-pill" id="spin-verified-pill">
+          <img id="spin-u-avatar" src="/media/robux-coin.svg" alt="Avatar">
+          <div>
+            <b id="spin-u-display" style="font-size:13.5px;color:#0f172a;display:block">—</b>
+            <span id="spin-u-handle" style="font-size:11.5px;color:#059669;font-weight:700">—</span>
+          </div>
+        </div>
+
+        <h3 class="ticket-step-title" style="margin-top:22px"><span class="ticket-step-num">2</span> Choose Payment &amp; Spin</h3>
+        <p style="font-size:12.5px;color:#64748b;margin:0 0 6px;line-height:1.5">
+          All prizes are generated securely on the server. Winning Robux prizes are automatically queued for delivery!
+        </p>
+
+        <div class="spin-err" id="spin-err-box"></div>
+
+        <div class="spin-pay-btns">
+          <button type="button" class="btn-spin-pay wallet" id="btn-spin-wallet" onclick="buyAndSpin('wallet')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 3H8a2 2 0 0 0-2 2v2h12V5a2 2 0 0 0-2-2z"/></svg>
+            <span id="lbl-spin-wallet">Pay with Rolea Wallet &amp; Spin</span>
+          </button>
+          <button type="button" class="btn-spin-pay khqr" id="btn-spin-khqr" onclick="buyAndSpin('khqr')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM18 18h3v3h-3z"/></svg>
+            <span id="lbl-spin-khqr">Pay with ABA KHQR &amp; Spin</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Recent Winners -->
+    <div class="winners-card">
+      <h3 style="margin:0;font-size:17px;font-weight:800;color:#0f172a">Recent Lucky Winners</h3>
+      <p style="margin:4px 0 0;font-size:12.5px;color:#64748b">Real Robux prizes won on Rolea Topup</p>
+      <div class="winners-grid" id="recent-winners-list">
+        <div style="font-size:13px;color:#94a3b8">No winners yet — be the first to spin!</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- KHQR Payment Modal -->
+<div class="spin-modal-bg" id="spin-khqr-modal">
+  <div class="spin-modal-card">
+    <h3 style="margin:0 0 6px;font-size:18px;font-weight:800">Scan ABA KHQR to Spin</h3>
+    <p style="margin:0 0 14px;font-size:12.5px;color:#64748b">The wheel will spin automatically as soon as payment is received.</p>
+    <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:16px;padding:14px;display:inline-block;margin-bottom:14px">
+      <img id="spin-qr-img" src="" alt="KHQR" style="width:210px;height:210px;display:block">
+    </div>
+    <div id="spin-khqr-amt" style="font-size:18px;font-weight:900;color:#2563eb;margin-bottom:14px">$0.50 USD</div>
+    <button type="button" class="btn-check-u" onclick="cancelKhqrSpin()" style="width:100%;padding:11px">Cancel</button>
+  </div>
+</div>
+
+<!-- Result Modal -->
+<div class="spin-modal-bg" id="spin-result-modal">
+  <div class="spin-modal-card">
+    <div id="res-icon-wrap" style="width:60px;height:60px;border-radius:50%;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;background:#dcfce7;color:#15803d">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <h2 id="res-title" style="margin:0 0 8px;font-size:22px;font-weight:900;color:#0f172a">—</h2>
+    <p id="res-desc" style="margin:0 0 18px;font-size:13.5px;color:#475569;line-height:1.5">—</p>
+    <div id="res-order-box" style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 14px;margin-bottom:16px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700"></div>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button type="button" class="btn-spin-pay wallet" onclick="closeSpinResult()" style="padding:11px 22px;font-size:13.5px">Spin Again</button>
+      <a id="res-track-link" href="/check-order" style="display:none;padding:11px 18px;border-radius:14px;border:1.5px solid #cbd5e1;color:#0f172a;font-weight:700;font-size:13.5px;text-decoration:none;align-items:center">Track Order</a>
+    </div>
+  </div>
+</div>
+
+<!-- Mobile Bottom Nav -->
+<nav class="bottom-nav">
+  <a class="nav-item" href="/">
+    <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>
+    <span>Home</span>
+  </a>
+  <a class="nav-item active" href="/spin">
+    <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 3"/></svg>
+    <span>Spin</span>
+  </a>
+  <a class="nav-item" href="/check-order">
+    <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>
+    <span>Orders</span>
+  </a>
+  <a class="nav-item" href="/my-account" id="nav-item-account">
+    <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    <span>Account</span>
+  </a>
+</nav>
+
+<script src="/auth_wallet.js?v=20261110_v4"></script>
+<script>
+let spinConfig = null;
+let verifiedUser = null;
+let currentAngleDeg = 0;
+let isSpinning = false;
+let khqrPollTimer = null;
+
+async function loadSpinConfig() {
+  try {
+    const res = await fetch('/api/spin/config');
+    const j = await res.json();
+    if (!res.ok || !j.ok) return;
+    spinConfig = j;
+    document.getElementById('spin-title').textContent = j.title || 'Lucky Robux Wheel';
+    document.getElementById('spin-sub').textContent = j.subtitle || 'Spin to win instant Robux!';
+    document.getElementById('spin-price-display').textContent = `$${Number(j.spin_price_usd || 0.5).toFixed(2)} USD`;
+
+    if (!j.enabled) {
+      showSpinError('Lucky Spin Robux is temporarily paused by Admin.');
+      document.getElementById('btn-spin-wallet').disabled = true;
+      document.getElementById('btn-spin-khqr').disabled = true;
+    }
+
+    drawWheel(j.slices || []);
+    renderWinners(j.recent_winners || []);
+  } catch (e) {}
+}
+
+function drawWheel(slices) {
+  const canvas = document.getElementById('spin-canvas');
+  if (!canvas || !slices.length) return;
+  const ctx = canvas.getContext('2d');
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  const radius = cx - 4;
+  const n = slices.length;
+  const arc = (2 * Math.PI) / n;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  slices.forEach((sl, i) => {
+    // Draw slice starting at -90deg (12 o'clock) + i*arc
+    const startAngle = -Math.PI / 2 + i * arc;
+    const endAngle = startAngle + arc;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, radius, startAngle, endAngle);
+    ctx.closePath();
+    ctx.fillStyle = sl.color || '#2563eb';
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+    ctx.stroke();
+
+    // Label
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(startAngle + arc / 2);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = sl.text_color || '#ffffff';
+    ctx.font = '800 17px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText(sl.label, radius - 26, 6);
+    ctx.restore();
+  });
+}
+
+function renderWinners(list) {
+  const box = document.getElementById('recent-winners-list');
+  if (!box) return;
+  if (!list || list.length === 0) {
+    box.innerHTML = '<div style="font-size:13px;color:#94a3b8">No winners yet — be the first to spin!</div>';
+    return;
+  }
+  box.innerHTML = list.map(w => `
+    <div class="winner-item">
+      <div>
+        <b style="font-size:13.5px;color:#0f172a;display:block">@${w.username}</b>
+        <span style="font-size:11px;color:#64748b">${w.created_at ? new Date(w.created_at).toLocaleTimeString() : 'Just now'}</span>
+      </div>
+      <span class="winner-badge">+${Number(w.robux).toLocaleString()} R$</span>
+    </div>
+  `).join('');
+}
+
+function showSpinError(msg) {
+  const b = document.getElementById('spin-err-box');
+  b.textContent = msg;
+  b.style.display = 'block';
+}
+function hideSpinError() {
+  document.getElementById('spin-err-box').style.display = 'none';
+}
+
+async function verifyRobloxForSpin() {
+  hideSpinError();
+  const uname = document.getElementById('spin-username').value.trim().replace(/^@/, '');
+  if (!uname || uname.length < 2) {
+    showSpinError('Please enter a valid Roblox username.');
+    return null;
+  }
+  const btn = document.getElementById('btn-verify-u');
+  btn.textContent = 'Checking…';
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/check-id', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ game: 'roblox', player_id: uname })
+    });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      verifiedUser = {
+        username: j.username || uname,
+        display_name: j.display_name || uname,
+        roblox_id: j.roblox_id || null,
+        avatar: j.avatar || '/media/robux-coin.svg'
+      };
+      document.getElementById('spin-u-avatar').src = verifiedUser.avatar;
+      document.getElementById('spin-u-display').textContent = verifiedUser.display_name;
+      document.getElementById('spin-u-handle').textContent = '@' + verifiedUser.username + ' · Verified';
+      document.getElementById('spin-verified-pill').style.display = 'flex';
+      return verifiedUser;
+    } else {
+      showSpinError(j.error || 'Roblox account not found.');
+      return null;
+    }
+  } catch (e) {
+    showSpinError('Failed to verify Roblox username.');
+    return null;
+  } finally {
+    btn.textContent = 'Check';
+    btn.disabled = false;
+  }
+}
+
+async function buyAndSpin(method) {
+  if (isSpinning) return;
+  hideSpinError();
+  const inputName = document.getElementById('spin-username').value.trim().replace(/^@/, '');
+  if (!inputName) {
+    showSpinError('Please enter your Roblox username in Step 1 first.');
+    return;
+  }
+  if (!verifiedUser || verifiedUser.username.toLowerCase() !== inputName.toLowerCase()) {
+    const v = await verifyRobloxForSpin();
+    if (!v) return;
+  }
+
+  const token = localStorage.getItem('rolea_token') || '';
+  if (method === 'wallet' && !token) {
+    if (window.RoleaAuth) window.RoleaAuth.openAuthModal('login');
+    else window.location.assign('/signin?redirect=/spin');
+    return;
+  }
+
+  const btnW = document.getElementById('btn-spin-wallet');
+  const btnK = document.getElementById('btn-spin-khqr');
+  btnW.disabled = true;
+  btnK.disabled = true;
+
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+
+    const res = await fetch('/api/spin/create-ticket', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        username: verifiedUser.username,
+        roblox_id: verifiedUser.roblox_id,
+        display_name: verifiedUser.display_name,
+        avatar: verifiedUser.avatar,
+        payment_method: method
+      })
+    });
+    const j = await res.json();
+    if (!res.ok || !j.ok) {
+      showSpinError(j.error || 'Failed to create spin ticket.');
+      btnW.disabled = false;
+      btnK.disabled = false;
+      return;
+    }
+
+    if (j.paid) {
+      animateWheelToSlice(j.slice_index, j.slice, j.order_id);
+      if (window.RoleaAuth && typeof window.RoleaAuth.refreshUser === 'function') {
+        window.RoleaAuth.refreshUser();
+      }
+    } else {
+      // Open KHQR modal and poll
+      document.getElementById('spin-qr-img').src = j.qr_url;
+      document.getElementById('spin-khqr-amt').textContent = `$${Number(j.amount || 0.5).toFixed(2)} USD`;
+      document.getElementById('spin-khqr-modal').classList.add('open');
+      startKhqrPolling(j.spin_id);
+    }
+  } catch (err) {
+    showSpinError('Network error. Try again.');
+    btnW.disabled = false;
+    btnK.disabled = false;
+  }
+}
+
+function startKhqrPolling(spinId) {
+  if (khqrPollTimer) clearInterval(khqrPollTimer);
+  khqrPollTimer = setInterval(async () => {
+    try {
+      const res = await fetch('/api/spin/ticket/' + spinId);
+      const j = await res.json();
+      if (res.ok && j.ok && j.paid && j.result) {
+        clearInterval(khqrPollTimer);
+        khqrPollTimer = null;
+        document.getElementById('spin-khqr-modal').classList.remove('open');
+        animateWheelToSlice(j.result.slice_index, j.result.slice, j.result.order_id);
+      }
+    } catch (e) {}
+  }, 2200);
+}
+
+function cancelKhqrSpin() {
+  if (khqrPollTimer) { clearInterval(khqrPollTimer); khqrPollTimer = null; }
+  document.getElementById('spin-khqr-modal').classList.remove('open');
+  document.getElementById('btn-spin-wallet').disabled = false;
+  document.getElementById('btn-spin-khqr').disabled = false;
+}
+
+function playSpinTickSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(740, ctx.currentTime);
+    g.gain.setValueAtTime(0.06, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.05);
+  } catch (e) {}
+}
+
+function animateWheelToSlice(sliceIndex, sliceObj, orderId) {
+  isSpinning = true;
+  const n = (spinConfig && spinConfig.slices) ? spinConfig.slices.length : 8;
+  const sliceDeg = 360 / n;
+  // Slice i center relative to 12 o'clock is (i + 0.5) * sliceDeg clockwise.
+  // To align slice i center under top pointer (0deg), canvas rotation mod 360 must equal (360 - (i + 0.5) * sliceDeg).
+  const targetMod = (360 - ((sliceIndex + 0.5) * sliceDeg)) % 360;
+  const currentMod = currentAngleDeg % 360;
+  let delta = (targetMod - currentMod + 360) % 360;
+  const extraSpins = 6 * 360;
+  currentAngleDeg += extraSpins + delta;
+
+  const canvas = document.getElementById('spin-canvas');
+  canvas.style.transform = `rotate(${currentAngleDeg}deg)`;
+
+  let tickCount = 0;
+  const tickTimer = setInterval(() => {
+    tickCount++;
+    playSpinTickSound();
+    if (tickCount >= 22) clearInterval(tickTimer);
+  }, 190);
+
+  setTimeout(() => {
+    clearInterval(tickTimer);
+    isSpinning = false;
+    document.getElementById('btn-spin-wallet').disabled = false;
+    document.getElementById('btn-spin-khqr').disabled = false;
+    showSpinResultModal(sliceObj, orderId);
+    loadSpinConfig();
+  }, 4950);
+}
+
+function showSpinResultModal(sliceObj, orderId) {
+  const wonRobux = Number(sliceObj?.robux || 0);
+  const iconWrap = document.getElementById('res-icon-wrap');
+  const titleEl = document.getElementById('res-title');
+  const descEl = document.getElementById('res-desc');
+  const orderBox = document.getElementById('res-order-box');
+  const trackLink = document.getElementById('res-track-link');
+
+  if (wonRobux > 0) {
+    iconWrap.style.background = '#dcfce7';
+    iconWrap.style.color = '#15803d';
+    titleEl.textContent = `You Won ${wonRobux.toLocaleString()} Robux!`;
+    descEl.textContent = `Congratulations! Your winning prize (${sliceObj.label}) has been recorded for @${verifiedUser?.username || 'Player'} and sent to fulfillment.`;
+    if (orderId) {
+      orderBox.textContent = `Order ID: ${orderId}`;
+      orderBox.style.display = 'block';
+      trackLink.href = '/check-order';
+      trackLink.style.display = 'inline-flex';
+    }
+  } else {
+    iconWrap.style.background = '#f1f5f9';
+    iconWrap.style.color = '#475569';
+    titleEl.textContent = sliceObj?.label || 'Thank You!';
+    descEl.textContent = 'Thank you for playing! Wishing you big luck on your next spin.';
+    orderBox.style.display = 'none';
+    trackLink.style.display = 'none';
+  }
+
+  document.getElementById('spin-result-modal').classList.add('open');
+}
+
+function closeSpinResult() {
+  document.getElementById('spin-result-modal').classList.remove('open');
+}
+
+loadSpinConfig();
+</script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+{
+  "roblox": {
+    "id": "roblox",
+    "name": "Roblox Robux Send",
+    "category": "Games",
+    "kicker": "ROBLOX · ROBUX SEND",
+    "unit": "Robux",
+    "type": "roblox",
+    "enabled": true,
+    "logo": "/media/logo_roblox_1794236120056.webp",
+    "banner": "/media/roblox-banner.webp",
+    "badge": "HOT"
+  },
+  "tiktok": {
+    "id": "tiktok",
+    "name": "TikTok SMM Services",
+    "category": "Social Media",
+    "kicker": "TIKTOK · FOLLOWERS & LIKES",
+    "unit": "Followers",
+    "type": "smm",
+    "enabled": true,
+    "logo": "/media/tiktok-thumb.svg",
+    "banner": "/media/tiktok-banner.svg",
+    "badge": "PROMO"
+  }
+}
