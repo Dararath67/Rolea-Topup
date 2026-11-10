@@ -115,10 +115,29 @@
   <!-- Hero Header -->
   <div class="game-hero">
     <div class="g-thumb">
-      <img src="/media/roblox-thumb.webp" alt="Roblox Robux Send">
+      <img id="game-hero-logo" src="/media/roblox-thumb.webp" alt="Roblox Robux Send">
     </div>
     <div>
       <h1>Roblox Robux Send</h1>
+      <script>
+        (function () {
+          var m = window.location.pathname.match(/^\/game\/([^\/?#]+)/);
+          var slug = m ? m[1].toLowerCase() : 'roblox';
+          var b = document.getElementById('roblox-banner-img');
+          var t = document.getElementById('game-hero-logo');
+          var h = document.querySelector('.game-hero h1');
+          var c = document.querySelector('.crumb .current');
+          if (slug === 'tiktok') {
+            if (b) { b.src = '/media/tiktok-banner.svg'; b.alt = 'TikTok SMM Services Banner'; }
+            if (t) { t.src = '/media/tiktok-thumb.svg'; t.alt = 'TikTok SMM Services'; }
+            if (h) h.textContent = 'TikTok SMM Services';
+            if (c) c.textContent = 'TikTok SMM Services';
+          } else if (slug !== 'roblox') {
+            if (b) b.removeAttribute('src');
+            if (h) h.textContent = 'Loading product…';
+          }
+        })();
+      </script>
       <div class="g-badges">
         <span class="g-badge">
           <svg class="i" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
