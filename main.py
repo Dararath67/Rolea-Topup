@@ -837,6 +837,15 @@ async def send_telegram_direct_message(token: str, chat_id: Union[int, str], tex
     except Exception as e:
         print(f"Customer telegram msg error: {e}")
 
+
+async def send_telegram_admin_alert(text: str):
+    """Send an HTML alert message to the configured admin Telegram chat."""
+    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    chat_id = settings.get("telegram_chat_id") or os.environ.get("TELEGRAM_CHAT_ID", "") or "8710759437"
+    if not token or not chat_id or not text:
+        return
+    await send_telegram_direct_message(token, chat_id, text)
+
 async def notify_customer_order_completed(order: Dict[str, Any]):
     token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
     if not token or not order:
@@ -1458,17 +1467,18 @@ async def get_roblox_avatar(user_id: str):
 # LUCKY SPIN ROBUX APIS (PUBLIC & ADMIN)
 # ==========================================
 
-def _finalize_spin_win_order(username: str, roblox_id: Optional[str], avatar: str, display_name: str, pay_method: str, spin_id: str, slice_obj: Dict[str, Any], user_obj: Optional[Dict[str, Any]], guard_triggered: bool) -> Optional[str]:
+def _finalize_spin_win_order(username: str, roblox_id: Optional[str], avatar: str, display_name: str, pay_method: str, spin_id: str, slice_obj: Dict[str, Any], user_obj: Optional[Dict[str, Any]], guard_triggered: bool) -> tuple[Optional[str], Optional[str]]:
     robux_won = int(slice_obj.get("robux", 0))
     now_iso = datetime.now(timezone.utc).isoformat()
     order_id = None
+    receipt_token = None
 
     if robux_won > 0:
         order_id = spin_id
-        auto_del = bool(settings.get("auto_deliver", False))
+        receipt_token = secrets.token_hex(16)
         new_order = {
             "order_id": order_id,
-            "token": secrets.token_hex(16),
+            "token": receipt_token,
             "user_id": user_obj["id"] if user_obj else None,
             "buyer_account": user_obj["username"] if user_obj else username,
             "game": "roblox",
@@ -1488,12 +1498,14 @@ def _finalize_spin_win_order(username: str, roblox_id: Optional[str], avatar: st
             "roblox_id": roblox_id,
             "avatar": avatar or "/media/robux-coin.svg",
             "profile_url": f"https://www.roblox.com/users/{roblox_id}/profile" if roblox_id else "",
-            "status": "completed" if auto_del else "paid",
-            "step": "delivered" if auto_del else "sending",
+            "status": "paid",
+            "step": "sending",
             "paid": True,
-            "delivered": auto_del,
+            "delivered": False,
+            "claim_submitted": False,
+            "claim_note": "",
             "created_at": now_iso,
-            "label": f"Lucky Spin Winner ({robux_won} R$)"
+            "label": f"Lucky Spin Winner ({robux_won} R$) — Ready for Admin claim"
         }
         orders.insert(0, new_order)
         if len(orders) > 500:
@@ -1516,7 +1528,7 @@ def _finalize_spin_win_order(username: str, roblox_id: Optional[str], avatar: st
     if len(spin_data["history"]) > 300:
         spin_data["history"] = spin_data["history"][:300]
     save_spin_data()
-    return order_id
+    return order_id, receipt_token
 
 @app.get("/api/spin/config")
 async def get_public_spin_config():
@@ -1605,7 +1617,7 @@ async def create_spin_ticket(request: Request):
 
             roll = perform_spin_roll()
             sl = roll["slice"]
-            order_id = _finalize_spin_win_order(username, roblox_id, avatar, display_name, "Rolea Wallet", spin_id, sl, current_user, roll["guard_triggered"])
+            order_id, receipt_token = _finalize_spin_win_order(username, roblox_id, avatar, display_name, "Rolea Wallet", spin_id, sl, current_user, roll["guard_triggered"])
             return {
                 "ok": True,
                 "paid": True,
@@ -1618,6 +1630,7 @@ async def create_spin_ticket(request: Request):
                     "color": sl.get("color")
                 },
                 "order_id": order_id,
+                "receipt_token": receipt_token,
                 "remaining_balance": current_user["balance"]
             }
 
@@ -1698,7 +1711,7 @@ async def check_spin_ticket(spin_id: str):
                 roll = perform_spin_roll()
                 sl = roll["slice"]
                 u_obj = next((u for u in users if u.get("id") == tkt.get("user_id")), None) if tkt.get("user_id") else None
-                order_id = _finalize_spin_win_order(
+                order_id, receipt_token = _finalize_spin_win_order(
                     tkt["username"], tkt.get("roblox_id"), tkt.get("avatar", "/media/robux-coin.svg"),
                     tkt.get("display_name", tkt["username"]), "ABA KHQR", spin_id, sl, u_obj, roll["guard_triggered"]
                 )
@@ -1710,7 +1723,8 @@ async def check_spin_ticket(spin_id: str):
                         "robux": int(sl.get("robux", 0)),
                         "color": sl.get("color")
                     },
-                    "order_id": order_id
+                    "order_id": order_id,
+                    "receipt_token": receipt_token
                 }
 
     return {
@@ -1718,6 +1732,70 @@ async def check_spin_ticket(spin_id: str):
         "paid": tkt["paid"],
         "spun": tkt["spun"],
         "result": tkt["result"]
+    }
+
+@app.post("/api/spin/claim")
+async def submit_spin_claim(request: Request):
+    body = await request.json() if (await request.body()) else {}
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid JSON payload"})
+
+    order_id = _sanitize_plain(body.get("order_id"), 48)
+    receipt_token = str(body.get("receipt_token") or "").strip()
+    roblox_username = _sanitize_plain(body.get("roblox_username"), 60).lstrip("@")
+    note = _sanitize_plain(body.get("note"), 180)
+
+    if not order_id or not receipt_token:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Missing spin prize order ID or receipt token."})
+    if not roblox_username or len(roblox_username) < 2:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Please enter a valid Roblox username to claim your prize."})
+
+    client_ip = get_admin_effective_ip(request)
+    blocked, b_reason = is_blacklisted(player_id=roblox_username, username=roblox_username, ip=client_ip)
+    if blocked:
+        return JSONResponse(status_code=403, content={"ok": False, "error": f"Account blocked: {b_reason}"})
+
+    async with _tx_lock:
+        order = next((o for o in orders if o.get("order_id") == order_id and o.get("package_id") == "spin_reward"), None)
+        if not order:
+            return JSONResponse(status_code=404, content={"ok": False, "error": "Spin prize order not found."})
+        if not hmac.compare_digest(str(order.get("token") or ""), receipt_token):
+            return JSONResponse(status_code=403, content={"ok": False, "error": "Invalid claim receipt token."})
+        if order.get("delivered") or order.get("status") in ("completed", "refunded"):
+            return JSONResponse(status_code=400, content={"ok": False, "error": "This spin prize order has already been finalized."})
+
+        robux_won = int(order.get("robux_amount", 0))
+        if robux_won <= 0:
+            return JSONResponse(status_code=400, content={"ok": False, "error": "No Robux prize to claim on this spin."})
+
+        order["roblox_username"] = roblox_username
+        order["player_id"] = roblox_username
+        order["display_name"] = roblox_username
+        order["claim_submitted"] = True
+        order["claim_note"] = note
+        order["claimed_at"] = datetime.now(timezone.utc).isoformat()
+        order["status"] = "paid"
+        order["step"] = "sending"
+        order["delivered"] = False
+        order["label"] = f"Claim Submitted for @{roblox_username} ({robux_won} R$)" + (f" · {note}" if note else "")
+        save_orders()
+
+    asyncio.create_task(send_telegram_admin_alert(
+        f"<b>[SPIN CLAIM SUBMITTED] User Requesting Robux Prize</b>\n"
+        f"Order ID: <code>{order_id}</code>\n"
+        f"Roblox Account: <code>@{roblox_username}</code>\n"
+        f"Prize: <b>{robux_won:,} Robux</b>\n"
+        + (f"Note: <i>{note}</i>\n" if note else "")
+        + "Please send Robux in Admin Orders Queue!"
+    ))
+
+    return {
+        "ok": True,
+        "order_id": order_id,
+        "roblox_username": roblox_username,
+        "robux_amount": robux_won,
+        "status": "paid",
+        "message": f"Claim request submitted to Admin for @{roblox_username}!"
     }
 
 @app.get("/api/admin/spin")

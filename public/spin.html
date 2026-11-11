@@ -452,9 +452,22 @@
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
     </div>
     <h2 id="res-title" style="margin:0 0 8px;font-size:22px;font-weight:900;color:#0f172a">—</h2>
-    <p id="res-desc" style="margin:0 0 18px;font-size:13.5px;color:#475569;line-height:1.5">—</p>
-    <div id="res-order-box" style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 14px;margin-bottom:16px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700"></div>
-    <div style="display:flex;gap:10px;justify-content:center">
+    <p id="res-desc" style="margin:0 0 14px;font-size:13.5px;color:#475569;line-height:1.5">—</p>
+    <div id="res-order-box" style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 14px;margin-bottom:14px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700"></div>
+
+    <!-- Submit Claim to Admin Form -->
+    <div id="spin-claim-box" style="display:none;text-align:left;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:14px;padding:14px;margin-bottom:16px">
+      <label style="display:block;font-size:11.5px;font-weight:800;color:#475569;text-transform:uppercase;margin-bottom:6px">Confirm Roblox Username for Admin</label>
+      <input type="text" id="claim-username" placeholder="Roblox Username" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:14px;font-weight:600;margin-bottom:10px;background:#fff">
+      <label style="display:block;font-size:11.5px;font-weight:800;color:#475569;text-transform:uppercase;margin-bottom:6px">Message to Admin (Optional)</label>
+      <input type="text" id="claim-note" placeholder="e.g. Ready to receive Robux" style="width:100%;box-sizing:border-box;padding:9px 12px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:13px;margin-bottom:12px;background:#fff">
+      <div id="claim-error" style="display:none;font-size:12px;font-weight:700;color:#dc2626;margin-bottom:8px"></div>
+      <button type="button" id="btn-submit-claim" onclick="submitSpinClaim()" class="btn-spin-pay khqr" style="width:100%;padding:12px;font-size:14px">Submit Claim to Admin →</button>
+    </div>
+
+    <div id="spin-claim-done" style="display:none;background:#ecfdf5;border:1.5px solid #86efac;color:#065f46;border-radius:14px;padding:12px 14px;margin-bottom:16px;font-size:13px;font-weight:700;line-height:1.45"></div>
+
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
       <button type="button" class="btn-spin-pay wallet" onclick="closeSpinResult()" style="padding:11px 22px;font-size:13.5px">Spin Again</button>
       <a id="res-track-link" href="/check-order" style="display:none;padding:11px 18px;border-radius:14px;border:1.5px solid #cbd5e1;color:#0f172a;font-weight:700;font-size:13.5px;text-decoration:none;align-items:center">Track Order</a>
     </div>
@@ -667,7 +680,7 @@ async function buyAndSpin(method) {
     }
 
     if (j.paid) {
-      animateWheelToSlice(j.slice_index, j.slice, j.order_id);
+      animateWheelToSlice(j.slice_index, j.slice, j.order_id, j.receipt_token);
       if (window.RoleaAuth && typeof window.RoleaAuth.refreshUser === 'function') {
         window.RoleaAuth.refreshUser();
       }
@@ -695,7 +708,7 @@ function startKhqrPolling(spinId) {
         clearInterval(khqrPollTimer);
         khqrPollTimer = null;
         document.getElementById('spin-khqr-modal').classList.remove('open');
-        animateWheelToSlice(j.result.slice_index, j.result.slice, j.result.order_id);
+        animateWheelToSlice(j.result.slice_index, j.result.slice, j.result.order_id, j.result.receipt_token);
       }
     } catch (e) {}
   }, 2200);
@@ -722,12 +735,25 @@ function playSpinTickSound() {
   } catch (e) {}
 }
 
-function animateWheelToSlice(sliceIndex, sliceObj, orderId) {
+let activeWinClaim = null;
+
+function saveSpinOrderLocally(orderId, receiptToken, wonRobux) {
+  if (!orderId || !receiptToken) return;
+  try {
+    const raw = localStorage.getItem('rolea_orders_v1');
+    const arr = raw ? JSON.parse(raw) : [];
+    const list = Array.isArray(arr) ? arr : [];
+    if (!list.some(x => x && x.order_id === orderId)) {
+      list.unshift({ order_id: orderId, token: receiptToken, game: 'roblox', package: `Spin Win: ${wonRobux} Robux` });
+      localStorage.setItem('rolea_orders_v1', JSON.stringify(list.slice(0, 50)));
+    }
+  } catch (_) {}
+}
+
+function animateWheelToSlice(sliceIndex, sliceObj, orderId, receiptToken) {
   isSpinning = true;
   const n = (spinConfig && spinConfig.slices) ? spinConfig.slices.length : 8;
   const sliceDeg = 360 / n;
-  // Slice i center relative to 12 o'clock is (i + 0.5) * sliceDeg clockwise.
-  // To align slice i center under top pointer (0deg), canvas rotation mod 360 must equal (360 - (i + 0.5) * sliceDeg).
   const targetMod = (360 - ((sliceIndex + 0.5) * sliceDeg)) % 360;
   const currentMod = currentAngleDeg % 360;
   let delta = (targetMod - currentMod + 360) % 360;
@@ -749,40 +775,101 @@ function animateWheelToSlice(sliceIndex, sliceObj, orderId) {
     isSpinning = false;
     document.getElementById('btn-spin-wallet').disabled = false;
     document.getElementById('btn-spin-khqr').disabled = false;
-    showSpinResultModal(sliceObj, orderId);
+    showSpinResultModal(sliceObj, orderId, receiptToken);
     loadSpinConfig();
   }, 4950);
 }
 
-function showSpinResultModal(sliceObj, orderId) {
+function showSpinResultModal(sliceObj, orderId, receiptToken) {
   const wonRobux = Number(sliceObj?.robux || 0);
   const iconWrap = document.getElementById('res-icon-wrap');
   const titleEl = document.getElementById('res-title');
   const descEl = document.getElementById('res-desc');
   const orderBox = document.getElementById('res-order-box');
   const trackLink = document.getElementById('res-track-link');
+  const claimBox = document.getElementById('spin-claim-box');
+  const claimDone = document.getElementById('spin-claim-done');
+  const claimErr = document.getElementById('claim-error');
+  const btnClaim = document.getElementById('btn-submit-claim');
 
-  if (wonRobux > 0) {
+  claimDone.style.display = 'none';
+  claimErr.style.display = 'none';
+
+  if (wonRobux > 0 && orderId) {
+    saveSpinOrderLocally(orderId, receiptToken, wonRobux);
+    activeWinClaim = { order_id: orderId, receipt_token: receiptToken, robux: wonRobux };
     iconWrap.style.background = '#dcfce7';
     iconWrap.style.color = '#15803d';
     titleEl.textContent = `You Won ${wonRobux.toLocaleString()} Robux!`;
-    descEl.textContent = `Congratulations! Your winning prize (${sliceObj.label}) has been recorded for @${verifiedUser?.username || 'Player'} and sent to fulfillment.`;
-    if (orderId) {
-      orderBox.textContent = `Order ID: ${orderId}`;
-      orderBox.style.display = 'block';
-      trackLink.href = '/check-order';
-      trackLink.style.display = 'inline-flex';
-    }
+    descEl.textContent = `Confirm your Roblox account and submit your claim request directly to Admin.`;
+    orderBox.textContent = `Order ID: ${orderId}`;
+    orderBox.style.display = 'block';
+    document.getElementById('claim-username').value = verifiedUser?.username || '';
+    document.getElementById('claim-note').value = '';
+    btnClaim.disabled = false;
+    btnClaim.textContent = 'Submit Claim to Admin →';
+    claimBox.style.display = 'block';
+    trackLink.href = '/check-order?order_id=' + encodeURIComponent(orderId);
+    trackLink.style.display = 'inline-flex';
   } else {
+    activeWinClaim = null;
     iconWrap.style.background = '#f1f5f9';
     iconWrap.style.color = '#475569';
     titleEl.textContent = sliceObj?.label || 'Thank You!';
     descEl.textContent = 'Thank you for playing! Wishing you big luck on your next spin.';
     orderBox.style.display = 'none';
+    claimBox.style.display = 'none';
     trackLink.style.display = 'none';
   }
 
   document.getElementById('spin-result-modal').classList.add('open');
+}
+
+async function submitSpinClaim() {
+  if (!activeWinClaim) return;
+  const uname = document.getElementById('claim-username').value.trim().replace(/^@+/, '');
+  const note = document.getElementById('claim-note').value.trim();
+  const errEl = document.getElementById('claim-error');
+  const btn = document.getElementById('btn-submit-claim');
+  errEl.style.display = 'none';
+
+  if (!uname || uname.length < 2) {
+    errEl.textContent = 'Please enter a valid Roblox username.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Submitting to Admin…';
+  try {
+    const res = await fetch('/api/spin/claim', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        order_id: activeWinClaim.order_id,
+        receipt_token: activeWinClaim.receipt_token,
+        roblox_username: uname,
+        note: note
+      })
+    });
+    const j = await res.json();
+    if (!res.ok || !j.ok) {
+      errEl.textContent = j.error || 'Failed to submit claim.';
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Submit Claim to Admin →';
+      return;
+    }
+    document.getElementById('spin-claim-box').style.display = 'none';
+    const doneEl = document.getElementById('spin-claim-done');
+    doneEl.textContent = `Claim sent to Admin for @${j.roblox_username} (${Number(j.robux_amount || activeWinClaim.robux).toLocaleString()} Robux). Admin will send it shortly!`;
+    doneEl.style.display = 'block';
+  } catch (e) {
+    errEl.textContent = 'Network error. Please try again.';
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Submit Claim to Admin →';
+  }
 }
 
 function closeSpinResult() {
