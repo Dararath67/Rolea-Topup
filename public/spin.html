@@ -249,8 +249,49 @@
       font-weight: 700;
     }
 
-    .winners-card {
+    .winners-card, .my-rewards-card {
       margin-top: 24px;
+    }
+    .my-rewards-card {
+      display: none;
+      background: #ffffff;
+      border: 1.5px solid #fde68a;
+      border-radius: 20px;
+      padding: 22px;
+      box-shadow: 0 8px 24px rgba(245, 158, 11, 0.08);
+    }
+    .reward-row {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 14px;
+      padding: 13px 15px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .reward-row.submitted {
+      background: #f0fdf4;
+      border-color: #bbf7d0;
+    }
+    .btn-claim-open {
+      padding: 9px 15px;
+      border: none;
+      border-radius: 11px;
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #ffffff;
+      font-weight: 800;
+      font-size: 12.5px;
+      cursor: pointer;
+      white-space: nowrap;
+      box-shadow: 0 4px 12px rgba(217, 119, 6, 0.25);
+    }
+    .btn-claim-open.edit {
+      background: #ffffff;
+      color: #0f172a;
+      border: 1.5px solid #cbd5e1;
+      box-shadow: none;
     }
     .winners-grid {
       display: grid;
@@ -421,6 +462,17 @@
       </div>
     </div>
 
+    <!-- My Rewards / Claim Later -->
+    <div class="my-rewards-card" id="my-rewards-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div>
+          <h3 style="margin:0;font-size:17px;font-weight:800;color:#0f172a">My Spin Rewards</h3>
+          <p style="margin:4px 0 0;font-size:12.5px;color:#64748b">Unclaimed or pending Robux prizes saved to your account &amp; device — claim anytime!</p>
+        </div>
+      </div>
+      <div id="my-rewards-list" style="display:flex;flex-direction:column;gap:10px;margin-top:14px"></div>
+    </div>
+
     <!-- Live Recent Winners -->
     <div class="winners-card">
       <h3 style="margin:0;font-size:17px;font-weight:800;color:#0f172a">Recent Lucky Winners</h3>
@@ -468,9 +520,10 @@
     <div id="spin-claim-done" style="display:none;background:#ecfdf5;border:1.5px solid #86efac;color:#065f46;border-radius:14px;padding:12px 14px;margin-bottom:16px;font-size:13px;font-weight:700;line-height:1.45"></div>
 
     <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-      <button type="button" class="btn-spin-pay wallet" onclick="closeSpinResult()" style="padding:11px 22px;font-size:13.5px">Spin Again</button>
+      <button type="button" id="btn-res-close" class="btn-spin-pay wallet" onclick="closeSpinResult()" style="padding:11px 22px;font-size:13.5px">Claim Later / Close</button>
       <a id="res-track-link" href="/check-order" style="display:none;padding:11px 18px;border-radius:14px;border:1.5px solid #cbd5e1;color:#0f172a;font-weight:700;font-size:13.5px;text-decoration:none;align-items:center">Track Order</a>
     </div>
+    <p id="res-later-hint" style="display:none;margin:10px 0 0;font-size:11.5px;color:#64748b">Closed this popup? Your prize stays saved in <b>My Spin Rewards</b> below.</p>
   </div>
 </div>
 
@@ -680,6 +733,9 @@ async function buyAndSpin(method) {
     }
 
     if (j.paid) {
+      if (j.order_id && j.receipt_token) {
+        saveSpinOrderLocally(j.order_id, j.receipt_token, Number(j.slice?.robux || 0));
+      }
       animateWheelToSlice(j.slice_index, j.slice, j.order_id, j.receipt_token);
       if (window.RoleaAuth && typeof window.RoleaAuth.refreshUser === 'function') {
         window.RoleaAuth.refreshUser();
@@ -708,6 +764,9 @@ function startKhqrPolling(spinId) {
         clearInterval(khqrPollTimer);
         khqrPollTimer = null;
         document.getElementById('spin-khqr-modal').classList.remove('open');
+        if (j.result.order_id && j.result.receipt_token) {
+          saveSpinOrderLocally(j.result.order_id, j.result.receipt_token, Number(j.result.slice?.robux || 0));
+        }
         animateWheelToSlice(j.result.slice_index, j.result.slice, j.result.order_id, j.result.receipt_token);
       }
     } catch (e) {}
@@ -780,7 +839,7 @@ function animateWheelToSlice(sliceIndex, sliceObj, orderId, receiptToken) {
   }, 4950);
 }
 
-function showSpinResultModal(sliceObj, orderId, receiptToken) {
+function showSpinResultModal(sliceObj, orderId, receiptToken, prefillUsername, prefillNote, alreadySubmitted) {
   const wonRobux = Number(sliceObj?.robux || 0);
   const iconWrap = document.getElementById('res-icon-wrap');
   const titleEl = document.getElementById('res-title');
@@ -791,6 +850,8 @@ function showSpinResultModal(sliceObj, orderId, receiptToken) {
   const claimDone = document.getElementById('spin-claim-done');
   const claimErr = document.getElementById('claim-error');
   const btnClaim = document.getElementById('btn-submit-claim');
+  const btnClose = document.getElementById('btn-res-close');
+  const laterHint = document.getElementById('res-later-hint');
 
   claimDone.style.display = 'none';
   claimErr.style.display = 'none';
@@ -801,13 +862,17 @@ function showSpinResultModal(sliceObj, orderId, receiptToken) {
     iconWrap.style.background = '#dcfce7';
     iconWrap.style.color = '#15803d';
     titleEl.textContent = `You Won ${wonRobux.toLocaleString()} Robux!`;
-    descEl.textContent = `Confirm your Roblox account and submit your claim request directly to Admin.`;
+    descEl.textContent = alreadySubmitted
+      ? 'This claim was already sent to Admin. You can update your Roblox username or note below before delivery.'
+      : 'Confirm your Roblox account and submit your claim request directly to Admin (or close and claim later).';
     orderBox.textContent = `Order ID: ${orderId}`;
     orderBox.style.display = 'block';
-    document.getElementById('claim-username').value = verifiedUser?.username || '';
-    document.getElementById('claim-note').value = '';
+    document.getElementById('claim-username').value = prefillUsername || verifiedUser?.username || '';
+    document.getElementById('claim-note').value = prefillNote || '';
     btnClaim.disabled = false;
-    btnClaim.textContent = 'Submit Claim to Admin →';
+    btnClaim.textContent = alreadySubmitted ? 'Update Claim Request →' : 'Submit Claim to Admin →';
+    btnClose.textContent = alreadySubmitted ? 'Close' : 'Claim Later / Close';
+    laterHint.style.display = alreadySubmitted ? 'none' : 'block';
     claimBox.style.display = 'block';
     trackLink.href = '/check-order?order_id=' + encodeURIComponent(orderId);
     trackLink.style.display = 'inline-flex';
@@ -820,6 +885,8 @@ function showSpinResultModal(sliceObj, orderId, receiptToken) {
     orderBox.style.display = 'none';
     claimBox.style.display = 'none';
     trackLink.style.display = 'none';
+    btnClose.textContent = 'Spin Again';
+    laterHint.style.display = 'none';
   }
 
   document.getElementById('spin-result-modal').classList.add('open');
@@ -861,9 +928,12 @@ async function submitSpinClaim() {
       return;
     }
     document.getElementById('spin-claim-box').style.display = 'none';
+    document.getElementById('res-later-hint').style.display = 'none';
+    document.getElementById('btn-res-close').textContent = 'Spin Again';
     const doneEl = document.getElementById('spin-claim-done');
     doneEl.textContent = `Claim sent to Admin for @${j.roblox_username} (${Number(j.robux_amount || activeWinClaim.robux).toLocaleString()} Robux). Admin will send it shortly!`;
     doneEl.style.display = 'block';
+    loadMySpinRewards();
   } catch (e) {
     errEl.textContent = 'Network error. Please try again.';
     errEl.style.display = 'block';
@@ -874,9 +944,92 @@ async function submitSpinClaim() {
 
 function closeSpinResult() {
   document.getElementById('spin-result-modal').classList.remove('open');
+  loadMySpinRewards();
+}
+
+let mySpinRewards = [];
+function escSpinHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function loadMySpinRewards(autoOpenClaimId) {
+  try {
+    const token = localStorage.getItem('rolea_token') || '';
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+
+    let localTickets = [];
+    try {
+      const raw = JSON.parse(localStorage.getItem('rolea_orders_v1') || '[]');
+      if (Array.isArray(raw)) {
+        localTickets = raw.filter(x => x && x.order_id && x.token).map(x => ({ order_id: x.order_id, token: x.token }));
+      }
+    } catch (_) {}
+
+    const res = await fetch('/api/spin/unclaimed', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ tickets: localTickets })
+    });
+    const j = await res.json();
+    if (!res.ok || !j.ok) return;
+    mySpinRewards = Array.isArray(j.rewards) ? j.rewards : [];
+    renderMySpinRewards();
+
+    if (autoOpenClaimId) {
+      const found = mySpinRewards.find(r => r.order_id === autoOpenClaimId);
+      if (found) openClaimModalFromReward(found.order_id);
+    }
+  } catch (e) {}
+}
+
+function renderMySpinRewards() {
+  const card = document.getElementById('my-rewards-card');
+  const box = document.getElementById('my-rewards-list');
+  if (!card || !box) return;
+  if (!mySpinRewards.length) {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = 'block';
+  box.innerHTML = mySpinRewards.map(r => {
+    const isSub = !!r.claim_submitted;
+    const statusHtml = isSub
+      ? `<span style="display:inline-block;padding:3px 8px;border-radius:7px;background:#dcfce7;color:#15803d;font-size:11px;font-weight:800">Sent to Admin (@${escSpinHtml(r.roblox_username)})</span>`
+      : `<span style="display:inline-block;padding:3px 8px;border-radius:7px;background:#fef3c7;color:#b45309;font-size:11px;font-weight:800">Unclaimed · Ready to Claim</span>`;
+    return `
+      <div class="reward-row ${isSub ? 'submitted' : ''}">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <b style="font-size:15px;color:#0f172a">${Number(r.robux_amount).toLocaleString()} Robux</b>
+            ${statusHtml}
+          </div>
+          <div style="font-size:11.5px;color:#64748b;margin-top:4px;font-family:'JetBrains Mono',monospace">Order: ${escSpinHtml(r.order_id)}</div>
+        </div>
+        <button type="button" class="btn-claim-open ${isSub ? 'edit' : ''}" onclick="openClaimModalFromReward('${escSpinHtml(r.order_id)}')">
+          ${isSub ? 'Edit Claim' : 'Claim Prize →'}
+        </button>
+      </div>
+    `;
+  }).join('');
+}
+
+function openClaimModalFromReward(orderId) {
+  const r = mySpinRewards.find(x => x.order_id === orderId);
+  if (!r) return;
+  showSpinResultModal(
+    { robux: r.robux_amount, label: `${r.robux_amount} Robux` },
+    r.order_id,
+    r.receipt_token,
+    r.roblox_username || '',
+    r.claim_note || '',
+    !!r.claim_submitted
+  );
 }
 
 loadSpinConfig();
+const _urlClaimId = new URLSearchParams(window.location.search).get('claim');
+loadMySpinRewards(_urlClaimId);
 </script>
 </body>
 </html>

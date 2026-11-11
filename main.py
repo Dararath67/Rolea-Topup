@@ -1798,6 +1798,51 @@ async def submit_spin_claim(request: Request):
         "message": f"Claim request submitted to Admin for @{roblox_username}!"
     }
 
+
+@app.post("/api/spin/unclaimed")
+async def get_unclaimed_spin_rewards(request: Request):
+    """Return pending Robux spin prizes owned by the signed-in user or verified local tickets."""
+    user = get_user_from_req(request)
+    body = await request.json() if (await request.body()) else {}
+    raw_tickets = body.get("tickets") if isinstance(body, dict) else []
+    token_map: Dict[str, str] = {}
+    if isinstance(raw_tickets, list):
+        for t in raw_tickets[:60]:
+            if isinstance(t, dict) and t.get("order_id") and t.get("token"):
+                token_map[str(t["order_id"]).strip()] = str(t["token"]).strip()
+
+    rewards = []
+    for o in orders:
+        if o.get("package_id") != "spin_reward" or not o.get("paid"):
+            continue
+        if o.get("delivered") or o.get("status") in ("completed", "refunded"):
+            continue
+        robux_amt = int(o.get("robux_amount", 0))
+        if robux_amt <= 0:
+            continue
+
+        oid = str(o.get("order_id") or "")
+        tok = str(o.get("token") or "")
+        owns_by_user = bool(user and o.get("user_id") == user["id"])
+        owns_by_tok = bool(oid in token_map and tok and hmac.compare_digest(tok, token_map[oid]))
+        if not owns_by_user and not owns_by_tok:
+            continue
+
+        rewards.append({
+            "order_id": oid,
+            "receipt_token": tok,
+            "robux_amount": robux_amt,
+            "roblox_username": o.get("roblox_username") or "",
+            "claim_submitted": bool(o.get("claim_submitted")),
+            "claim_note": o.get("claim_note") or "",
+            "payment_method": o.get("payment_method") or "KHQR",
+            "created_at": o.get("created_at") or "",
+        })
+        if len(rewards) >= 30:
+            break
+
+    return {"ok": True, "rewards": rewards}
+
 @app.get("/api/admin/spin")
 async def admin_get_spin():
     cost_per_r = float(spin_data.get("cost_per_1k_robux_usd", 4.0)) / 1000.0
