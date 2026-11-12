@@ -1361,9 +1361,6 @@ async def send_telegram_direct_message(token: str, chat_id: Union[int, str], tex
             print(f"Telegram sendMessage attempt {attempt} failed: {e}")
         await asyncio.sleep(0.4 * attempt)
     return False
-        if attempt < 3:
-            await asyncio.sleep(1.0)
-    return False
 
 
 async def send_telegram_admin_alert(text: str, reply_markup: Optional[Dict] = None) -> bool:
