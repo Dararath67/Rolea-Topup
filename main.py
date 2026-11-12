@@ -1416,13 +1416,18 @@ def _check_rate_limit(ip: str, path: str) -> tuple[bool, int]:
     _rate_buckets[key] = hist
     return True, 0
 
-def verify_khqr_bank_payment(live: Optional[Dict[str, Any]], expected_amount: float) -> tuple[bool, str]:
-    """Strict server-side bank/KHQR verification (status + paid amount + currency + non-negative guard)."""
+def verify_khqr_bank_payment(live: Optional[Dict[str, Any]], expected_amount: float, expected_order_id: Optional[str] = None) -> tuple[bool, str]:
+    """Strict server-side bank/KHQR verification (status + order_id binding + paid amount + currency)."""
     if not isinstance(live, dict):
         return False, "invalid_payload"
     st = str(live.get("status", "")).lower().strip()
     if st not in ("paid", "success", "completed"):
         return False, st or "pending"
+
+    if expected_order_id:
+        live_oid = str(live.get("order_id") or "").strip()
+        if live_oid and live_oid != str(expected_order_id).strip():
+            return False, "order_id_mismatch"
 
     raw_amt = live.get("amount")
     if raw_amt is not None:
@@ -1438,6 +1443,200 @@ def verify_khqr_bank_payment(live: Optional[Dict[str, Any]], expected_amount: fl
         return False, "currency_mismatch"
 
     return True, "paid"
+
+_SENSITIVE_PROBE_EXTS = (
+    ".env", ".json", ".py", ".pyc", ".pyo", ".db", ".sqlite", ".sqlite3",
+    ".bak", ".sql", ".log", ".ini", ".cfg", ".yml", ".yaml", ".toml"
+)
+_ADMIN_CSRF_MUTATION_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+_VERCEL_ID_RE = re.compile(r"^[a-z0-9]{3,12}::\S{4,}$")
+_unpaid_order_tracker: Dict[str, List[Dict[str, Any]]] = {}
+
+def _normalize_request_path(raw_path: str) -> tuple[str, bool]:
+    """Decode and canonicalize URL path; flag dot/backslash/null-byte evasion attempts."""
+    raw = str(raw_path or "/")
+    low_raw = raw.lower()
+    if "\\" in raw or "%5c" in low_raw or "\x00" in raw or "%00" in low_raw:
+        return "/", True
+    decoded = unquote(raw)
+    if "%" in decoded:
+        decoded = unquote(decoded)
+    if "\\" in decoded or "\x00" in decoded:
+        return "/", True
+    parts = []
+    for seg in decoded.split("/"):
+        if not seg or seg == ".":
+            continue
+        if seg == "..":
+            return "/", True
+        parts.append(seg)
+    return ("/" + "/".join(parts)).lower(), False
+
+def _is_sensitive_probe_path(norm_path: str) -> bool:
+    if norm_path.endswith(_SENSITIVE_PROBE_EXTS):
+        return True
+    for seg in norm_path.split("/"):
+        if seg.startswith(".") and len(seg) > 1:
+            return True
+    return False
+
+def _prune_orders_safe(max_orders: int = 500):
+    """Trim orders cap by evicting oldest unpaid/expired orders before paid/completed orders."""
+    global orders
+    if len(orders) <= max_orders:
+        return
+    drop_needed = len(orders) - max_orders
+    remove_indices = []
+    # Pass 1: oldest unpaid & non-finalized orders
+    for idx in range(len(orders) - 1, -1, -1):
+        o = orders[idx]
+        if not o.get("paid") and o.get("status") not in ("paid", "completed", "refunded"):
+            remove_indices.append(idx)
+            if len(remove_indices) >= drop_needed:
+                break
+    # Pass 2: if still over limit, drop oldest remaining orders
+    if len(remove_indices) < drop_needed:
+        picked = set(remove_indices)
+        for idx in range(len(orders) - 1, -1, -1):
+            if idx not in picked:
+                remove_indices.append(idx)
+                if len(remove_indices) >= drop_needed:
+                    break
+    drop_set = set(remove_indices)
+    orders[:] = [o for i, o in enumerate(orders) if i not in drop_set]
+
+def _record_unpaid_order_attempt(client_ip: str, order_id: str, game_key: str, pkg_id: Any, player_id: str):
+    if not client_ip:
+        return
+    now_ts = time.time()
+    bucket = [e for e in _unpaid_order_tracker.get(client_ip, []) if now_ts - e.get("ts", 0) < 900]
+    bucket.append({
+        "order_id": order_id,
+        "ts": now_ts,
+        "game": str(game_key or ""),
+        "package_id": str(pkg_id or ""),
+        "player_id": str(player_id or "").lower().strip()
+    })
+    _unpaid_order_tracker[client_ip] = bucket[-30:]
+    if len(_unpaid_order_tracker) > 5000:
+        stale_ips = [k for k, v in _unpaid_order_tracker.items() if not v or (now_ts - v[-1].get("ts", 0)) > 900]
+        for k in stale_ips[:2500]:
+            _unpaid_order_tracker.pop(k, None)
+
+def _check_unpaid_order_anti_bypass(client_ip: str, game_key: str, pkg_id: Any, player_id: str) -> tuple[bool, str]:
+    """Enforce blacklist['rules'] to stop unpaid order flooding and duplicate order spam."""
+    rules = blacklist.get("rules") or {}
+    try:
+        max_unpaid = max(1, int(rules.get("max_unpaid_orders_per_ip", 5) or 5))
+    except (ValueError, TypeError):
+        max_unpaid = 5
+    block_dup = bool(rules.get("block_duplicate_unpaid_orders", True))
+    auto_flag = bool(rules.get("auto_flag_suspicious", True))
+
+    now_ts = time.time()
+    raw_bucket = [e for e in _unpaid_order_tracker.get(client_ip, []) if now_ts - e.get("ts", 0) < 900]
+    order_map = {o.get("order_id"): o for o in orders if o.get("order_id")}
+    active_unpaid = []
+    for e in raw_bucket:
+        ord_obj = order_map.get(e.get("order_id"))
+        if ord_obj and not ord_obj.get("paid") and ord_obj.get("status") not in ("paid", "completed", "refunded", "expired", "failed"):
+            active_unpaid.append(e)
+    _unpaid_order_tracker[client_ip] = active_unpaid
+
+    def _flag_suspicious(reason: str):
+        if auto_flag:
+            logs = blacklist.setdefault("logs", [])
+            logs.insert(0, {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "ip": client_ip,
+                "player_id": str(player_id or "")[:60],
+                "game": str(game_key or ""),
+                "reason": reason
+            })
+            if len(logs) > 200:
+                blacklist["logs"] = logs[:200]
+            save_blacklist()
+
+    norm_pid = str(player_id or "").lower().strip()
+    if block_dup and norm_pid:
+        for e in active_unpaid:
+            if (now_ts - e.get("ts", 0)) < 90 and e.get("game") == str(game_key or "") and e.get("package_id") == str(pkg_id or "") and e.get("player_id") == norm_pid:
+                _flag_suspicious("Duplicate unpaid order spam within 90s")
+                return False, "មានការបញ្ជាទិញដដែលដែលមិនទាន់ទូទាត់រួច។ សូមបង់ប្រាក់លើវិក្កយបត្រចាស់ ឬរង់ចាំ 90 វិនាទី។"
+
+    if len(active_unpaid) >= max_unpaid:
+        _flag_suspicious(f"Exceeded max unpaid orders per IP ({len(active_unpaid)}/{max_unpaid})")
+        return False, f"អ្នកមានវិក្កយបត្រមិនទាន់បង់ប្រាក់ច្រើនពេក ({len(active_unpaid)}/{max_unpaid})។ សូមបង់ប្រាក់ឬរង់ចាំមុននឹងបង្កើតថ្មី។"
+
+    return True, ""
+
+class _BodyTooLarge(Exception):
+    pass
+
+class MaxBodySizeMiddleware:
+    """Pure ASGI body-size limiter that enforces limits even on Transfer-Encoding: chunked requests."""
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") != "http":
+            return await self.app(scope, receive, send)
+
+        norm_path, _ = _normalize_request_path(scope.get("path", "/"))
+        is_upload = norm_path in ("/api/admin/upload-banner", "/api/admin/games/upload-logo")
+        max_bytes = MAX_UPLOAD_BODY_BYTES if is_upload else MAX_JSON_BODY_BYTES
+
+        for k, v in scope.get("headers", []):
+            if k.lower() == b"content-length":
+                try:
+                    cl_val = int(v.decode("latin-1").strip())
+                except ValueError:
+                    return await self._send_json(send, 400, {"ok": False, "error": "Invalid Content-Length"})
+                if cl_val < 0 or cl_val > max_bytes:
+                    return await self._send_json(send, 413, {"ok": False, "error": "Payload too large"})
+
+        total_bytes = 0
+        too_large = False
+        sent_413 = False
+
+        async def wrapped_receive():
+            nonlocal total_bytes, too_large
+            msg = await receive()
+            if msg.get("type") == "http.request":
+                chunk = msg.get("body", b"")
+                total_bytes += len(chunk)
+                if total_bytes > max_bytes:
+                    too_large = True
+                    raise _BodyTooLarge()
+            return msg
+
+        async def wrapped_send(msg):
+            nonlocal sent_413
+            if too_large:
+                if not sent_413 and msg.get("type") == "http.response.start":
+                    sent_413 = True
+                    await self._send_json(send, 413, {"ok": False, "error": "Payload too large"})
+                return
+            await send(msg)
+
+        try:
+            await self.app(scope, wrapped_receive, wrapped_send)
+        except _BodyTooLarge:
+            if not sent_413:
+                await self._send_json(send, 413, {"ok": False, "error": "Payload too large"})
+
+    @staticmethod
+    async def _send_json(send, status: int, payload: dict):
+        body = json.dumps(payload).encode("utf-8")
+        await send({
+            "type": "http.response.start",
+            "status": status,
+            "headers": [
+                (b"content-type", b"application/json"),
+                (b"content-length", str(len(body)).encode("ascii")),
+            ],
+        })
+        await send({"type": "http.response.body", "body": body, "more_body": False})
 
 # Initialize FastAPI App
 app = FastAPI(title="Rolea Topup API", version="2.0.0")
@@ -1503,7 +1702,8 @@ def _normalize_ip(raw: str) -> str:
         return ""
 
 def _is_trusted_vercel_proxy(request: Request) -> bool:
-    if not (request.headers.get("x-vercel-id") and request.headers.get("x-vercel-forwarded-for")):
+    vercel_id = (request.headers.get("x-vercel-id") or "").strip()
+    if not (_VERCEL_ID_RE.match(vercel_id) and request.headers.get("x-vercel-forwarded-for")):
         return False
     fwd_ip = _normalize_ip(request.headers.get("x-vercel-forwarded-for", ""))
     if not fwd_ip:
@@ -1544,30 +1744,53 @@ def is_admin_ip_allowed(request: Request) -> tuple[bool, str]:
         return False, effective_ip or "unknown"
     return True, effective_ip
 
+def _is_allowed_origin(raw_url: str, request: Request) -> bool:
+    try:
+        u = urlparse(str(raw_url or "").strip())
+        if u.scheme not in ("http", "https") or not u.netloc:
+            return False
+        origin = f"{u.scheme.lower()}://{u.netloc.lower()}"
+        req_host = (request.headers.get("x-forwarded-host") or request.headers.get("host") or "").split(",")[0].strip().lower()
+        if req_host and u.netloc.lower() == req_host:
+            return True
+        allowed = {o.lower().rstrip("/") for o in (_default_cors_origins + _extra_cors)}
+        if origin in allowed:
+            return True
+        if re.fullmatch(r"https://rolea-topup(-[a-z0-9-]+)?\.vercel\.app", origin):
+            return True
+        return False
+    except Exception:
+        return False
+
 @app.middleware("http")
 async def security_and_no_cache_middleware(request: Request, call_next):
     path = request.url.path
     raw_qs = request.url.query or ""
+    norm_path, suspicious_path = _normalize_request_path(path)
 
-    # 1. Path traversal / null-byte guard
-    if ".." in path or "\x00" in path or "%00" in path.lower() or ".." in raw_qs:
+    # 1. Path normalization, traversal, backslash, encoding evasion & null-byte guard
+    if suspicious_path or ".." in raw_qs or "\x00" in raw_qs or "%00" in raw_qs.lower():
         return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid request path"})
+
+    # 1b. Block probing of sensitive files / dotfiles / raw backups
+    if _is_sensitive_probe_path(norm_path):
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Access denied"})
 
     # 2. Request payload size guard (Anti-Payload Flood)
     cl_hdr = request.headers.get("content-length")
     if cl_hdr:
         try:
             cl_val = int(cl_hdr)
-            is_upload = path in ("/api/admin/upload-banner", "/api/admin/games/upload-logo")
+            is_upload = norm_path in ("/api/admin/upload-banner", "/api/admin/games/upload-logo")
             max_bytes = MAX_UPLOAD_BODY_BYTES if is_upload else MAX_JSON_BODY_BYTES
             if cl_val > max_bytes or cl_val < 0:
                 return JSONResponse(status_code=413, content={"ok": False, "error": "Payload too large"})
         except ValueError:
             return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid Content-Length"})
 
-    # 3. Anti-DDoS sliding-window rate limiter per client IP
+    # 3. Anti-DDoS sliding-window rate limiter per client IP (using canonicalized path)
     eff_ip = get_admin_effective_ip(request) or "unknown"
-    ok_rate, retry_after = _check_rate_limit(eff_ip, path)
+    ok_rate, retry_after = _check_rate_limit(eff_ip, norm_path)
     if not ok_rate:
         return JSONResponse(
             status_code=429,
@@ -1576,10 +1799,10 @@ async def security_and_no_cache_middleware(request: Request, call_next):
         )
 
     is_admin_route = (
-        path == "/admin"
-        or path.startswith("/admin/")
-        or path.startswith("/api/admin")
-        or path in ("/admin.html", "/admin_login.html")
+        norm_path == "/admin"
+        or norm_path.startswith("/admin/")
+        or norm_path.startswith("/api/admin")
+        or norm_path in ("/admin.html", "/admin_login.html")
     )
 
     if is_admin_route:
@@ -1593,9 +1816,9 @@ async def security_and_no_cache_middleware(request: Request, call_next):
                     blocked_ip,
                     "-",
                     "locked",
-                    f"Attempted access to {path} outside Home WiFi (192.168.100.x)"
+                    f"Attempted access to {norm_path} outside Home WiFi (192.168.100.x)"
                 )
-            if path.startswith("/api/"):
+            if norm_path.startswith("/api/"):
                 return JSONResponse(
                     status_code=403,
                     content={"ok": False, "error": "Access Denied: Admin Console is restricted to Home WiFi (192.168.100.x) & Localhost only."}
@@ -1614,19 +1837,26 @@ async def security_and_no_cache_middleware(request: Request, call_next):
                 )
             )
 
+    # Strict CSRF Origin / Sec-Fetch-Site check on admin mutating endpoints
+    if request.method.upper() in _ADMIN_CSRF_MUTATION_METHODS and norm_path.startswith("/api/admin"):
+        sec_fetch_site = (request.headers.get("sec-fetch-site") or "").strip().lower()
+        origin_hdr = request.headers.get("origin") or request.headers.get("referer")
+        if sec_fetch_site == "cross-site" or (origin_hdr and not _is_allowed_origin(origin_hdr, request)):
+            return JSONResponse(status_code=403, content={"ok": False, "error": "CSRF origin validation failed"})
+
     # Enforce strict server-side session verification for Admin APIs and Admin Console
-    if path.startswith("/api/admin") and path not in ("/api/admin/login", "/api/admin/forgot-password", "/api/admin/verify-reset-code", "/api/admin/reset-password"):
+    if (norm_path == "/api/admin" or norm_path.startswith("/api/admin/")) and norm_path not in ("/api/admin/login", "/api/admin/forgot-password", "/api/admin/verify-reset-code", "/api/admin/reset-password"):
         if not verify_admin_session(request):
             return JSONResponse(
                 status_code=401,
                 content={"ok": False, "error": "Unauthorized. Admin session required."}
             )
-    elif path in ("/admin", "/admin.html"):
+    elif norm_path in ("/admin", "/admin.html"):
         if not verify_admin_session(request):
             return RedirectResponse(url="/admin/login", status_code=302)
 
     response = await call_next(request)
-    if path.startswith("/api/") or path.endswith((".js", ".css", ".html")) or path in ("/", "/spin", "/admin", "/admin/login", "/signin", "/game/roblox", "/my-account", "/check-order") or response.headers.get("content-type", "").startswith("text/html"):
+    if norm_path.startswith("/api/") or norm_path.endswith((".js", ".css", ".html")) or norm_path in ("/", "/spin", "/admin", "/admin/login", "/signin", "/game/roblox", "/my-account", "/check-order") or response.headers.get("content-type", "").startswith("text/html"):
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
@@ -1658,6 +1888,7 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Auth-Token", "X-Requested-With"],
 )
+app.add_middleware(MaxBodySizeMiddleware)
 
 @app.on_event("startup")
 async def startup_event():
@@ -1872,8 +2103,7 @@ def _finalize_spin_win_order(username: str, roblox_id: Optional[str], avatar: st
             "label": f"Lucky Spin Winner ({robux_won} R$) — Waiting user claim"
         }
         orders.insert(0, new_order)
-        if len(orders) > 500:
-            orders[:] = orders[:500]
+        _prune_orders_safe(500)
         save_orders()
 
     hist_entry = {
@@ -2024,6 +2254,14 @@ async def create_spin_ticket(request: Request):
         qr_url = generate_khqr_data_url(khqr_payload)
         payment_url = f"https://khqrpay.site/pay/{spin_id}"
 
+    if len(pending_spin_tickets) >= 2000:
+        unpaid_keys = [k for k, v in pending_spin_tickets.items() if not v.get("paid") or v.get("spun")]
+        for k in unpaid_keys[:500]:
+            pending_spin_tickets.pop(k, None)
+        while len(pending_spin_tickets) >= 2000:
+            oldest_k = next(iter(pending_spin_tickets))
+            pending_spin_tickets.pop(oldest_k, None)
+
     pending_spin_tickets[spin_id] = {
         "spin_id": spin_id,
         "khqrpay_id": khqrpay_id,
@@ -2061,7 +2299,7 @@ async def check_spin_ticket(spin_id: str):
     if not tkt["paid"] and tkt.get("khqrpay_id"):
         live = await check_khqrpay_status(tkt["khqrpay_id"])
         if live:
-            verified_paid, v_st = verify_khqr_bank_payment(live, float(tkt.get("amount", 0.50)))
+            verified_paid, v_st = verify_khqr_bank_payment(live, float(tkt.get("amount", 0.50)), expected_order_id=spin_id)
             if verified_paid:
                 async with _tx_lock:
                     kid = str(tkt["khqrpay_id"])
@@ -2126,6 +2364,8 @@ async def submit_spin_claim(request: Request):
         order = next((o for o in orders if o.get("order_id") == order_id and o.get("package_id") == "spin_reward"), None)
         if not order:
             return JSONResponse(status_code=404, content={"ok": False, "error": "Spin prize order not found."})
+        if order.get("paid") is not True:
+            return JSONResponse(status_code=403, content={"ok": False, "error": "Spin ticket payment has not been verified."})
         if not hmac.compare_digest(str(order.get("token") or ""), receipt_token):
             return JSONResponse(status_code=403, content={"ok": False, "error": "Invalid claim receipt token."})
         if order.get("delivered") or order.get("status") in ("completed", "refunded"):
@@ -3111,9 +3351,13 @@ async def create_order(request: Request):
         if pkg.get("in_stock") is False:
             return JSONResponse(status_code=400, content={"ok": False, "error": f"កញ្ចប់ '{pkg.get('name')}' គឺអស់ពីស្តុកបណ្តោះអាសន្ន (Out of Stock)។ សូមជ្រើសរើសកញ្ចប់ផ្សេង។"})
 
+        anti_ok, anti_msg = _check_unpaid_order_anti_bypass(client_ip, game_key, pkg.get("id"), body.get("player_id") or "")
+        if not anti_ok:
+            return JSONResponse(status_code=429, content={"ok": False, "error": anti_msg})
+
         now = datetime.now(timezone.utc)
         raw_ref = str(body.get("checkout_ref") or "").strip()
-        if re.fullmatch(r"[A-Za-z0-9_-]{8,40}", raw_ref) and not any(o.get("order_id") == raw_ref for o in orders):
+        if re.fullmatch(r"PR[A-Za-z0-9_-]{8,38}", raw_ref) and not any(o.get("order_id") == raw_ref for o in orders):
             order_id = raw_ref
         else:
             order_id = "PR" + hex(int(time.time()))[2:].upper() + secrets.token_hex(3).upper()
@@ -3297,7 +3541,8 @@ async def create_order(request: Request):
         }
 
         orders.insert(0, new_order)
-        if len(orders) > 500: orders[:] = orders[:500]
+        _record_unpaid_order_attempt(client_ip, new_order["order_id"], game_key, pkg.get("id"), t_input)
+        _prune_orders_safe(500)
         save_orders()
 
         return {
@@ -3329,10 +3574,10 @@ async def get_order_status(order_id: str):
     if not order:
         return JSONResponse(status_code=404, content={"ok": False, "error": "Order not found"})
 
-    if order.get("khqrpay_id") and not order.get("paid") and order.get("status") not in ["completed", "expired"]:
+    if order.get("khqrpay_id") and not order.get("paid") and order.get("status") not in ("completed", "expired", "failed", "refunded"):
         live = await check_khqrpay_status(order["khqrpay_id"])
         if live:
-            verified_paid, v_st = verify_khqr_bank_payment(live, float(order.get("amount", 0)))
+            verified_paid, v_st = verify_khqr_bank_payment(live, float(order.get("amount", 0)), expected_order_id=order_id)
             if verified_paid:
                 async with _tx_lock:
                     kid = str(order["khqrpay_id"])
@@ -3595,13 +3840,18 @@ async def admin_login(request: Request):
     timeout_hours = int(admin_security.get("session_timeout_hours", 24))
     expires_ms = int((now_ts + timeout_hours * 3600) * 1000)
 
-    admin_security.setdefault("sessions", {})[token_hash] = {
+    sessions_map = admin_security.setdefault("sessions", {})
+    sessions_map[token_hash] = {
         "token_id": token_hash[:10],
         "ip": client_ip,
         "user_agent": str(request.headers.get("user-agent", "Unknown"))[:90],
         "created_at": datetime.now(timezone.utc).isoformat(),
         "expires_at": expires_ms
     }
+    if len(sessions_map) > 20:
+        sorted_s = sorted(sessions_map.items(), key=lambda kv: str(kv[1].get("created_at") or ""))
+        for old_k, _ in sorted_s[:len(sessions_map) - 20]:
+            sessions_map.pop(old_k, None)
     log_admin_security_event("Login Success", client_ip, username, "success", "Authenticated session issued")
     save_admin_security()
 
