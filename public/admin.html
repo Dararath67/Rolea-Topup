@@ -1240,9 +1240,89 @@
         font-size: 16px !important;
       }
     }
+
+    /* Initial Refresh Loading Overlay */
+    #admin-page-loader {
+      position: fixed;
+      inset: 0;
+      z-index: 999990;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(248, 250, 252, 0.94);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      transition: opacity 0.28s ease, visibility 0.28s ease;
+    }
+    #admin-page-loader.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .apl-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      padding: 28px 34px;
+      border-radius: 22px;
+      background: #ffffff;
+      border: 1px solid rgba(226, 232, 240, 0.95);
+      box-shadow: 0 20px 45px -12px rgba(15, 23, 42, 0.14);
+      text-align: center;
+    }
+    .apl-spinner-wrap {
+      position: relative;
+      width: 54px;
+      height: 54px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .apl-spinner {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 3px solid #e2e8f0;
+      border-top-color: #2563eb;
+      animation: aplSpin 0.8s linear infinite;
+    }
+    .apl-logo {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      object-fit: cover;
+    }
+    .apl-title {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.01em;
+    }
+    .apl-sub {
+      margin: -8px 0 0;
+      font-size: 12.5px;
+      font-weight: 500;
+      color: #64748b;
+    }
+    @keyframes aplSpin {
+      to { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
+<div id="admin-page-loader" role="status" aria-live="polite">
+  <div class="apl-card">
+    <div class="apl-spinner-wrap">
+      <div class="apl-spinner"></div>
+      <img class="apl-logo" src="/media/logo.webp" alt="Rolea Topup">
+    </div>
+    <p class="apl-title">Loading Admin Console…</p>
+    <p class="apl-sub">Syncing orders, packages &amp; live stats</p>
+  </div>
+</div>
 
 <div class="ad-layout">
   <div class="mobile-side-backdrop" id="mobile-side-backdrop" onclick="closeMobileSidebar()"></div>
@@ -6041,9 +6121,17 @@ async function resetSpinStats() {
   } catch (e) {}
 }
 
+function hideAdminLoader() {
+  const el = document.getElementById('admin-page-loader');
+  if (el && !el.classList.contains('hidden')) {
+    el.classList.add('hidden');
+    setTimeout(() => { if (el.parentNode) el.remove(); }, 320);
+  }
+}
+
 // Initial load & Polling (lightweight 6s orders poll, 45s full background sync)
-loadData();
-loadSecurityData();
+Promise.allSettled([loadData(), loadSecurityData()]).finally(hideAdminLoader);
+setTimeout(hideAdminLoader, 10000);
 restoreActiveTab();
 setInterval(pollLiveOrders, 6000);
 setInterval(() => {
