@@ -1126,6 +1126,9 @@ async def check_khqrpay_status(payment_id: str) -> Optional[Dict[str, Any]]:
 async def send_telegram_paid_alert(order: Dict[str, Any]):
     if not order or order.get("telegram_alerted"):
         return
+    # Do not alert for unclaimed spin rewards until the user submits their claim
+    if order.get("package_id") == "spin_reward" and not order.get("claim_submitted"):
+        return
     # Only alert when user buys products (Robux, SMM), NOT wallet deposits
     if order.get("type") == "wallet_topup" or order.get("product_type") == "wallet" or str(order.get("order_id", "")).startswith("WLT"):
         return

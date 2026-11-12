@@ -3243,6 +3243,13 @@ let currentFilter = 'all';
 let searchQuery = '';
 let settingsLoaded = false;
 let knownPaidIds = new Set();
+let initialOrdersLoaded = false;
+
+function isOrderReadyToAlert(o) {
+  if (!o || !o.paid) return false;
+  if (o.package_id === 'spin_reward') return !!o.claim_submitted;
+  return true;
+}
 
 function playPaidOrderSound() {
   try {
@@ -3738,15 +3745,17 @@ async function loadData() {
 
     if (resOrders.ok) {
       const freshOrders = resOrders.orders || [];
-      if (knownPaidIds.size > 0) {
+      if (initialOrdersLoaded) {
         freshOrders.forEach(o => {
-          if (o.paid && !knownPaidIds.has(o.order_id)) {
-            toast(`[PAID ORDER] #${o.order_id} - $${Number(o.amount || 0).toFixed(2)} USD`);
+          if (isOrderReadyToAlert(o) && !knownPaidIds.has(o.order_id)) {
+            const tag = o.package_id === 'spin_reward' ? '[SPIN CLAIM SUBMITTED]' : '[PAID ORDER]';
+            toast(`${tag} #${o.order_id} - $${Number(o.amount || 0).toFixed(2)} USD`);
             playPaidOrderSound();
           }
         });
       }
-      freshOrders.forEach(o => { if (o.paid) knownPaidIds.add(o.order_id); });
+      freshOrders.forEach(o => { if (isOrderReadyToAlert(o)) knownPaidIds.add(o.order_id); });
+      initialOrdersLoaded = true;
       allOrders = freshOrders;
       renderOrders();
     }
