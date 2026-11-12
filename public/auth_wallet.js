@@ -604,12 +604,12 @@
           </button>
         </div>
         <div class="rolea-modal-body">
-          <div style="background:#ecfdf5;border:1.5px solid #a7f3d0;border-radius:14px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
-            <div>
-              <div style="font-size:11px;font-weight:700;color:#047857;text-transform:uppercase;letter-spacing:0.5px">Current Balance</div>
-              <div style="font-size:24px;font-weight:900;color:#065f46" id="wallet-modal-cur-bal">$${Number(currentUser.balance || 0).toFixed(2)} USD</div>
+          <div style="position:relative;overflow:hidden;background:linear-gradient(135deg,#065f46 0%,#059669 60%,#10b981 100%);border-radius:16px;padding:18px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;box-shadow:0 12px 24px -8px rgba(5,150,105,0.4),inset 0 1px 0 rgba(255,255,255,0.2)">
+            <div style="position:relative;z-index:1">
+              <div style="font-size:11px;font-weight:700;color:rgba(236,253,245,0.88);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px">Current Balance</div>
+              <div style="font-size:27px;font-weight:900;color:#ffffff;letter-spacing:-0.02em;font-variant-numeric:tabular-nums" id="wallet-modal-cur-bal">$${Number(currentUser.balance || 0).toFixed(2)} <span style="font-size:14px;font-weight:700;opacity:0.9">USD</span></div>
             </div>
-            <div style="width:44px;height:44px;border-radius:12px;background:#d1fae5;display:flex;align-items:center;justify-content:center;color:#059669;flex-shrink:0">
+            <div style="position:relative;z-index:1;width:46px;height:46px;border-radius:14px;background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;color:#ffffff;flex-shrink:0">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
             </div>
           </div>
