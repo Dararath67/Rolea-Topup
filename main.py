@@ -1305,17 +1305,20 @@ async def answer_callback_query(token: str, query_id: str, text: str):
     except Exception:
         pass
 
-async def edit_telegram_message(token: str, chat_id: Any, message_id: Any, text: str):
+async def edit_telegram_message(token: str, chat_id: Any, message_id: Any, text: str, reply_markup: Optional[Dict] = None):
     try:
+        payload: Dict[str, Any] = {
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "text": text,
+            "parse_mode": "HTML"
+        }
+        if reply_markup is not None:
+            payload["reply_markup"] = reply_markup
         async with httpx.AsyncClient(timeout=5.0) as client:
             await client.post(
                 f"https://api.telegram.org/bot{token}/editMessageText",
-                json={
-                    "chat_id": chat_id,
-                    "message_id": message_id,
-                    "text": text,
-                    "parse_mode": "HTML"
-                }
+                json=payload
             )
     except Exception:
         pass
@@ -1408,6 +1411,273 @@ async def notify_customer_order_refunded(order: Dict[str, Any]):
     )
     await send_telegram_direct_message(token, chat_id, text)
 
+_tg_admin_state: Dict[str, Dict[str, Any]] = {}
+
+def _build_tg_admin_home() -> tuple[str, Dict[str, Any]]:
+    pending_cnt = sum(1 for o in orders if o.get("status") in ("pending", "sending", "paid"))
+    total_users = len(users)
+    total_wallet = sum(float(u.get("balance") or 0.0) for u in users)
+    store_name = html.escape(str(settings.get("store_name", "Rolea Topup")), quote=False)
+    text = (
+        f"🛡️ <b>{store_name} — Telegram Admin Panel</b>\n\n"
+        f"👥 <b>Total Users:</b> {total_users}\n"
+        f"💳 <b>Total User Wallets:</b> ${total_wallet:.2f} USD\n"
+        f"📦 <b>Active/Pending Orders:</b> {pending_cnt}\n\n"
+        f"👇 <i>Select an action below (no typing needed):</i>"
+    )
+    markup = {
+        "inline_keyboard": [
+            [{"text": "💰 Add / Deduct User Balance", "callback_data": "adm:users:0"}],
+            [
+                {"text": "🔍 Find User by ID", "callback_data": "adm:find"},
+                {"text": f"📦 Pending Orders ({pending_cnt})", "callback_data": "adm:pending:0"}
+            ],
+            [
+                {"text": "📊 Store Stats", "callback_data": "adm:stats"},
+                {"text": "🎡 Spin Stats", "callback_data": "adm:spin"}
+            ],
+            [{"text": "🔄 Refresh Panel", "callback_data": "adm:home"}]
+        ]
+    }
+    return text, markup
+
+def _build_tg_users_page(page: int = 0) -> tuple[str, Dict[str, Any]]:
+    per_page = 6
+    total = len(users)
+    max_page = max(0, (total - 1) // per_page)
+    page = max(0, min(page, max_page))
+    slice_users = users[page * per_page : (page + 1) * per_page]
+
+    text = (
+        f"💰 <b>Select User to Manage Balance</b>\n"
+        f"Page {page + 1}/{max_page + 1} · Total: {total} users\n\n"
+        f"Tap a user below to Add (+) or Deduct (-) money:"
+    )
+    rows = []
+    for u in slice_users:
+        uid = str(u.get("id") or "")
+        uname = str(u.get("username") or "User")[:18]
+        bal = float(u.get("balance") or 0.0)
+        frozen_tag = " ❄️" if u.get("wallet_frozen") else ""
+        rows.append([{"text": f"👤 {uname} — ${bal:.2f}{frozen_tag}", "callback_data": f"adm:u:{uid}"}])
+
+    nav = []
+    if page > 0:
+        nav.append({"text": "⬅️ Prev", "callback_data": f"adm:users:{page - 1}"})
+    if page < max_page:
+        nav.append({"text": "Next ➡️", "callback_data": f"adm:users:{page + 1}"})
+    if nav:
+        rows.append(nav)
+    rows.append([
+        {"text": "🔍 Enter User ID", "callback_data": "adm:find"},
+        {"text": "🏠 Admin Menu", "callback_data": "adm:home"}
+    ])
+    return text, {"inline_keyboard": rows}
+
+def _build_tg_user_card(user_id: str) -> Optional[tuple[str, Dict[str, Any]]]:
+    u = next((usr for usr in users if str(usr.get("id")) == str(user_id)), None)
+    if not u:
+        return None
+    uid = str(u.get("id") or "")
+    uname = html.escape(str(u.get("username") or "User"), quote=False)
+    email = html.escape(str(u.get("email") or "—"), quote=False)
+    bal = float(u.get("balance") or 0.0)
+    frozen = bool(u.get("wallet_frozen"))
+    status_str = "❄️ FROZEN" if frozen else "✅ Active"
+    text = (
+        f"👤 <b>User Wallet Control</b>\n\n"
+        f"<b>Username:</b> {uname}\n"
+        f"<b>User ID:</b> <code>{html.escape(uid, quote=False)}</code>\n"
+        f"<b>Email:</b> {email}\n"
+        f"<b>Status:</b> {status_str}\n"
+        f"💵 <b>Current Balance:</b> <code>${bal:.2f} USD</code>\n\n"
+        f"👇 <i>Tap a button to Add (+) or Deduct (-) balance:</i>"
+    )
+    markup = {
+        "inline_keyboard": [
+            [
+                {"text": "+$0.50", "callback_data": f"adm:adj:{uid}:0.5"},
+                {"text": "+$1.00", "callback_data": f"adm:adj:{uid}:1"},
+                {"text": "+$5.00", "callback_data": f"adm:adj:{uid}:5"},
+                {"text": "+$10.00", "callback_data": f"adm:adj:{uid}:10"}
+            ],
+            [
+                {"text": "-$0.50", "callback_data": f"adm:adj:{uid}:-0.5"},
+                {"text": "-$1.00", "callback_data": f"adm:adj:{uid}:-1"},
+                {"text": "-$5.00", "callback_data": f"adm:adj:{uid}:-5"},
+                {"text": "-$10.00", "callback_data": f"adm:adj:{uid}:-10"}
+            ],
+            [
+                {"text": "✏️ Custom +$", "callback_data": f"adm:cadd:{uid}"},
+                {"text": "✏️ Custom -$", "callback_data": f"adm:csub:{uid}"},
+                {"text": "🔓 Unfreeze" if frozen else "❄️ Freeze", "callback_data": f"adm:frz:{uid}"}
+            ],
+            [
+                {"text": "⬅️ Users List", "callback_data": "adm:users:0"},
+                {"text": "🏠 Admin Menu", "callback_data": "adm:home"}
+            ]
+        ]
+    }
+    return text, markup
+
+def _apply_tg_wallet_adjust(user_id: str, delta: float, admin_label: str) -> tuple[bool, str, Optional[Dict[str, Any]]]:
+    u = next((usr for usr in users if str(usr.get("id")) == str(user_id)), None)
+    if not u:
+        return False, "User not found.", None
+    old_bal = float(u.get("balance") or 0.0)
+    new_bal = round(max(0.0, old_bal + float(delta)), 2)
+    actual_diff = round(new_bal - old_bal, 2)
+    u["balance"] = new_bal
+    save_users()
+    wallet_transactions.insert(0, {
+        "id": "wtx_" + secrets.token_hex(4),
+        "user_id": u["id"],
+        "type": "deposit" if actual_diff >= 0 else "spend",
+        "amount": abs(actual_diff),
+        "order_id": "",
+        "product": f"Admin Telegram {'Top-up' if actual_diff >= 0 else 'Deduction'} ({admin_label})",
+        "date": datetime.now(timezone.utc).isoformat()
+    })
+    save_wallet_tx()
+    sign = "+" if actual_diff >= 0 else "-"
+    return True, f"{sign}${abs(actual_diff):.2f} USD applied to {u.get('username')} (New: ${new_bal:.2f})", u
+
+async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data: str):
+    query_id = query.get("id")
+    msg = query.get("message") or {}
+    chat_id = str(msg.get("chat", {}).get("id") or query.get("from", {}).get("id") or "")
+    msg_id = msg.get("message_id")
+    parts = data.split(":")
+    sub = parts[1] if len(parts) > 1 else "home"
+
+    from_user = query.get("from", {})
+    admin_label = f"@{from_user['username']}" if from_user.get("username") else (from_user.get("first_name") or "Admin")
+
+    if sub == "home":
+        _tg_admin_state.pop(chat_id, None)
+        text, markup = _build_tg_admin_home()
+        await answer_callback_query(token, query_id, "Admin Panel refreshed")
+        if msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, text, markup)
+
+    elif sub == "users":
+        page = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
+        text, markup = _build_tg_users_page(page)
+        await answer_callback_query(token, query_id, "")
+        if msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, text, markup)
+
+    elif sub == "u":
+        uid = parts[2] if len(parts) > 2 else ""
+        card = _build_tg_user_card(uid)
+        if not card:
+            await answer_callback_query(token, query_id, "User not found.")
+            return
+        await answer_callback_query(token, query_id, "")
+        if msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, card[0], card[1])
+
+    elif sub == "adj" and len(parts) >= 4:
+        uid = parts[2]
+        try:
+            delta = float(parts[3])
+        except ValueError:
+            await answer_callback_query(token, query_id, "Invalid amount.")
+            return
+        async with _tx_lock:
+            ok, note, _ = _apply_tg_wallet_adjust(uid, delta, admin_label)
+        if not ok:
+            await answer_callback_query(token, query_id, note)
+            return
+        await answer_callback_query(token, query_id, f"✅ {note}")
+        card = _build_tg_user_card(uid)
+        if card and msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, card[0], card[1])
+
+    elif sub == "frz" and len(parts) >= 3:
+        uid = parts[2]
+        async with _tx_lock:
+            u = next((usr for usr in users if str(usr.get("id")) == uid), None)
+            if not u:
+                await answer_callback_query(token, query_id, "User not found.")
+                return
+            u["wallet_frozen"] = not bool(u.get("wallet_frozen"))
+            save_users()
+            st_lbl = "Frozen ❄️" if u["wallet_frozen"] else "Active ✅"
+        await answer_callback_query(token, query_id, f"Wallet is now {st_lbl}")
+        card = _build_tg_user_card(uid)
+        if card and msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, card[0], card[1])
+
+    elif sub in ("find", "cadd", "csub"):
+        uid = parts[2] if len(parts) > 2 else ""
+        if sub == "find":
+            _tg_admin_state[chat_id] = {"mode": "find"}
+            prompt = "🔍 <b>Find User</b>\nReply with the <b>User ID</b> (e.g. <code>usr_...</code>), username, or email:"
+        elif sub == "cadd":
+            _tg_admin_state[chat_id] = {"mode": "cadd", "user_id": uid}
+            prompt = f"✏️ <b>Add Custom Amount</b>\nReply with the USD amount to <b>ADD</b> to user <code>{html.escape(uid, quote=False)}</code> (e.g. <code>25</code>):"
+        else:
+            _tg_admin_state[chat_id] = {"mode": "csub", "user_id": uid}
+            prompt = f"✏️ <b>Deduct Custom Amount</b>\nReply with the USD amount to <b>DEDUCT</b> from user <code>{html.escape(uid, quote=False)}</code> (e.g. <code>5</code>):"
+        await answer_callback_query(token, query_id, "")
+        await send_telegram_direct_message(token, chat_id, prompt, {"force_reply": True, "selective": True})
+
+    elif sub == "pending":
+        pending_list = [o for o in orders if o.get("status") in ("pending", "sending", "paid")][:5]
+        if not pending_list:
+            text = "📦 <b>Pending Orders</b>\n\n✅ No pending or sending orders right now!"
+            rows = [[{"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]
+        else:
+            lines = ["📦 <b>Latest Active / Pending Orders</b>\n"]
+            rows = []
+            for o in pending_list:
+                oid = str(o.get("order_id") or "")
+                cust = html.escape(str(o.get("roblox_username") or o.get("buyer_account") or "Customer"), quote=False)
+                amt = float(o.get("amount") or 0)
+                st = str(o.get("status") or "pending").upper()
+                lines.append(f"• <code>{html.escape(oid, quote=False)}</code> — {cust} (${amt:.2f}) [{st}]")
+                rows.append([
+                    {"text": f"✅ Complete {oid[:10]}", "callback_data": f"complete:{oid}"},
+                    {"text": f"❌ Reject {oid[:10]}", "callback_data": f"reject:{oid}"}
+                ])
+            rows.append([{"text": "🔄 Refresh", "callback_data": "adm:pending:0"}, {"text": "🏠 Admin Menu", "callback_data": "adm:home"}])
+            text = "\n".join(lines)
+        await answer_callback_query(token, query_id, "")
+        if msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, text, {"inline_keyboard": rows})
+
+    elif sub == "stats":
+        completed_orders = [o for o in orders if o.get("status") == "completed" or o.get("delivered")]
+        paid_rev = sum(float(o.get("amount") or 0) for o in orders if o.get("paid") and o.get("status") != "refunded")
+        text = (
+            f"📊 <b>Store Statistics</b>\n\n"
+            f"📦 <b>Total Orders:</b> {len(orders)}\n"
+            f"✅ <b>Completed:</b> {len(completed_orders)}\n"
+            f"💵 <b>Total Paid Revenue:</b> ${paid_rev:.2f} USD\n"
+            f"👥 <b>Registered Users:</b> {len(users)}"
+        )
+        await answer_callback_query(token, query_id, "")
+        if msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, text, {"inline_keyboard": [[{"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]})
+
+    elif sub == "spin":
+        sp_cfg = settings.get("spin_config", {})
+        st_en = "✅ Enabled" if sp_cfg.get("enabled", True) else "⛔ Disabled"
+        hist = settings.get("spin_history", [])
+        tot_spins = len(hist)
+        tot_rbx = sum(int(h.get("robux") or 0) for h in hist)
+        text = (
+            f"🎡 <b>Spin Robux Stats</b>\n\n"
+            f"<b>Status:</b> {st_en}\n"
+            f"<b>Price/Spin:</b> ${float(sp_cfg.get('spin_price_usd') or 0.5):.2f} USD\n"
+            f"<b>Total Spins:</b> {tot_spins}\n"
+            f"<b>Total Robux Won:</b> {tot_rbx:,} R$"
+        )
+        await answer_callback_query(token, query_id, "")
+        if msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, text, {"inline_keyboard": [[{"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]})
+
 async def handle_telegram_callback_query(query: Dict[str, Any], token: str):
     query_id = query.get("id")
     data = query.get("data", "")
@@ -1416,6 +1686,10 @@ async def handle_telegram_callback_query(query: Dict[str, Any], token: str):
 
     if from_id != target_chat_id:
         await answer_callback_query(token, query_id, "Unauthorized: Admin action only.")
+        return
+
+    if data.startswith("adm:"):
+        await handle_telegram_admin_callback(query, token, data)
         return
 
     parts = data.split(":")
@@ -1542,7 +1816,47 @@ async def telegram_polling_loop():
                                 msg = update["message"]
                                 chat_id = str(msg.get("chat", {}).get("id"))
                                 text = (msg.get("text") or "").strip()
-                                if text.startswith("/start"):
+                                target_chat_id = str(settings.get("telegram_chat_id") or "8710759437")
+                                if text == "/admin" or text.startswith("/admin ") or text.startswith("/admin@"):
+                                    if chat_id != target_chat_id:
+                                        await send_telegram_direct_message(token, chat_id, "⛔ Unauthorized: Admin only.")
+                                    else:
+                                        _tg_admin_state.pop(chat_id, None)
+                                        adm_text, adm_markup = _build_tg_admin_home()
+                                        await send_telegram_direct_message(token, chat_id, adm_text, adm_markup)
+                                elif chat_id == target_chat_id and chat_id in _tg_admin_state and text and not text.startswith("/"):
+                                    st_info = _tg_admin_state.pop(chat_id, {})
+                                    mode = st_info.get("mode")
+                                    if mode == "find":
+                                        q_low = text.strip().lower()
+                                        found = next((usr for usr in users if str(usr.get("id", "")).lower() == q_low or str(usr.get("username", "")).lower() == q_low or str(usr.get("email", "")).lower() == q_low), None)
+                                        if not found:
+                                            found = next((usr for usr in users if q_low in str(usr.get("id", "")).lower() or q_low in str(usr.get("username", "")).lower()), None)
+                                        if found:
+                                            card = _build_tg_user_card(str(found.get("id")))
+                                            if card:
+                                                await send_telegram_direct_message(token, chat_id, card[0], card[1])
+                                        else:
+                                            await send_telegram_direct_message(token, chat_id, f"❌ No user found matching <code>{html.escape(text, quote=False)}</code>.", {"inline_keyboard": [[{"text": "🔍 Try Again", "callback_data": "adm:find"}, {"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]})
+                                    elif mode in ("cadd", "csub"):
+                                        uid = st_info.get("user_id", "")
+                                        try:
+                                            amt_val = float(text.replace("$", "").strip())
+                                            if amt_val <= 0 or not math.isfinite(amt_val):
+                                                raise ValueError()
+                                        except ValueError:
+                                            await send_telegram_direct_message(token, chat_id, "❌ Invalid amount. Please enter a positive number (e.g. <code>10</code>).", {"inline_keyboard": [[{"text": "⬅️ Back to User", "callback_data": f"adm:u:{uid}"}, {"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]})
+                                            continue
+                                        delta = amt_val if mode == "cadd" else -amt_val
+                                        async with _tx_lock:
+                                            ok, note, _ = _apply_tg_wallet_adjust(uid, delta, "Admin")
+                                        if ok:
+                                            card = _build_tg_user_card(uid)
+                                            if card:
+                                                await send_telegram_direct_message(token, chat_id, f"✅ <b>{html.escape(note, quote=False)}</b>\n\n{card[0]}", card[1])
+                                        else:
+                                            await send_telegram_direct_message(token, chat_id, f"❌ {html.escape(note, quote=False)}")
+                                elif text.startswith("/start"):
                                     parts = text.split(maxsplit=1)
                                     param = parts[1].strip() if len(parts) > 1 else ""
                                     if param:
