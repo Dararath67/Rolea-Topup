@@ -3031,16 +3031,19 @@ async def get_games():
 
 @app.get("/api/packages")
 async def get_public_packages(game: Optional[str] = None):
+    sync_package_stock_with_inventory()
     cache_key = f"rolea:packages:{game or 'all'}"
     data, state = cache_aside_get(
         cache_key,
-        300,
+        60,
         lambda: {"ok": True, "packages": [p for p in packages if (not game or p.get("game", "roblox") == game) and p.get("ok") != 0]},
     )
     return _cached_json_response(data, state)
 
 @app.get("/api/game/{game_id}")
 async def get_game_detail(game_id: str):
+    if game_id == "roblox":
+        sync_package_stock_with_inventory()
     cache_key = f"rolea:game:{game_id}"
     cached = cache_get(cache_key)
     if cached is not None:
@@ -3050,7 +3053,7 @@ async def get_game_detail(game_id: str):
         return JSONResponse(status_code=404, content={"ok": False, "error": "Game not found"})
     pkgs = [p for p in packages if p.get("game", "roblox") == game_id and p.get("ok") != 0]
     payload = {"ok": True, "game": g, "packages": pkgs}
-    cache_set(cache_key, payload, 300)
+    cache_set(cache_key, payload, 60)
     return _cached_json_response(payload, "MISS")
 
 @app.post("/api/check-id")
@@ -5942,6 +5945,23 @@ def is_blacklisted(player_id: str = "", username: str = "", email: str = "", ip:
         return True, f"IP address ({ip}) has been blacklisted."
     return False, ""
 
+def sync_package_stock_with_inventory() -> bool:
+    """Auto-adjust package in_stock status based on live Robux inventory/cookie stock."""
+    global packages
+    total_stock = get_total_inventory_stock()
+    changed = False
+    for p in packages:
+        if (p.get("game") or "roblox") == "roblox":
+            req_robux = float(p.get("robux") or 0)
+            if req_robux > 0:
+                should_be_in_stock = total_stock >= req_robux
+                if p.get("in_stock") != should_be_in_stock:
+                    p["in_stock"] = should_be_in_stock
+                    changed = True
+    if changed:
+        save_packages()
+    return changed
+
 def get_total_inventory_stock() -> int:
     global inventory
     bots = inventory.get("bots", [])
@@ -5953,6 +5973,7 @@ def get_total_inventory_stock() -> int:
 
 async def check_and_send_low_stock_alert():
     global inventory, settings
+    sync_package_stock_with_inventory()
     if not inventory.get("telegram_alert_enabled", True):
         return
     current_stock = get_total_inventory_stock()
