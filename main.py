@@ -1295,13 +1295,25 @@ async def send_smtp_email(to_email: str, subject: str, html_body: str, text_body
         return False, "SMTP email & App Password not configured"
     return await asyncio.to_thread(_send_smtp_sync, host, port, sender, password, to_email, subject, html_body, text_body)
 
+_tg_http_client: Optional[httpx.AsyncClient] = None
+
+def _get_tg_client() -> httpx.AsyncClient:
+    global _tg_http_client
+    if _tg_http_client is None or _tg_http_client.is_closed:
+        _tg_http_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(25.0, connect=8.0),
+            limits=httpx.Limits(max_keepalive_connections=10, max_connections=20)
+        )
+    return _tg_http_client
+
 async def answer_callback_query(token: str, query_id: str, text: str):
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            await client.post(
-                f"https://api.telegram.org/bot{token}/answerCallbackQuery",
-                json={"callback_query_id": query_id, "text": text, "show_alert": False}
-            )
+        client = _get_tg_client()
+        await client.post(
+            f"https://api.telegram.org/bot{token}/answerCallbackQuery",
+            json={"callback_query_id": query_id, "text": text, "show_alert": False},
+            timeout=5.0
+        )
     except Exception:
         pass
 
@@ -1315,11 +1327,12 @@ async def edit_telegram_message(token: str, chat_id: Any, message_id: Any, text:
         }
         if reply_markup is not None:
             payload["reply_markup"] = reply_markup
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            await client.post(
-                f"https://api.telegram.org/bot{token}/editMessageText",
-                json=payload
-            )
+        client = _get_tg_client()
+        await client.post(
+            f"https://api.telegram.org/bot{token}/editMessageText",
+            json=payload,
+            timeout=6.0
+        )
     except Exception:
         pass
 
@@ -1333,19 +1346,21 @@ async def send_telegram_direct_message(token: str, chat_id: Union[int, str], tex
     }
     if reply_markup:
         payload["reply_markup"] = reply_markup
+    client = _get_tg_client()
     for attempt in range(1, 4):
         try:
-            async with httpx.AsyncClient(timeout=12.0) as client:
-                res = await client.post(url, json=payload)
-                try:
-                    data = res.json()
-                except Exception:
-                    data = None
-                if res.status_code == 200 and isinstance(data, dict) and data.get("ok"):
-                    return True
-                print(f"Telegram sendMessage attempt {attempt} error (HTTP {res.status_code}): {data}")
+            res = await client.post(url, json=payload, timeout=10.0)
+            try:
+                data = res.json()
+            except Exception:
+                data = None
+            if res.status_code == 200 and isinstance(data, dict) and data.get("ok"):
+                return True
+            print(f"Telegram sendMessage attempt {attempt} error (HTTP {res.status_code}): {data}")
         except Exception as e:
             print(f"Telegram sendMessage attempt {attempt} failed: {e}")
+        await asyncio.sleep(0.4 * attempt)
+    return False
         if attempt < 3:
             await asyncio.sleep(1.0)
     return False
@@ -1991,192 +2006,197 @@ telegram_offset = 0
 async def telegram_polling_loop():
     global telegram_offset
     while True:
+        sleep_sec = 0.05
         try:
             token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
             if token:
-                url = f"https://api.telegram.org/bot{token}/getUpdates?offset={telegram_offset}&timeout=5"
-                async with httpx.AsyncClient(timeout=8.0) as client:
-                    resp = await client.get(url)
-                    j = resp.json()
-                    if j and j.get("ok") and isinstance(j.get("result"), list):
-                        for update in j["result"]:
-                            telegram_offset = update["update_id"] + 1
-                            if "callback_query" in update:
-                                await handle_telegram_callback_query(update["callback_query"], token)
-                            elif "message" in update:
-                                msg = update["message"]
-                                chat_id = str(msg.get("chat", {}).get("id"))
-                                text = (msg.get("text") or "").strip()
-                                target_chat_id = str(settings.get("telegram_chat_id") or "8710759437")
-                                if text == "/admin" or text.startswith("/admin ") or text.startswith("/admin@"):
-                                    if chat_id != target_chat_id:
-                                        await send_telegram_direct_message(token, chat_id, "⛔ Unauthorized: Admin only.")
+                url = f"https://api.telegram.org/bot{token}/getUpdates?offset={telegram_offset}&timeout=20"
+                client = _get_tg_client()
+                resp = await client.get(url, timeout=25.0)
+                j = resp.json()
+                if j and j.get("ok") and isinstance(j.get("result"), list):
+                    for update in j["result"]:
+                        telegram_offset = update["update_id"] + 1
+                        if "callback_query" in update:
+                            asyncio.create_task(handle_telegram_callback_query(update["callback_query"], token))
+                        elif "message" in update:
+                            msg = update["message"]
+                            chat_id = str(msg.get("chat", {}).get("id"))
+                            text = (msg.get("text") or "").strip()
+                            target_chat_id = str(settings.get("telegram_chat_id") or "8710759437")
+                            if text == "/admin" or text.startswith("/admin ") or text.startswith("/admin@"):
+                                if chat_id != target_chat_id:
+                                    asyncio.create_task(send_telegram_direct_message(token, chat_id, "⛔ Unauthorized: Admin only."))
+                                else:
+                                    _tg_admin_state.pop(chat_id, None)
+                                    adm_text, adm_markup = _build_tg_admin_home()
+                                    asyncio.create_task(send_telegram_direct_message(token, chat_id, adm_text, adm_markup))
+                            elif chat_id == target_chat_id and chat_id in _tg_admin_state and text and not text.startswith("/"):
+                                st_info = _tg_admin_state.pop(chat_id, {})
+                                mode = st_info.get("mode")
+                                if mode == "find":
+                                    q_low = text.strip().lower()
+                                    found = next((usr for usr in users if str(usr.get("id", "")).lower() == q_low or str(usr.get("username", "")).lower() == q_low or str(usr.get("email", "")).lower() == q_low), None)
+                                    if not found:
+                                        found = next((usr for usr in users if q_low in str(usr.get("id", "")).lower() or q_low in str(usr.get("username", "")).lower()), None)
+                                    if found:
+                                        card = _build_tg_user_card(str(found.get("id")))
+                                        if card:
+                                            asyncio.create_task(send_telegram_direct_message(token, chat_id, card[0], card[1]))
                                     else:
-                                        _tg_admin_state.pop(chat_id, None)
-                                        adm_text, adm_markup = _build_tg_admin_home()
-                                        await send_telegram_direct_message(token, chat_id, adm_text, adm_markup)
-                                elif chat_id == target_chat_id and chat_id in _tg_admin_state and text and not text.startswith("/"):
-                                    st_info = _tg_admin_state.pop(chat_id, {})
-                                    mode = st_info.get("mode")
-                                    if mode == "find":
-                                        q_low = text.strip().lower()
-                                        found = next((usr for usr in users if str(usr.get("id", "")).lower() == q_low or str(usr.get("username", "")).lower() == q_low or str(usr.get("email", "")).lower() == q_low), None)
-                                        if not found:
-                                            found = next((usr for usr in users if q_low in str(usr.get("id", "")).lower() or q_low in str(usr.get("username", "")).lower()), None)
-                                        if found:
-                                            card = _build_tg_user_card(str(found.get("id")))
-                                            if card:
-                                                await send_telegram_direct_message(token, chat_id, card[0], card[1])
-                                        else:
-                                            await send_telegram_direct_message(token, chat_id, f"❌ No user found matching <code>{html.escape(text, quote=False)}</code>.", {"inline_keyboard": [[{"text": "🔍 Try Again", "callback_data": "adm:find"}, {"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]})
-                                    elif mode in ("cadd", "csub"):
-                                        uid = st_info.get("user_id", "")
+                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ No user found matching <code>{html.escape(text, quote=False)}</code>.", {"inline_keyboard": [[{"text": "🔍 Try Again", "callback_data": "adm:find"}, {"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]}))
+                                elif mode in ("cadd", "csub"):
+                                    uid = st_info.get("user_id", "")
+                                    try:
+                                        amt_val = float(text.replace("$", "").strip())
+                                        if amt_val <= 0 or not math.isfinite(amt_val):
+                                            raise ValueError()
+                                    except ValueError:
+                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ Invalid amount. Please enter a positive number (e.g. <code>10</code>).", {"inline_keyboard": [[{"text": "⬅️ Back to User", "callback_data": f"adm:u:{uid}"}, {"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]}))
+                                        continue
+                                    delta = amt_val if mode == "cadd" else -amt_val
+                                    async with _tx_lock:
+                                        ok, note, _ = _apply_tg_wallet_adjust(uid, delta, "Admin")
+                                    if ok:
+                                        card = _build_tg_user_card(uid)
+                                        if card:
+                                            asyncio.create_task(send_telegram_direct_message(token, chat_id, f"✅ <b>{html.escape(note, quote=False)}</b>\n\n{card[0]}", card[1]))
+                                    else:
+                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ {html.escape(note, quote=False)}"))
+                                elif mode == "find_ord":
+                                    q_ord = text.strip().lstrip("#").upper()
+                                    ord_obj = next((o for o in orders if str(o.get("order_id", "")).upper() in (q_ord, f"ORD-{q_ord}")), None)
+                                    if not ord_obj:
+                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ Order <code>{html.escape(text, quote=False)}</code> not found.", {"inline_keyboard": [[{"text": "🔎 Try Again", "callback_data": "adm:find_ord"}, {"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]}))
+                                    else:
+                                        oid = str(ord_obj.get("order_id") or "")
+                                        cust = html.escape(str(ord_obj.get("roblox_username") or ord_obj.get("buyer_account") or "Customer"), quote=False)
+                                        pkg = html.escape(str(ord_obj.get("package") or "—"), quote=False)
+                                        amt = float(ord_obj.get("amount") or 0)
+                                        st = str(ord_obj.get("status") or "pending").upper()
+                                        o_txt = (
+                                            f"🔎 <b>Order Details</b>\n\n"
+                                            f"🆔 <b>Order ID:</b> <code>{html.escape(oid, quote=False)}</code>\n"
+                                            f"👤 <b>Account:</b> {cust}\n"
+                                            f"📦 <b>Package:</b> {pkg}\n"
+                                            f"💵 <b>Amount:</b> ${amt:.2f} USD\n"
+                                            f"📌 <b>Status:</b> {st}"
+                                        )
+                                        o_rows = []
+                                        if ord_obj.get("status") in ("pending", "sending", "paid"):
+                                            o_rows.append([{"text": "✅ Complete", "callback_data": f"complete:{oid}"}, {"text": "❌ Reject & Refund", "callback_data": f"reject:{oid}"}])
+                                        o_rows.append([{"text": "🏠 Admin Menu", "callback_data": "adm:home"}])
+                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, o_txt, {"inline_keyboard": o_rows}))
+                                elif mode == "promo_new":
+                                    parts_p = text.strip().split()
+                                    if len(parts_p) < 2:
+                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ Format: <code>CODE 10%</code> or <code>CODE $5</code>", {"inline_keyboard": [[{"text": "🎟️ Promo Codes", "callback_data": "adm:promos:0"}, {"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]}))
+                                    else:
+                                        p_code = parts_p[0].upper()
+                                        raw_v = parts_p[1]
+                                        p_type = "fixed" if "$" in raw_v else "percentage"
                                         try:
-                                            amt_val = float(text.replace("$", "").strip())
-                                            if amt_val <= 0 or not math.isfinite(amt_val):
+                                            p_val = float(raw_v.replace("$", "").replace("%", ""))
+                                            if p_val <= 0:
                                                 raise ValueError()
+                                            if any(c.get("code", "").upper() == p_code for c in coupons):
+                                                asyncio.create_task(send_telegram_direct_message(token, chat_id, f"⚠️ Promo <code>{html.escape(p_code, quote=False)}</code> already exists.", {"inline_keyboard": [[{"text": "🎟️ Promo Codes", "callback_data": "adm:promos:0"}]]}))
+                                            else:
+                                                coupons.insert(0, {"id": "cpn_" + secrets.token_hex(4), "code": p_code, "type": p_type, "value": p_val, "min_spend": 0.0, "max_uses": 0, "used_count": 0, "enabled": True, "description": f"{p_val}{'$' if p_type == 'fixed' else '%'} Discount"})
+                                                save_coupons()
+                                                asyncio.create_task(send_telegram_direct_message(token, chat_id, f"✅ Created promo <code>{html.escape(p_code, quote=False)}</code> ({html.escape(raw_v, quote=False)})!", {"inline_keyboard": [[{"text": "🎟️ View Promos", "callback_data": "adm:promos:0"}, {"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]}))
                                         except ValueError:
-                                            await send_telegram_direct_message(token, chat_id, "❌ Invalid amount. Please enter a positive number (e.g. <code>10</code>).", {"inline_keyboard": [[{"text": "⬅️ Back to User", "callback_data": f"adm:u:{uid}"}, {"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]})
-                                            continue
-                                        delta = amt_val if mode == "cadd" else -amt_val
-                                        async with _tx_lock:
-                                            ok, note, _ = _apply_tg_wallet_adjust(uid, delta, "Admin")
-                                        if ok:
-                                            card = _build_tg_user_card(uid)
-                                            if card:
-                                                await send_telegram_direct_message(token, chat_id, f"✅ <b>{html.escape(note, quote=False)}</b>\n\n{card[0]}", card[1])
-                                        else:
-                                            await send_telegram_direct_message(token, chat_id, f"❌ {html.escape(note, quote=False)}")
-                                    elif mode == "find_ord":
-                                        q_ord = text.strip().lstrip("#").upper()
-                                        ord_obj = next((o for o in orders if str(o.get("order_id", "")).upper() in (q_ord, f"ORD-{q_ord}")), None)
-                                        if not ord_obj:
-                                            await send_telegram_direct_message(token, chat_id, f"❌ Order <code>{html.escape(text, quote=False)}</code> not found.", {"inline_keyboard": [[{"text": "🔎 Try Again", "callback_data": "adm:find_ord"}, {"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]})
-                                        else:
-                                            oid = str(ord_obj.get("order_id") or "")
-                                            cust = html.escape(str(ord_obj.get("roblox_username") or ord_obj.get("buyer_account") or "Customer"), quote=False)
-                                            pkg = html.escape(str(ord_obj.get("package") or "—"), quote=False)
-                                            amt = float(ord_obj.get("amount") or 0)
-                                            st = str(ord_obj.get("status") or "pending").upper()
-                                            o_txt = (
-                                                f"🔎 <b>Order Details</b>\n\n"
-                                                f"🆔 <b>Order ID:</b> <code>{html.escape(oid, quote=False)}</code>\n"
-                                                f"👤 <b>Account:</b> {cust}\n"
-                                                f"📦 <b>Package:</b> {pkg}\n"
-                                                f"💵 <b>Amount:</b> ${amt:.2f} USD\n"
-                                                f"📌 <b>Status:</b> {st}"
-                                            )
-                                            o_rows = []
-                                            if ord_obj.get("status") in ("pending", "sending", "paid"):
-                                                o_rows.append([{"text": "✅ Complete", "callback_data": f"complete:{oid}"}, {"text": "❌ Reject & Refund", "callback_data": f"reject:{oid}"}])
-                                            o_rows.append([{"text": "🏠 Admin Menu", "callback_data": "adm:home"}])
-                                            await send_telegram_direct_message(token, chat_id, o_txt, {"inline_keyboard": o_rows})
-                                    elif mode == "promo_new":
-                                        parts_p = text.strip().split()
-                                        if len(parts_p) < 2:
-                                            await send_telegram_direct_message(token, chat_id, "❌ Format: <code>CODE 10%</code> or <code>CODE $5</code>", {"inline_keyboard": [[{"text": "🎟️ Promo Codes", "callback_data": "adm:promos:0"}, {"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]})
-                                        else:
-                                            p_code = parts_p[0].upper()
-                                            raw_v = parts_p[1]
-                                            p_type = "fixed" if "$" in raw_v else "percentage"
-                                            try:
-                                                p_val = float(raw_v.replace("$", "").replace("%", ""))
-                                                if p_val <= 0:
-                                                    raise ValueError()
-                                                if any(c.get("code", "").upper() == p_code for c in coupons):
-                                                    await send_telegram_direct_message(token, chat_id, f"⚠️ Promo <code>{html.escape(p_code, quote=False)}</code> already exists.", {"inline_keyboard": [[{"text": "🎟️ Promo Codes", "callback_data": "adm:promos:0"}]]})
-                                                else:
-                                                    coupons.insert(0, {"id": "cpn_" + secrets.token_hex(4), "code": p_code, "type": p_type, "value": p_val, "min_spend": 0.0, "max_uses": 0, "used_count": 0, "enabled": True, "description": f"{p_val}{'$' if p_type == 'fixed' else '%'} Discount"})
-                                                    save_coupons()
-                                                    await send_telegram_direct_message(token, chat_id, f"✅ Created promo <code>{html.escape(p_code, quote=False)}</code> ({html.escape(raw_v, quote=False)})!", {"inline_keyboard": [[{"text": "🎟️ View Promos", "callback_data": "adm:promos:0"}, {"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]})
-                                            except ValueError:
-                                                await send_telegram_direct_message(token, chat_id, "❌ Invalid discount value.", {"inline_keyboard": [[{"text": "🎟️ Promo Codes", "callback_data": "adm:promos:0"}]]})
-                                    elif mode in ("blk_u", "blk_ip"):
-                                        target_v = text.strip()
-                                        key = "blocked_users" if mode == "blk_u" else "blocked_ips"
-                                        lst = blacklist.setdefault(key, [])
-                                        if target_v and target_v not in lst:
-                                            lst.append(target_v)
-                                            save_blacklist()
-                                        await send_telegram_direct_message(token, chat_id, f"🚫 Blacklisted <code>{html.escape(target_v, quote=False)}</code>!", {"inline_keyboard": [[{"text": "🚫 Blacklist Menu", "callback_data": "adm:blk"}, {"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]})
-                                    elif mode == "bcast":
-                                        targets = set()
-                                        for u_it in users:
-                                            if u_it.get("telegram_chat_id"):
-                                                targets.add(str(u_it["telegram_chat_id"]).strip())
-                                        for o_it in orders:
-                                            if o_it.get("customer_telegram_chat_id"):
-                                                targets.add(str(o_it["customer_telegram_chat_id"]).strip())
-                                        targets.discard(target_chat_id)
+                                            asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ Invalid discount value.", {"inline_keyboard": [[{"text": "🎟️ Promo Codes", "callback_data": "adm:promos:0"}]]}))
+                                elif mode in ("blk_u", "blk_ip"):
+                                    target_v = text.strip()
+                                    key = "blocked_users" if mode == "blk_u" else "blocked_ips"
+                                    lst = blacklist.setdefault(key, [])
+                                    if target_v and target_v not in lst:
+                                        lst.append(target_v)
+                                        save_blacklist()
+                                    asyncio.create_task(send_telegram_direct_message(token, chat_id, f"🚫 Blacklisted <code>{html.escape(target_v, quote=False)}</code>!", {"inline_keyboard": [[{"text": "🚫 Blacklist Menu", "callback_data": "adm:blk"}, {"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]}))
+                                elif mode == "bcast":
+                                    targets = set()
+                                    for u_it in users:
+                                        if u_it.get("telegram_chat_id"):
+                                            targets.add(str(u_it["telegram_chat_id"]).strip())
+                                    for o_it in orders:
+                                        if o_it.get("customer_telegram_chat_id"):
+                                            targets.add(str(o_it["customer_telegram_chat_id"]).strip())
+                                    targets.discard(target_chat_id)
+                                    async def _do_bcast(tg_list, msg_body):
                                         sent_cnt = 0
-                                        b_msg = f"📢 <b>{html.escape(str(settings.get('store_name', 'Rolea Topup')), quote=False)}</b>\n\n{html.escape(text.strip(), quote=False)}"
-                                        for tc in targets:
-                                            if await send_telegram_direct_message(token, tc, b_msg):
+                                        for tc in tg_list:
+                                            if await send_telegram_direct_message(token, tc, msg_body):
                                                 sent_cnt += 1
                                         await send_telegram_direct_message(token, chat_id, f"✅ Broadcast sent to <b>{sent_cnt}</b> customer(s)!", {"inline_keyboard": [[{"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]})
-                                elif text.startswith("/start"):
-                                    parts = text.split(maxsplit=1)
-                                    param = parts[1].strip() if len(parts) > 1 else ""
-                                    if param:
-                                        target_order = next((o for o in orders if o.get("order_id") == param or o.get("order_id") == f"ORD-{param}"), None)
-                                        if target_order:
-                                            target_order["customer_telegram_chat_id"] = chat_id
-                                            save_orders()
-                                            if target_order.get("user_id"):
-                                                u = next((usr for usr in users if usr.get("id") == target_order.get("user_id")), None)
-                                                if u:
-                                                    u["telegram_chat_id"] = chat_id
-                                                    save_users()
-                                            st = target_order.get("status", "pending").upper()
-                                            rep = (
-                                                f"Welcome to <b>{settings.get('store_name', 'Rolea Topup')}</b>!\n\n"
-                                                f"You are now subscribed to live delivery alerts for Order <code>#{target_order.get('order_id')}</code>.\n\n"
-                                                f"<b>Package:</b> {target_order.get('package')}\n"
-                                                f"<b>Amount:</b> ${float(target_order.get('amount') or 0):.2f} USD\n"
-                                                f"<b>Status:</b> {st}\n\n"
-                                                f"We will message you right here as soon as your items are delivered."
-                                            )
-                                            await send_telegram_direct_message(token, chat_id, rep)
-                                        else:
-                                            rep = (
-                                                f"Welcome to <b>{settings.get('store_name', 'Rolea Topup')}</b>!\n\n"
-                                                f"Order <code>#{param}</code> was not found. Please verify your order ID or use <code>/track &lt;ORDER_ID&gt;</code>."
-                                            )
-                                            await send_telegram_direct_message(token, chat_id, rep)
+                                    b_msg = f"📢 <b>{html.escape(str(settings.get('store_name', 'Rolea Topup')), quote=False)}</b>\n\n{html.escape(text.strip(), quote=False)}"
+                                    asyncio.create_task(_do_bcast(targets, b_msg))
+                            elif text.startswith("/start"):
+                                parts = text.split(maxsplit=1)
+                                param = parts[1].strip() if len(parts) > 1 else ""
+                                if param:
+                                    target_order = next((o for o in orders if o.get("order_id") == param or o.get("order_id") == f"ORD-{param}"), None)
+                                    if target_order:
+                                        target_order["customer_telegram_chat_id"] = chat_id
+                                        save_orders()
+                                        if target_order.get("user_id"):
+                                            u = next((usr for usr in users if usr.get("id") == target_order.get("user_id")), None)
+                                            if u:
+                                                u["telegram_chat_id"] = chat_id
+                                                save_users()
+                                        st = target_order.get("status", "pending").upper()
+                                        rep = (
+                                            f"Welcome to <b>{settings.get('store_name', 'Rolea Topup')}</b>!\n\n"
+                                            f"You are now subscribed to live delivery alerts for Order <code>#{target_order.get('order_id')}</code>.\n\n"
+                                            f"<b>Package:</b> {target_order.get('package')}\n"
+                                            f"<b>Amount:</b> ${float(target_order.get('amount') or 0):.2f} USD\n"
+                                            f"<b>Status:</b> {st}\n\n"
+                                            f"We will message you right here as soon as your items are delivered."
+                                        )
+                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, rep))
                                     else:
                                         rep = (
-                                            f"Welcome to <b>{settings.get('store_name', 'Rolea Topup')} Bot</b>!\n\n"
-                                            f"Track orders and get instant delivery notifications.\n\n"
-                                            f"• Send <code>/track &lt;ORDER_ID&gt;</code> to link your order and check real-time status.\n\n"
-                                            f"Website: http://localhost:3000"
+                                            f"Welcome to <b>{settings.get('store_name', 'Rolea Topup')}</b>!\n\n"
+                                            f"Order <code>#{param}</code> was not found. Please verify your order ID or use <code>/track &lt;ORDER_ID&gt;</code>."
                                         )
-                                        await send_telegram_direct_message(token, chat_id, rep)
-                                elif text.startswith("/track"):
-                                    parts = text.split(maxsplit=1)
-                                    param = parts[1].strip() if len(parts) > 1 else ""
-                                    if param:
-                                        target_order = next((o for o in orders if o.get("order_id") == param or o.get("order_id") == f"ORD-{param}"), None)
-                                        if target_order:
-                                            target_order["customer_telegram_chat_id"] = chat_id
-                                            save_orders()
-                                            st = target_order.get("status", "pending").upper()
-                                            deliv = "Delivered" if target_order.get("delivered") else "In Progress"
-                                            rep = (
-                                                f"<b>Order #{target_order.get('order_id')}</b>\n\n"
-                                                f"<b>Product:</b> {target_order.get('package')}\n"
-                                                f"<b>Amount:</b> ${float(target_order.get('amount') or 0):.2f} USD\n"
-                                                f"<b>Status:</b> {st} ({deliv})\n"
-                                                f"<b>Date:</b> {target_order.get('created_at') or 'Recent'}\n\n"
-                                                f"Notifications are active for this chat."
-                                            )
-                                            await send_telegram_direct_message(token, chat_id, rep)
-                                        else:
-                                            await send_telegram_direct_message(token, chat_id, f"Order <code>#{param}</code> not found.")
+                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, rep))
+                                else:
+                                    rep = (
+                                        f"Welcome to <b>{settings.get('store_name', 'Rolea Topup')} Bot</b>!\n\n"
+                                        f"Track orders and get instant delivery notifications.\n\n"
+                                        f"• Send <code>/track &lt;ORDER_ID&gt;</code> to link your order and check real-time status.\n\n"
+                                        f"Website: http://localhost:3000"
+                                    )
+                                    asyncio.create_task(send_telegram_direct_message(token, chat_id, rep))
+                            elif text.startswith("/track"):
+                                parts = text.split(maxsplit=1)
+                                param = parts[1].strip() if len(parts) > 1 else ""
+                                if param:
+                                    target_order = next((o for o in orders if o.get("order_id") == param or o.get("order_id") == f"ORD-{param}"), None)
+                                    if target_order:
+                                        target_order["customer_telegram_chat_id"] = chat_id
+                                        save_orders()
+                                        st = target_order.get("status", "pending").upper()
+                                        deliv = "Delivered" if target_order.get("delivered") else "In Progress"
+                                        rep = (
+                                            f"<b>Order #{target_order.get('order_id')}</b>\n\n"
+                                            f"<b>Product:</b> {target_order.get('package')}\n"
+                                            f"<b>Amount:</b> ${float(target_order.get('amount') or 0):.2f} USD\n"
+                                            f"<b>Status:</b> {st} ({deliv})\n"
+                                            f"<b>Date:</b> {target_order.get('created_at') or 'Recent'}\n\n"
+                                            f"Notifications are active for this chat."
+                                        )
+                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, rep))
                                     else:
-                                        await send_telegram_direct_message(token, chat_id, "Please provide an Order ID: <code>/track ORD-123456</code>")
+                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, f"Order <code>#{param}</code> not found."))
+                                else:
+                                    asyncio.create_task(send_telegram_direct_message(token, chat_id, "Please provide an Order ID: <code>/track ORD-123456</code>"))
+            else:
+                sleep_sec = 2.0
         except Exception:
-            pass
-        await asyncio.sleep(3.5)
+            sleep_sec = 2.0
+        await asyncio.sleep(sleep_sec)
 
 # Security Concurrency & Anti-DDoS Guards
 _tx_lock = asyncio.Lock()
