@@ -3720,6 +3720,53 @@ document.getElementById('game-config-form').addEventListener('submit', async e =
 });
 
 // Data Loading
+function _applyOrdersAndStats(resOrders, resStats) {
+  if (resOrders && resOrders.ok) {
+    const freshOrders = resOrders.orders || [];
+    if (initialOrdersLoaded) {
+      freshOrders.forEach(o => {
+        if (isOrderReadyToAlert(o) && !knownPaidIds.has(o.order_id)) {
+          const tag = o.package_id === 'spin_reward' ? '[SPIN CLAIM SUBMITTED]' : '[PAID ORDER]';
+          toast(`${tag} #${o.order_id} - $${Number(o.amount || 0).toFixed(2)} USD`);
+          playPaidOrderSound();
+        }
+      });
+    }
+    freshOrders.forEach(o => { if (isOrderReadyToAlert(o)) knownPaidIds.add(o.order_id); });
+    initialOrdersLoaded = true;
+    allOrders = freshOrders;
+    renderOrders();
+  }
+  if (resStats && resStats.ok) {
+    const s = resStats.stats;
+    const elRev = document.getElementById('kpi-rev');
+    if (elRev) elRev.textContent = '$' + Number(s.revenue || 0).toFixed(2);
+    const elOrders = document.getElementById('kpi-orders');
+    if (elOrders) elOrders.textContent = s.total_orders;
+    const elRobux = document.getElementById('kpi-robux');
+    if (elRobux) elRobux.textContent = Number(s.robux_delivered || 0).toLocaleString();
+    const elPending = document.getElementById('kpi-pending');
+    if (elPending) elPending.textContent = s.pending_orders;
+    const elBadge = document.getElementById('badge-pending');
+    if (elBadge) elBadge.textContent = s.pending_orders;
+  }
+}
+
+let _livePollBusy = false;
+async function pollLiveOrders() {
+  if (_livePollBusy || document.hidden) return;
+  _livePollBusy = true;
+  try {
+    const [resOrders, resStats] = await Promise.all([
+      fetch('/api/admin/orders').then(r => r.json()).catch(() => ({ ok: false })),
+      fetch('/api/admin/stats').then(r => r.json()).catch(() => ({ ok: false }))
+    ]);
+    _applyOrdersAndStats(resOrders, resStats);
+  } catch (e) {} finally {
+    _livePollBusy = false;
+  }
+}
+
 async function loadData() {
   try {
     const [resOrders, resStats, resPackages, resSettings, resGames, resPromos, resUsers] = await Promise.all([
@@ -3742,36 +3789,7 @@ async function loadData() {
 
     if (resPromos && resPromos.ok) renderPromos(resPromos.promos || []);
     if (resUsers && resUsers.ok) renderAdminUsers(resUsers.users || []);
-
-    if (resOrders.ok) {
-      const freshOrders = resOrders.orders || [];
-      if (initialOrdersLoaded) {
-        freshOrders.forEach(o => {
-          if (isOrderReadyToAlert(o) && !knownPaidIds.has(o.order_id)) {
-            const tag = o.package_id === 'spin_reward' ? '[SPIN CLAIM SUBMITTED]' : '[PAID ORDER]';
-            toast(`${tag} #${o.order_id} - $${Number(o.amount || 0).toFixed(2)} USD`);
-            playPaidOrderSound();
-          }
-        });
-      }
-      freshOrders.forEach(o => { if (isOrderReadyToAlert(o)) knownPaidIds.add(o.order_id); });
-      initialOrdersLoaded = true;
-      allOrders = freshOrders;
-      renderOrders();
-    }
-    if (resStats.ok) {
-      const s = resStats.stats;
-      const elRev = document.getElementById('kpi-rev');
-      if (elRev) elRev.textContent = '$' + Number(s.revenue || 0).toFixed(2);
-      const elOrders = document.getElementById('kpi-orders');
-      if (elOrders) elOrders.textContent = s.total_orders;
-      const elRobux = document.getElementById('kpi-robux');
-      if (elRobux) elRobux.textContent = Number(s.robux_delivered || 0).toLocaleString();
-      const elPending = document.getElementById('kpi-pending');
-      if (elPending) elPending.textContent = s.pending_orders;
-      const elBadge = document.getElementById('badge-pending');
-      if (elBadge) elBadge.textContent = s.pending_orders;
-    }
+    _applyOrdersAndStats(resOrders, resStats);
     if (resPackages.ok) {
       allPackages = resPackages.packages || [];
       renderPackages();
@@ -5922,21 +5940,20 @@ async function resetSpinStats() {
   } catch (e) {}
 }
 
-// Initial load & Polling
+// Initial load & Polling (lightweight 6s orders poll, 45s full background sync)
 loadData();
-loadInventoryData();
 loadSecurityData();
 restoreActiveTab();
+setInterval(pollLiveOrders, 6000);
 setInterval(() => {
-  loadData();
-  loadInventoryData();
-}, 5000);
+  if (!document.hidden) loadData();
+}, 45000);
 setInterval(() => {
   const invTab = document.getElementById('tab-inventory');
-  if (invTab && invTab.style.display !== 'none' && currentInventory && currentInventory.bots && currentInventory.bots.length > 0) {
+  if (!document.hidden && invTab && invTab.style.display !== 'none' && currentInventory && currentInventory.bots && currentInventory.bots.length > 0) {
     syncCookieBalance(true);
   }
-}, 10000);
+}, 20000);
 </script>
 
 </body>

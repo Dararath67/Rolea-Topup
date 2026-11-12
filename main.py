@@ -1664,7 +1664,7 @@ def _is_https_request(request: Request) -> bool:
     xfp = (request.headers.get("x-forwarded-proto") or "").split(",")[0].strip().lower()
     return xfp == "https" or request.url.scheme == "https"
 
-def _get_rate_tier(path: str) -> tuple[str, int, int]:
+def _get_rate_tier(path: str, is_authed_admin: bool = False) -> tuple[str, int, int]:
     if path in (
         "/api/auth/forgot-password", "/api/auth/verify-reset-code", "/api/auth/reset-password",
         "/api/admin/forgot-password", "/api/admin/verify-reset-code", "/api/admin/reset-password"
@@ -1676,14 +1676,16 @@ def _get_rate_tier(path: str) -> tuple[str, int, int]:
         return ("pay_create", 15, 60)
     if path in ("/api/check-id", "/api/promo/apply", "/api/check-order", "/api/reviews/submit"):
         return ("lookup", 30, 60)
+    if is_authed_admin and path.startswith("/api/admin/"):
+        return ("admin_authed", 600, 60)
     if path in ("/api/settings", "/api/games", "/api/packages") or path.startswith("/api/game/"):
         return ("static", 300, 60)
     if path.startswith("/api/"):
         return ("api_general", 120, 60)
     return ("static", 300, 60)
 
-def _check_rate_limit(ip: str, path: str) -> tuple[bool, int]:
-    tier, max_req, window_sec = _get_rate_tier(path)
+def _check_rate_limit(ip: str, path: str, is_authed_admin: bool = False) -> tuple[bool, int]:
+    tier, max_req, window_sec = _get_rate_tier(path, is_authed_admin=is_authed_admin)
     now_ts = time.time()
     key = f"{tier}:{ip}"
     if len(_rate_buckets) > 10000:
@@ -2378,7 +2380,12 @@ async def security_and_no_cache_middleware(request: Request, call_next):
             return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid Content-Length"})
 
     # 3. Anti-DDoS sliding-window rate limiter per client IP (using canonicalized path)
-    ok_rate, retry_after = _check_rate_limit(eff_ip, norm_path)
+    _is_authed_adm_req = bool(
+        norm_path.startswith("/api/admin/")
+        and norm_path not in ("/api/admin/login", "/api/admin/forgot-password", "/api/admin/verify-reset-code", "/api/admin/reset-password")
+        and verify_admin_session(request)
+    )
+    ok_rate, retry_after = _check_rate_limit(eff_ip, norm_path, is_authed_admin=_is_authed_adm_req)
     if not ok_rate:
         return JSONResponse(
             status_code=429,
