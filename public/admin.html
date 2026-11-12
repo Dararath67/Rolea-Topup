@@ -2041,6 +2041,30 @@
             </p>
           </div>
 
+          <!-- Cloudflare Turnstile Anti-Bot Card -->
+          <div style="margin-bottom:20px;padding:20px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f59e0b;"></span>
+                <b style="font-size:14px;color:#0f172a">Cloudflare Turnstile (Anti-Bot / Anti-Proxy Spam)</b>
+              </div>
+              <span style="font-size:11.5px;font-weight:700;color:#475569;background:#e2e8f0;padding:4px 10px;border-radius:8px;">Optional</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));gap:16px;">
+              <div class="form-group-modern" style="margin:0">
+                <label>Turnstile Site Key (Public)</label>
+                <input type="text" id="set-turnstile-site" placeholder="0x4AAAAAA...">
+              </div>
+              <div class="form-group-modern" style="margin:0">
+                <label>Turnstile Secret Key (Encrypted at Rest)</label>
+                <input type="password" id="set-turnstile-secret" placeholder="0x4AAAAAA... (leave blank/masked to keep)">
+              </div>
+            </div>
+            <p style="font-size:12px;color:#64748b;margin:10px 0 0 0;">
+              When both keys are configured, Login, Register, Forgot Password, and Order Checkout automatically require Cloudflare Turnstile verification.
+            </p>
+          </div>
+
           <div style="padding:18px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;margin-bottom:22px">
             <label style="display:flex;align-items:center;gap:12px;font-weight:700;font-size:14px;cursor:pointer">
               <input type="checkbox" id="set-auto-deliver" checked style="width:20px;height:20px;accent-color:#2563eb">
@@ -2362,6 +2386,17 @@
               </label>
             </div>
 
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div class="form-group-modern" style="margin:0">
+                <label>Daily Wallet Spend Limit ($ USD)</label>
+                <input type="number" id="sec-wallet-limit" value="100" min="0" step="1">
+              </div>
+              <div class="form-group-modern" style="margin:0">
+                <label>Velocity Freeze (Max Spends / 5m)</label>
+                <input type="number" id="sec-wallet-vel" value="8" min="2" max="100" step="1">
+              </div>
+            </div>
+
             <div class="form-group-modern" style="margin:0">
               <label>Session Expiration Timeout</label>
               <select id="sec-timeout-hours" style="width:100%;padding:10px 12px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:13px;background:#fff">
@@ -2381,6 +2416,63 @@
               </button>
             </div>
           </form>
+        </div>
+      </div>
+
+      <!-- Google Authenticator TOTP 2FA Setup Card -->
+      <div class="card-panel" style="margin-bottom:24px">
+        <div class="panel-header" style="border-bottom:1px solid #f1f5f9;padding-bottom:12px">
+          <div class="panel-title">
+            <h3>Google Authenticator 2FA (TOTP)</h3>
+            <span>Time-based 6-digit authenticator app code required at admin login</span>
+          </div>
+          <span id="sec-totp-badge" style="font-size:12px;font-weight:800;padding:5px 12px;border-radius:999px;background:#f1f5f9;color:#475569">Disabled</span>
+        </div>
+        <div style="padding-top:14px;display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start">
+          <div style="flex:1;min-width:260px;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <button type="button" class="btn-top primary" onclick="setupAdminTotp()" style="font-weight:700">Generate Authenticator QR</button>
+              <button type="button" class="btn-top" id="btn-totp-disable" onclick="disableAdminTotp()" style="display:none;color:#dc2626;border-color:#fca5a5;background:#fff5f5;font-weight:700">Disable TOTP 2FA</button>
+            </div>
+            <div id="sec-totp-setup-area" style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px">
+              <div style="font-size:12.5px;color:#334155;font-weight:700;margin-bottom:8px">Scan QR code in Google Authenticator / Authy, then enter the 6-digit code:</div>
+              <div style="font-size:11.5px;color:#64748b;margin-bottom:10px">Manual Secret: <code id="sec-totp-secret" style="background:#e2e8f0;padding:2px 6px;border-radius:6px;user-select:all"></code></div>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <input type="text" id="sec-totp-verify-code" placeholder="Enter 6-digit code" maxlength="6" inputmode="numeric" style="padding:9px 12px;border:1.5px solid #cbd5e1;border-radius:8px;width:160px;font-family:var(--font-mono);letter-spacing:3px;font-weight:700">
+                <button type="button" class="btn-top primary" onclick="verifyEnableAdminTotp()">Verify &amp; Activate TOTP</button>
+              </div>
+            </div>
+          </div>
+          <div id="sec-totp-qr-wrap" style="display:none;padding:10px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;text-align:center">
+            <img id="sec-totp-qr-img" src="" alt="TOTP QR" style="width:150px;height:150px;display:block">
+          </div>
+        </div>
+      </div>
+
+      <!-- Privileged Admin Audit Trail -->
+      <div class="card-panel" style="margin-bottom:24px">
+        <div class="panel-header">
+          <div class="panel-title">
+            <h3>Admin Privileged Audit Trail</h3>
+            <span>Immutable record of balance changes, settings updates, WAF actions &amp; bot cookies</span>
+          </div>
+          <button class="btn-top" onclick="loadSecurityData()">Refresh Audit</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="orders-table-modern" style="font-size:12.5px">
+            <thead>
+              <tr>
+                <th>Time (UTC)</th>
+                <th>Action</th>
+                <th>Target</th>
+                <th>IP Address</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody id="sec-audit-tbody">
+              <tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:20px">Loading audit trail…</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -2572,6 +2664,36 @@
               Save Fraud Rules
             </button>
           </form>
+        </div>
+      </div>
+
+      <!-- Live WAF Auto-Banned IPs Panel -->
+      <div class="card-panel" style="margin-bottom:22px">
+        <div class="panel-header">
+          <div class="panel-title">
+            <h3 style="display:flex;align-items:center;gap:8px">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.3"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              Live WAF Auto-Bans &amp; Hacker Tool Blocks
+            </h3>
+            <span>Scanner/SQLi/XSS IPs automatically temp-banned after 3 strikes (persisted in MySQL)</span>
+          </div>
+          <button class="btn-top" onclick="loadWafData()">Refresh WAF</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="orders-table-modern" style="font-size:12.5px">
+            <thead>
+              <tr>
+                <th>Attacker IP</th>
+                <th>Strikes</th>
+                <th>Remaining</th>
+                <th>Detection Reason</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="waf-bans-tbody">
+              <tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:20px">No active WAF temporary bans.</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -3684,6 +3806,8 @@ async function loadData() {
         if (document.getElementById('set-smtp-email')) document.getElementById('set-smtp-email').value = st.smtp_email || '';
         if (document.getElementById('set-smtp-password')) document.getElementById('set-smtp-password').value = st.smtp_password || '';
         if (document.getElementById('set-admin-recovery-email')) document.getElementById('set-admin-recovery-email').value = st.admin_recovery_email || '';
+        if (document.getElementById('set-turnstile-site')) document.getElementById('set-turnstile-site').value = st.turnstile_site_key || '';
+        if (document.getElementById('set-turnstile-secret')) document.getElementById('set-turnstile-secret').value = st.turnstile_secret_key || '';
         if (document.getElementById('input-home-banner-url')) document.getElementById('input-home-banner-url').value = st.home_banner || '/media/banner1.webp';
         if (document.getElementById('preview-home-banner')) document.getElementById('preview-home-banner').src = st.home_banner || '/media/banner1.webp';
         renderBannerTab();
@@ -4060,12 +4184,14 @@ document.getElementById('store-settings-form').addEventListener('submit', async 
   const smtp_email = document.getElementById('set-smtp-email') ? document.getElementById('set-smtp-email').value.trim() : '';
   const smtp_password = document.getElementById('set-smtp-password') ? document.getElementById('set-smtp-password').value.trim() : '';
   const admin_recovery_email = document.getElementById('set-admin-recovery-email') ? document.getElementById('set-admin-recovery-email').value.trim() : '';
+  const turnstile_site_key = document.getElementById('set-turnstile-site') ? document.getElementById('set-turnstile-site').value.trim() : '';
+  const turnstile_secret_key = document.getElementById('set-turnstile-secret') ? document.getElementById('set-turnstile-secret').value.trim() : '';
 
   try {
     const res = await fetch('/api/admin/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ store_name, telegram_handle, khqr_merchant_name, khqr_account, auto_deliver, khqrpay_base_url, khqrpay_api_key, telegram_bot_token, telegram_chat_id, smtp_host, smtp_port, smtp_email, smtp_password, admin_recovery_email })
+      body: JSON.stringify({ store_name, telegram_handle, khqr_merchant_name, khqr_account, auto_deliver, khqrpay_base_url, khqrpay_api_key, telegram_bot_token, telegram_chat_id, smtp_host, smtp_port, smtp_email, smtp_password, admin_recovery_email, turnstile_site_key, turnstile_secret_key })
     });
     const j = await res.json();
     if (res.ok && j.ok) {
@@ -4519,13 +4645,16 @@ function renderAdminUsers(users) {
   }
   tbody.innerHTML = allUsers.map(u => `
     <tr>
-      <td><b style="font-size:14px;color:#0f172a">${escHtml(u.username)}</b></td>
+      <td><b style="font-size:14px;color:#0f172a">${escHtml(u.username)}</b>${u.wallet_frozen ? ' <span style="background:#fee2e2;color:#b91c1c;font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:999px">FROZEN</span>' : ''}</td>
       <td style="color:#64748b">${escHtml(u.email || '—')}</td>
       <td><span style="font-weight:800;font-size:15px;color:#059669">$${Number(u.balance || 0).toFixed(2)} USD</span></td>
       <td><b>${Number(u.total_orders || 0)}</b> orders</td>
       <td style="font-size:13px;color:#64748b">${new Date(u.created_at || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
       <td style="text-align:right">
-        <div style="display:flex;gap:10px;justify-content:flex-end;align-items:center;flex-wrap:nowrap">
+        <div style="display:flex;gap:8px;justify-content:flex-end;align-items:center;flex-wrap:wrap">
+          <button class="btn-top" type="button" style="font-size:12px;padding:7px 12px;font-weight:700;border-radius:10px;white-space:nowrap;cursor:pointer;${u.wallet_frozen ? 'color:#059669;border-color:#a7f3d0;background:#ecfdf5' : 'color:#b45309;border-color:#fcd34d;background:#fffbeb'}" onclick="toggleWalletFreeze('${escJsArg(u.id)}', '${escJsArg(u.username)}', ${u.wallet_frozen ? 'true' : 'false'})">
+            ${u.wallet_frozen ? 'Unfreeze Wallet' : 'Freeze Wallet'}
+          </button>
           <button class="btn-top" type="button" style="font-size:13px;padding:8px 16px;font-weight:700;border-radius:10px;white-space:nowrap;min-height:36px;cursor:pointer" onclick="openEditUserModal('${escJsArg(u.id)}', '${escJsArg(u.username)}', '${escJsArg(u.email || '')}')">
             Edit & Password
           </button>
@@ -5189,31 +5318,30 @@ async function loadBlacklistData() {
 
       if (!allEntries.length) {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:28px">No targets in blacklist. All players can currently checkout safely.</td></tr>';
-        return;
+      } else {
+        const logs = data.logs || [];
+        tbody.innerHTML = allEntries.map(e => {
+          const foundLog = logs.find(l => String(l.target).toLowerCase() === String(e.target).toLowerCase());
+          const reason = foundLog ? foundLog.reason : 'Suspicious / Fraudulent activity';
+          const date = foundLog ? foundLog.timestamp : 'Recent';
+          const by = foundLog ? foundLog.blocked_by : 'Admin';
+
+          return `
+            <tr>
+              <td style="font-weight:800;color:#991b1b;font-family:monospace;font-size:13px">${escHtml(e.target)}</td>
+              <td><span style="font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;background:#fee2e2;color:#b91c1c">${escHtml(e.label)}</span></td>
+              <td style="font-size:12px;color:#64748b">${escHtml(date)}</td>
+              <td style="color:#334155">${escHtml(reason)}</td>
+              <td style="font-weight:700;color:#475569">${escHtml(by)}</td>
+              <td>
+                <button class="btn-top" style="padding:3px 8px;font-size:11px;color:#059669;border-color:#a7f3d0" onclick="removeBlacklist('${escJsArg(e.target)}', '${escJsArg(e.type)}')">
+                  ✓ Unblock
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
       }
-
-      const logs = data.logs || [];
-      tbody.innerHTML = allEntries.map(e => {
-        const foundLog = logs.find(l => String(l.target).toLowerCase() === String(e.target).toLowerCase());
-        const reason = foundLog ? foundLog.reason : 'Suspicious / Fraudulent activity';
-        const date = foundLog ? foundLog.timestamp : 'Recent';
-        const by = foundLog ? foundLog.blocked_by : 'Admin';
-
-        return `
-          <tr>
-            <td style="font-weight:800;color:#991b1b;font-family:monospace;font-size:13px">${e.target}</td>
-            <td><span style="font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;background:#fee2e2;color:#b91c1c">${e.label}</span></td>
-            <td style="font-size:12px;color:#64748b">${date}</td>
-            <td style="color:#334155">${reason}</td>
-            <td style="font-weight:700;color:#475569">${by}</td>
-            <td>
-              <button class="btn-top" style="padding:3px 8px;font-size:11px;color:#059669;border-color:#a7f3d0" onclick="removeBlacklist('${e.target}', '${e.type}')">
-                ✓ Unblock
-              </button>
-            </td>
-          </tr>
-        `;
-      }).join('');
     }
 
     // Rules
@@ -5223,9 +5351,69 @@ async function loadBlacklistData() {
     const chkFlag = document.getElementById('rule-auto-flag');
     if (chkFlag) chkFlag.checked = rules.auto_flag_suspicious !== false;
 
+    await loadWafData();
   } catch (err) {
     console.warn('Failed to load blacklist:', err);
   }
+}
+
+async function loadWafData() {
+  try {
+    const res = await fetch('/api/admin/waf');
+    if (!res.ok) return;
+    const j = await res.json();
+    const tbody = document.getElementById('waf-bans-tbody');
+    if (!tbody || !j.ok) return;
+    const bans = j.active_bans || [];
+    if (!bans.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:20px">No active WAF temporary bans.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = bans.map(b => `
+      <tr>
+        <td style="font-family:var(--font-mono);font-weight:800;color:#b91c1c">${escHtml(b.ip)}</td>
+        <td><span style="background:#fef3c7;color:#b45309;font-weight:700;padding:2px 8px;border-radius:999px;font-size:11px">${Number(b.strikes || 3)}</span></td>
+        <td style="font-family:var(--font-mono);font-size:12px">${Number(b.remaining_sec || 0)}s</td>
+        <td style="color:#334155">${escHtml(b.reason)}</td>
+        <td>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn-top" type="button" style="padding:3px 8px;font-size:11px;color:#059669;border-color:#a7f3d0" onclick="unbanWafIp('${escJsArg(b.ip)}')">Unban</button>
+            <button class="btn-top" type="button" style="padding:3px 8px;font-size:11px;color:#dc2626;border-color:#fca5a5" onclick="permBanWafIp('${escJsArg(b.ip)}', '${escJsArg(b.reason)}')">Perm Block</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  } catch (_) {}
+}
+
+async function unbanWafIp(ip) {
+  try {
+    const res = await fetch('/api/admin/waf/unban', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ip }) });
+    const j = await res.json();
+    if (res.ok && j.ok) { toast('WAF ban lifted for ' + ip); loadWafData(); } else toast(j.error || 'Failed');
+  } catch (_) { toast('Error unbanning IP'); }
+}
+
+async function permBanWafIp(ip, reason) {
+  try {
+    const res = await fetch('/api/admin/waf/ban-permanent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ip, reason }) });
+    const j = await res.json();
+    if (res.ok && j.ok) { toast('IP permanently blacklisted: ' + ip); loadBlacklistData(); } else toast(j.error || 'Failed');
+  } catch (_) { toast('Error blocking IP'); }
+}
+
+async function toggleWalletFreeze(userId, username, currentlyFrozen) {
+  const actionLabel = currentlyFrozen ? 'Unfreeze' : 'Freeze';
+  if (!confirm(`${actionLabel} wallet for ${username}?`)) return;
+  try {
+    const res = await fetch('/api/admin/users/toggle-wallet-freeze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, frozen: !currentlyFrozen })
+    });
+    const j = await res.json();
+    if (res.ok && j.ok) { toast(j.message); fetchUsersData(); } else toast(j.error || 'Failed');
+  } catch (_) { toast('Network error'); }
 }
 
 async function handleAddBlacklist(e) {
@@ -5364,6 +5552,35 @@ async function loadSecurityData() {
     togglePinInputRow();
     document.getElementById('sec-tg-alert').checked = j.telegram_login_alert !== false;
     document.getElementById('sec-timeout-hours').value = String(j.session_timeout_hours || 24);
+    if (document.getElementById('sec-wallet-limit')) document.getElementById('sec-wallet-limit').value = String(j.wallet_daily_limit_usd ?? 100);
+    if (document.getElementById('sec-wallet-vel')) document.getElementById('sec-wallet-vel').value = String(j.wallet_velocity_max_tx_5m ?? 8);
+
+    const totpBadge = document.getElementById('sec-totp-badge');
+    const btnDisableTotp = document.getElementById('btn-totp-disable');
+    if (totpBadge) {
+      totpBadge.textContent = j.totp_enabled ? 'Enabled (Active)' : 'Disabled';
+      totpBadge.style.background = j.totp_enabled ? '#dcfce7' : '#f1f5f9';
+      totpBadge.style.color = j.totp_enabled ? '#15803d' : '#475569';
+    }
+    if (btnDisableTotp) btnDisableTotp.style.display = j.totp_enabled ? 'inline-flex' : 'none';
+
+    const auditTbody = document.getElementById('sec-audit-tbody');
+    if (auditTbody) {
+      const audits = j.audit_logs || [];
+      if (!audits.length) {
+        auditTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:20px">No privileged audit actions recorded yet.</td></tr>';
+      } else {
+        auditTbody.innerHTML = audits.map(a => `
+          <tr>
+            <td style="font-family:var(--font-mono);font-size:11.5px;color:#475569">${a.time ? escHtml(new Date(a.time).toLocaleString()) : '-'}</td>
+            <td style="font-weight:700;color:#0f172a">${escHtml(a.action)}</td>
+            <td style="font-family:var(--font-mono)">${escHtml(a.target || '-')}</td>
+            <td style="font-family:var(--font-mono)">${escHtml(a.ip || '-')}</td>
+            <td style="color:#64748b">${escHtml(a.details || '')}</td>
+          </tr>
+        `).join('');
+      }
+    }
 
     const warnBox = document.getElementById('sec-default-warn');
     const warnBadge = document.getElementById('badge-sec-warn');
@@ -5428,12 +5645,14 @@ async function handleSecurityPolicySave(e) {
   const new_pin = document.getElementById('sec-new-pin').value.trim();
   const telegram_login_alert = document.getElementById('sec-tg-alert').checked;
   const session_timeout_hours = parseInt(document.getElementById('sec-timeout-hours').value, 10) || 24;
+  const wallet_daily_limit_usd = document.getElementById('sec-wallet-limit') ? parseFloat(document.getElementById('sec-wallet-limit').value) : 100;
+  const wallet_velocity_max_tx_5m = document.getElementById('sec-wallet-vel') ? parseInt(document.getElementById('sec-wallet-vel').value, 10) : 8;
 
   try {
     const res = await fetch('/api/admin/security/policy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pin_enabled, new_pin, telegram_login_alert, session_timeout_hours })
+      body: JSON.stringify({ pin_enabled, new_pin, telegram_login_alert, session_timeout_hours, wallet_daily_limit_usd, wallet_velocity_max_tx_5m })
     });
     const j = await res.json();
     if (res.ok && j.ok) {
@@ -5444,6 +5663,54 @@ async function handleSecurityPolicySave(e) {
       toast(j.error || 'Failed to save security policies');
     }
   } catch (err) { toast('Error saving security policies'); }
+}
+
+async function setupAdminTotp() {
+  try {
+    const res = await fetch('/api/admin/security/totp/setup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      document.getElementById('sec-totp-secret').textContent = j.manual_secret;
+      document.getElementById('sec-totp-qr-img').src = j.qr_data_url;
+      document.getElementById('sec-totp-setup-area').style.display = 'block';
+      document.getElementById('sec-totp-qr-wrap').style.display = 'block';
+    } else toast(j.error || 'Failed to generate TOTP');
+  } catch (_) { toast('Error generating TOTP'); }
+}
+
+async function verifyEnableAdminTotp() {
+  const code = (document.getElementById('sec-totp-verify-code').value || '').trim();
+  if (!code) { toast('Enter 6-digit Authenticator code'); return; }
+  try {
+    const res = await fetch('/api/admin/security/totp/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code })
+    });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      toast('Google Authenticator 2FA enabled!');
+      document.getElementById('sec-totp-verify-code').value = '';
+      document.getElementById('sec-totp-setup-area').style.display = 'none';
+      document.getElementById('sec-totp-qr-wrap').style.display = 'none';
+      loadSecurityData();
+    } else toast(j.error || 'Invalid code');
+  } catch (_) { toast('Error activating TOTP'); }
+}
+
+async function disableAdminTotp() {
+  const inp = prompt('Enter your Admin Password or current 6-digit TOTP code to disable Authenticator 2FA:');
+  if (!inp) return;
+  const payload = /^\d{6}$/.test(inp.trim()) ? { code: inp.trim() } : { current_password: inp };
+  try {
+    const res = await fetch('/api/admin/security/totp/disable', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const j = await res.json();
+    if (res.ok && j.ok) { toast('TOTP 2FA disabled'); loadSecurityData(); } else toast(j.error || 'Failed to disable TOTP');
+  } catch (_) { toast('Error disabling TOTP'); }
 }
 
 async function revokeOtherSessions() {

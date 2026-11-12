@@ -12,6 +12,7 @@ import re
 import secrets
 import smtplib
 import ssl
+import struct
 import threading
 import time
 from urllib.parse import urlparse, unquote, quote_plus
@@ -446,6 +447,79 @@ def cache_aside_get(key: str, ttl_seconds: int, loader_fn) -> tuple[Any, str]:
     return data, "MISS"
 
 
+_MASTER_KEY_FILE = DATA_DIR / ".master.key"
+_ENC_PREFIX = "enc:v1:"
+_SETTINGS_SECRET_KEYS = ("khqrpay_api_key", "telegram_bot_token", "smtp_password", "turnstile_secret_key")
+
+def _get_encryption_subkeys() -> tuple[bytes, bytes]:
+    raw_secret = (os.environ.get("DATA_ENCRYPTION_KEY") or "").strip()
+    if not raw_secret:
+        if _MASTER_KEY_FILE.exists():
+            try:
+                raw_secret = _MASTER_KEY_FILE.read_text(encoding="utf-8").strip()
+            except Exception:
+                raw_secret = ""
+        if not raw_secret:
+            raw_secret = secrets.token_urlsafe(32)
+            try:
+                _MASTER_KEY_FILE.write_text(raw_secret, encoding="utf-8")
+                try:
+                    os.chmod(_MASTER_KEY_FILE, 0o600)
+                except Exception:
+                    pass
+            except Exception:
+                pass
+    master_bytes = raw_secret.encode("utf-8")
+    enc_key = hashlib.sha256(b"rolea-enc-v1:" + master_bytes).digest()
+    mac_key = hashlib.sha256(b"rolea-mac-v1:" + master_bytes).digest()
+    return enc_key, mac_key
+
+def _encrypt_secret(plain: Any) -> str:
+    s = str(plain or "")
+    if not s:
+        return ""
+    if s.startswith(_ENC_PREFIX):
+        return s
+    enc_key, mac_key = _get_encryption_subkeys()
+    pt = s.encode("utf-8")
+    nonce = secrets.token_bytes(16)
+    stream = bytearray()
+    blk_idx = 0
+    while len(stream) < len(pt):
+        stream.extend(hashlib.sha256(enc_key + nonce + struct.pack(">I", blk_idx)).digest())
+        blk_idx += 1
+    ct = bytes(a ^ b for a, b in zip(pt, stream))
+    tag = hmac.new(mac_key, b"enc:v1:" + nonce + ct, hashlib.sha256).digest()
+    return _ENC_PREFIX + base64.urlsafe_b64encode(nonce + ct + tag).decode("ascii")
+
+def _decrypt_secret(val: Any) -> str:
+    s = str(val or "")
+    if not s or not s.startswith(_ENC_PREFIX):
+        return s
+    try:
+        blob = base64.urlsafe_b64decode(s[len(_ENC_PREFIX):].encode("ascii"))
+        if len(blob) < 48:
+            return ""
+        nonce = blob[:16]
+        tag = blob[-32:]
+        ct = blob[16:-32]
+        enc_key, mac_key = _get_encryption_subkeys()
+        expected_tag = hmac.new(mac_key, b"enc:v1:" + nonce + ct, hashlib.sha256).digest()
+        if not hmac.compare_digest(tag, expected_tag):
+            return ""
+        stream = bytearray()
+        blk_idx = 0
+        while len(stream) < len(ct):
+            stream.extend(hashlib.sha256(enc_key + nonce + struct.pack(">I", blk_idx)).digest())
+            blk_idx += 1
+        pt = bytes(a ^ b for a, b in zip(ct, stream))
+        return pt.decode("utf-8")
+    except Exception:
+        return ""
+
+def _get_bot_cookie(bot_obj: Dict[str, Any]) -> str:
+    return _decrypt_secret(bot_obj.get("cookie", ""))
+
 def load_json(path: Path, default: Any) -> Any:
     key = path.stem
     db_val = _mysql_get(key)
@@ -484,11 +558,20 @@ def save_json(path: Path, data: Any):
 orders = load_json(DB_PATH, orders)
 packages = load_json(PACKAGES_PATH, packages)
 settings = load_json(SETTINGS_PATH, settings)
+_settings_needs_reencrypt = False
+for _sk in _SETTINGS_SECRET_KEYS:
+    _val = str(settings.get(_sk) or "")
+    if _val.startswith(_ENC_PREFIX):
+        settings[_sk] = _decrypt_secret(_val)
+    elif _val:
+        _settings_needs_reencrypt = True
 for _env_k, _set_k in (
     ("TELEGRAM_BOT_TOKEN", "telegram_bot_token"),
     ("KHQRPAY_API_KEY", "khqrpay_api_key"),
     ("SMTP_EMAIL", "smtp_email"),
     ("SMTP_PASSWORD", "smtp_password"),
+    ("TURNSTILE_SITE_KEY", "turnstile_site_key"),
+    ("TURNSTILE_SECRET_KEY", "turnstile_secret_key"),
 ):
     if not settings.get(_set_k) and os.environ.get(_env_k):
         settings[_set_k] = os.environ[_env_k]
@@ -513,6 +596,14 @@ inventory: Dict[str, Any] = load_json(INVENTORY_PATH, {
     "bots": [],
     "history": []
 })
+_inv_dirty = False
+for _b in inventory.get("bots", []):
+    _bc = str(_b.get("cookie") or "")
+    if _bc and not _bc.startswith(_ENC_PREFIX):
+        _b["cookie"] = _encrypt_secret(_bc)
+        _inv_dirty = True
+if _inv_dirty:
+    save_json(INVENTORY_PATH, inventory)
 
 def save_orders(): save_json(DB_PATH, orders)
 def init_default_spin_data() -> Dict[str, Any]:
@@ -660,7 +751,14 @@ blacklist: Dict[str, Any] = load_json(BLACKLIST_PATH, {
 def save_inventory(): save_json(INVENTORY_PATH, inventory)
 def save_blacklist(): save_json(BLACKLIST_PATH, blacklist)
 def save_packages(): save_json(PACKAGES_PATH, packages)
-def save_settings(): save_json(SETTINGS_PATH, settings)
+def save_settings():
+    enc_settings = dict(settings)
+    for _sk in _SETTINGS_SECRET_KEYS:
+        if enc_settings.get(_sk):
+            enc_settings[_sk] = _encrypt_secret(enc_settings[_sk])
+    save_json(SETTINGS_PATH, enc_settings)
+if _settings_needs_reencrypt:
+    save_settings()
 def save_games(): save_json(GAMES_PATH, games)
 def save_users(): save_json(USERS_PATH, users)
 def save_coupons(): save_json(COUPONS_PATH, coupons)
@@ -687,10 +785,16 @@ def init_default_admin_security() -> Dict[str, Any]:
         "pin_enabled": False,
         "pin_salt": "",
         "pin_hash": "",
+        "totp_enabled": False,
+        "totp_secret_enc": "",
+        "totp_pending_secret_enc": "",
+        "wallet_daily_limit_usd": 100.0,
+        "wallet_velocity_max_tx_5m": 8,
         "session_timeout_hours": 24,
         "telegram_login_alert": True,
         "sessions": {},
-        "login_logs": []
+        "login_logs": [],
+        "audit_logs": []
     }
 
 admin_security: Dict[str, Any] = load_json(ADMIN_SECURITY_PATH, None)
@@ -698,8 +802,56 @@ if not admin_security or not admin_security.get("password_hash"):
     admin_security = init_default_admin_security()
     save_json(ADMIN_SECURITY_PATH, admin_security)
 
+admin_security.setdefault("totp_enabled", False)
+admin_security.setdefault("totp_secret_enc", "")
+admin_security.setdefault("totp_pending_secret_enc", "")
+admin_security.setdefault("wallet_daily_limit_usd", 100.0)
+admin_security.setdefault("wallet_velocity_max_tx_5m", 8)
+admin_security.setdefault("audit_logs", [])
+
 def save_admin_security():
     save_json(ADMIN_SECURITY_PATH, admin_security)
+
+def _generate_totp_secret() -> str:
+    return base64.b32encode(secrets.token_bytes(20)).decode("ascii").rstrip("=")
+
+def _totp_code_for_step(secret_b32: str, step: int) -> str:
+    pad = "=" * ((8 - len(secret_b32) % 8) % 8)
+    key = base64.b32decode(secret_b32.upper() + pad, casefold=True)
+    msg = struct.pack(">Q", step)
+    digest = hmac.new(key, msg, hashlib.sha1).digest()
+    offset = digest[-1] & 0x0F
+    code_int = struct.unpack(">I", digest[offset:offset + 4])[0] & 0x7FFFFFFF
+    return f"{code_int % 1000000:06d}"
+
+def _verify_totp_code(secret_b32: str, candidate: str, window: int = 1) -> bool:
+    code = re.sub(r"\s+", "", str(candidate or ""))
+    if not secret_b32 or not re.fullmatch(r"\d{6}", code):
+        return False
+    now_step = int(time.time() // 30)
+    for delta in range(-window, window + 1):
+        try:
+            expected = _totp_code_for_step(secret_b32, now_step + delta)
+            if hmac.compare_digest(code, expected):
+                return True
+        except Exception:
+            return False
+    return False
+
+def _totp_qr_data_url(secret_b32: str, username: str) -> tuple[str, str]:
+    issuer = "Rolea Topup"
+    acct = f"{issuer}:{username}"
+    uri = (
+        f"otpauth://totp/{quote_plus(acct)}"
+        f"?secret={secret_b32}&issuer={quote_plus(issuer)}&algorithm=SHA1&digits=6&period=30"
+    )
+    qr = qrcode.QRCode(version=None, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=8, border=2)
+    qr.add_data(uri)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="#0f172a", back_color="#ffffff")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii"), uri
 
 def cleanup_expired_admin_sessions():
     now_ms = int(time.time() * 1000)
@@ -723,6 +875,114 @@ def log_admin_security_event(event: str, ip: str, username: str, status_str: str
     if len(logs) > 30:
         admin_security["login_logs"] = logs[:30]
     save_admin_security()
+
+def _record_admin_audit(request: Optional[Request], action: str, target: str, details: str = "", alert_tg: bool = True):
+    ip = (get_admin_effective_ip(request) or "unknown") if request else "system"
+    adm_user = admin_security.get("username", "admin")
+    audits = admin_security.setdefault("audit_logs", [])
+    audits.insert(0, {
+        "time": datetime.now(timezone.utc).isoformat(),
+        "action": str(action)[:80],
+        "admin": str(adm_user)[:40],
+        "ip": str(ip)[:60],
+        "target": str(target)[:80],
+        "details": str(details)[:160],
+    })
+    if len(audits) > 200:
+        admin_security["audit_logs"] = audits[:200]
+    save_admin_security()
+    if alert_tg and admin_security.get("telegram_login_alert", True):
+        try:
+            loop = asyncio.get_running_loop()
+            msg = (
+                f"<b>[ADMIN AUDIT] {html.escape(str(action), quote=False)}</b>\n"
+                f"Admin: <code>{html.escape(str(adm_user), quote=False)}</code> | IP: <code>{html.escape(str(ip), quote=False)}</code>\n"
+                f"Target: <code>{html.escape(str(target), quote=False)}</code>\n"
+                f"Details: {html.escape(str(details), quote=False)}"
+            )
+            loop.create_task(send_admin_security_telegram(msg))
+        except RuntimeError:
+            pass
+
+def _check_and_enforce_wallet_guard(user: Dict[str, Any], spend_amount: float) -> tuple[bool, str]:
+    """Enforce wallet freeze check, daily USD spending cap, and 5-minute rapid-velocity auto-freeze."""
+    if user.get("wallet_frozen"):
+        reason = str(user.get("wallet_freeze_reason") or "Security review").strip()
+        return False, f"គណនី Wallet ត្រូវបានបង្កកបណ្តោះអាសន្ន ({reason})។ សូមទាក់ទង Admin។"
+
+    now_dt = datetime.now(timezone.utc)
+    today_prefix = now_dt.strftime("%Y-%m-%d")
+    now_ts = now_dt.timestamp()
+    uid = user.get("id")
+
+    spent_today = 0.0
+    recent_5m_count = 0
+    for tx in wallet_transactions:
+        if tx.get("user_id") != uid or tx.get("type") != "spend":
+            continue
+        amt = abs(float(tx.get("amount", 0) or 0))
+        d_str = str(tx.get("date") or "")
+        if d_str.startswith(today_prefix):
+            spent_today += amt
+        try:
+            tx_ts = datetime.fromisoformat(d_str.replace("Z", "+00:00")).timestamp()
+            if (now_ts - tx_ts) <= 300:
+                recent_5m_count += 1
+        except Exception:
+            pass
+
+    try:
+        vel_max = max(2, int(admin_security.get("wallet_velocity_max_tx_5m", 8) or 8))
+    except (ValueError, TypeError):
+        vel_max = 8
+    if recent_5m_count >= vel_max:
+        user["wallet_frozen"] = True
+        user["wallet_freeze_reason"] = f"Auto-frozen: {recent_5m_count} rapid wallet spends within 5 min"
+        save_users()
+        try:
+            asyncio.get_running_loop().create_task(send_admin_security_telegram(
+                f"<b>[WALLET AUTO-FREEZE] Velocity Guard Triggered</b>\n"
+                f"Customer: <code>{html.escape(str(user.get('username') or uid), quote=False)}</code>\n"
+                f"Spends in 5m: <code>{recent_5m_count}/{vel_max}</code>"
+            ))
+        except RuntimeError:
+            pass
+        return False, "សុវត្ថិភាព: រកឃើញការចំណាយលឿនខុសប្រក្រតី គណនី Wallet ត្រូវបានបង្កកបណ្តោះអាសន្ន។"
+
+    try:
+        daily_limit = float(admin_security.get("wallet_daily_limit_usd", 100.0) or 0.0)
+    except (ValueError, TypeError):
+        daily_limit = 100.0
+    if daily_limit > 0 and round(spent_today + float(spend_amount), 2) > daily_limit:
+        return False, f"លើសដែនកំណត់ចំណាយប្រចាំថ្ងៃ (${daily_limit:.2f}/ថ្ងៃ · បានចំណាយ ${spent_today:.2f})។"
+
+    return True, ""
+
+def _get_turnstile_config() -> tuple[str, str]:
+    site_key = str(settings.get("turnstile_site_key") or os.environ.get("TURNSTILE_SITE_KEY") or "").strip()
+    secret_key = str(settings.get("turnstile_secret_key") or os.environ.get("TURNSTILE_SECRET_KEY") or "").strip()
+    return site_key, secret_key
+
+async def _verify_turnstile_if_enabled(request: Request, body: Dict[str, Any]) -> tuple[bool, str]:
+    site_key, secret_key = _get_turnstile_config()
+    if not site_key or not secret_key:
+        return True, ""
+    token = str(body.get("cf_turnstile_token") or body.get("cf-turnstile-response") or "").strip()
+    if not token:
+        return False, "សូមបញ្ជាក់ Cloudflare Security Verification (Turnstile) ជាមុនសិន។"
+    remote_ip = get_admin_effective_ip(request)
+    try:
+        async with httpx.AsyncClient(timeout=6.0) as client:
+            res = await client.post(
+                "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+                data={"secret": secret_key, "response": token, "remoteip": remote_ip}
+            )
+            data = res.json()
+            if data.get("success") is True:
+                return True, ""
+            return False, "ការផ្ទៀងផ្ទាត់ Turnstile មិនត្រឹមត្រូវ ឬផុតកំណត់។ សូមព្យាយាមម្តងទៀត។"
+    except Exception:
+        return False, "មិនអាចផ្ទៀងផ្ទាត់ Cloudflare Turnstile បានទេ។ សូមព្យាយាមម្តងទៀត។"
 
 def extract_admin_token(request: Request) -> Optional[str]:
     auth_header = request.headers.get("authorization")
@@ -1664,15 +1924,32 @@ def _scan_payload_tree_waf(obj: Any, parent_key: str = "") -> Optional[str]:
         return _detect_web_attack_payload(obj)
     return None
 
+def _sync_waf_bans_from_blacklist():
+    now_ts = time.time()
+    persisted = blacklist.get("waf_bans") or {}
+    if not isinstance(persisted, dict):
+        return
+    for ip_k, info in list(persisted.items()):
+        until = float((info or {}).get("banned_until", 0) or 0)
+        if until > now_ts:
+            _scanner_bans[ip_k] = until
+        else:
+            persisted.pop(ip_k, None)
+
 def _is_scanner_temp_banned(ip: str) -> tuple[bool, int]:
     if not ip or ip in ("127.0.0.1", "::1", "unknown"):
         return False, 0
+    if not _scanner_bans and blacklist.get("waf_bans"):
+        _sync_waf_bans_from_blacklist()
     now_ts = time.time()
     ban_until = _scanner_bans.get(ip, 0)
     if ban_until > now_ts:
         return True, max(1, int(ban_until - now_ts))
     if ban_until:
         _scanner_bans.pop(ip, None)
+        if isinstance(blacklist.get("waf_bans"), dict) and ip in blacklist["waf_bans"]:
+            blacklist["waf_bans"].pop(ip, None)
+            save_blacklist()
     return False, 0
 
 def _record_hacker_strike(ip: str, reason: str, detail: str = ""):
@@ -1680,24 +1957,41 @@ def _record_hacker_strike(ip: str, reason: str, detail: str = ""):
         return
     now_ts = time.time()
     is_loopback = ip in ("127.0.0.1", "::1")
+    newly_banned = False
+    strike_count = 0
     if not is_loopback:
         strikes = [t for t in _scanner_strikes.get(ip, []) if now_ts - t < 600]
         strikes.append(now_ts)
+        strike_count = len(strikes)
         _scanner_strikes[ip] = strikes[-20:]
         if len(_scanner_strikes) > 5000:
             _scanner_strikes.clear()
-        if len(strikes) >= 3:
-            _scanner_bans[ip] = now_ts + 900  # 15-minute automatic temp ban
+        if strike_count >= 3:
+            ban_until = now_ts + 900  # 15-minute automatic temp ban
+            _scanner_bans[ip] = ban_until
+            newly_banned = True
             if len(_scanner_bans) > 5000:
                 _scanner_bans.clear()
+            waf_bans = blacklist.setdefault("waf_bans", {})
+            waf_bans[ip] = {
+                "ip": ip,
+                "banned_until": ban_until,
+                "reason": f"{reason}: {detail}"[:140],
+                "strikes": strike_count,
+                "last_seen": datetime.now(timezone.utc).isoformat()
+            }
+            if len(waf_bans) > 500:
+                expired = [k for k, v in waf_bans.items() if float(v.get("banned_until", 0) or 0) <= now_ts]
+                for k in expired:
+                    waf_bans.pop(k, None)
 
-    if now_ts - _scanner_log_cooldown.get(ip, 0) > 60:
+    if newly_banned or now_ts - _scanner_log_cooldown.get(ip, 0) > 60:
         _scanner_log_cooldown[ip] = now_ts
         if len(_scanner_log_cooldown) > 5000:
             _scanner_log_cooldown.clear()
         try:
             log_admin_security_event("Blocked Hacker/WAF", ip, "-", "locked", f"{reason}: {detail}"[:140])
-            if (blacklist.get("rules") or {}).get("auto_flag_suspicious", True):
+            if newly_banned or (blacklist.get("rules") or {}).get("auto_flag_suspicious", True):
                 logs = blacklist.setdefault("logs", [])
                 logs.insert(0, {
                     "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -1709,6 +2003,11 @@ def _record_hacker_strike(ip: str, reason: str, detail: str = ""):
                 if len(logs) > 200:
                     blacklist["logs"] = logs[:200]
                 save_blacklist()
+        except Exception:
+            pass
+    elif newly_banned:
+        try:
+            save_blacklist()
         except Exception:
             pass
 
@@ -2188,7 +2487,8 @@ async def get_public_settings():
             "khqr_merchant_name": settings.get("khqr_merchant_name"),
             "home_banner": settings.get("home_banner", "/media/banner1.webp"),
             "roblox_banner": settings.get("roblox_banner", "/media/roblox-banner.webp"),
-            "google_client_id": settings.get("google_client_id", "220196407393-n5m72vbjquni5g4uuo9bfpdrmmn41c24.apps.googleusercontent.com")
+            "google_client_id": settings.get("google_client_id", "220196407393-n5m72vbjquni5g4uuo9bfpdrmmn41c24.apps.googleusercontent.com"),
+            "turnstile_site_key": _get_turnstile_config()[0] if _get_turnstile_config()[1] else ""
         },
     )
     return _cached_json_response(data, state)
@@ -2463,6 +2763,9 @@ async def create_spin_ticket(request: Request):
         if not current_user:
             return JSONResponse(status_code=401, content={"ok": False, "error": "Please sign in to spin using your Rolea Wallet balance."})
         async with _tx_lock:
+            wg_ok, wg_msg = _check_and_enforce_wallet_guard(current_user, price)
+            if not wg_ok:
+                return JSONResponse(status_code=403, content={"ok": False, "error": wg_msg})
             if float(current_user.get("balance", 0.0)) < price:
                 return JSONResponse(status_code=400, content={"ok": False, "error": f"Insufficient Rolea Wallet balance (${float(current_user.get('balance', 0.0)):.2f}). Please top up first or use KHQR."})
 
@@ -2855,6 +3158,9 @@ async def register(request: Request):
     body = await request.json() if (await request.body()) else {}
     if not isinstance(body, dict):
         return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid JSON payload"})
+    ts_ok, ts_err = await _verify_turnstile_if_enabled(request, body)
+    if not ts_ok:
+        return JSONResponse(status_code=403, content={"ok": False, "error": ts_err})
     username = str(body.get("username") or "").strip()
     email = str(body.get("email") or "").strip().lower()
     password = str(body.get("password") or "")
@@ -2920,6 +3226,9 @@ async def login(request: Request):
     body = await request.json() if (await request.body()) else {}
     if not isinstance(body, dict):
         return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid JSON payload"})
+    ts_ok, ts_err = await _verify_turnstile_if_enabled(request, body)
+    if not ts_ok:
+        return JSONResponse(status_code=403, content={"ok": False, "error": ts_err})
     username = str(body.get("username") or "").strip()
     password = str(body.get("password") or "")
 
@@ -2996,6 +3305,11 @@ async def customer_forgot_password(request: Request):
     customer_reset_rate[client_ip] = recent
 
     body = await request.json() if (await request.body()) else {}
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid JSON payload"})
+    ts_ok, ts_err = await _verify_turnstile_if_enabled(request, body)
+    if not ts_ok:
+        return JSONResponse(status_code=403, content={"ok": False, "error": ts_err})
     identifier = str(body.get("identifier") or "").strip().lower()
     if not identifier:
         return JSONResponse(status_code=400, content={"ok": False, "error": "Please enter your email or username."})
@@ -3057,6 +3371,8 @@ async def customer_forgot_password(request: Request):
 @app.post("/api/auth/verify-reset-code")
 async def customer_verify_reset_code(request: Request):
     body = await request.json() if (await request.body()) else {}
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid JSON payload"})
     identifier = str(body.get("identifier") or "").strip().lower()
     code = str(body.get("code") or "").strip()
 
@@ -3089,6 +3405,8 @@ async def customer_verify_reset_code(request: Request):
 @app.post("/api/auth/reset-password")
 async def customer_reset_password(request: Request):
     body = await request.json() if (await request.body()) else {}
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid JSON payload"})
     identifier = str(body.get("identifier") or "").strip().lower()
     reset_token = str(body.get("reset_token") or "").strip()
     new_pw = str(body.get("new_password") or "")
@@ -3601,6 +3919,9 @@ async def create_order(request: Request):
         blocked, b_reason = is_blacklisted(player_id=body.get("player_id", ""), username=body.get("username", ""), email=body.get("email", ""), ip=client_ip)
         if blocked:
             return JSONResponse(status_code=403, content={"ok": False, "error": f"គណនី ឬ IP របស់អ្នកត្រូវបានបិទ (Blacklisted) ដោយសារការសង្ស័យបន្លំ: {b_reason}"})
+        ts_ok, ts_err = await _verify_turnstile_if_enabled(request, body)
+        if not ts_ok:
+            return JSONResponse(status_code=403, content={"ok": False, "error": ts_err})
 
         game_key = _sanitize_plain(body.get("game") or "roblox", 40)
         game_data = games.get(game_key)
@@ -3662,6 +3983,9 @@ async def create_order(request: Request):
             if body.get("payment_method") == "wallet":
                 if not current_user:
                     return JSONResponse(status_code=401, content={"ok": False, "error": "Please log in to pay with your Rolea Wallet balance"})
+                wg_ok, wg_msg = _check_and_enforce_wallet_guard(current_user, amount)
+                if not wg_ok:
+                    return JSONResponse(status_code=403, content={"ok": False, "error": wg_msg})
                 if float(current_user.get("balance", 0.0)) < amount:
                     return JSONResponse(status_code=400, content={"ok": False, "error": f"Insufficient wallet balance (${float(current_user.get('balance', 0)):.2f} USD). Please top up first."})
 
@@ -4062,6 +4386,7 @@ async def admin_login(request: Request):
     username = str(body.get("username") or "").strip()
     password = str(body.get("password") or "")
     pin = str(body.get("pin") or "").strip()
+    totp_code = str(body.get("totp_code") or "").strip()
 
     stored_user = admin_security.get("username", "admin")
     stored_salt = admin_security.get("password_salt", "")
@@ -4087,7 +4412,7 @@ async def admin_login(request: Request):
     # Optional 2FA Security PIN check
     if admin_security.get("pin_enabled"):
         if not pin:
-            return {"ok": False, "require_pin": True, "message": "Enter your 2FA Security PIN"}
+            return {"ok": False, "require_pin": True, "require_totp": bool(admin_security.get("totp_enabled")), "message": "Enter your 2FA Security PIN"}
         pin_salt = admin_security.get("pin_salt", "")
         pin_hash = admin_security.get("pin_hash", "")
         if not hmac.compare_digest(hash_admin_secret(pin, pin_salt), pin_hash):
@@ -4096,6 +4421,18 @@ async def admin_login(request: Request):
             admin_failed_attempts[client_ip] = attempts
             log_admin_security_event("Failed 2FA PIN", client_ip, username, "failed", "Incorrect Security PIN")
             return JSONResponse(status_code=401, content={"ok": False, "error": "Incorrect 2FA Security PIN."})
+
+    # Optional Google Authenticator (TOTP) 2FA check
+    if admin_security.get("totp_enabled"):
+        if not totp_code:
+            return {"ok": False, "require_totp": True, "require_pin": bool(admin_security.get("pin_enabled")), "message": "Enter your 6-digit Authenticator (TOTP) code"}
+        totp_sec = _decrypt_secret(admin_security.get("totp_secret_enc", ""))
+        if not _verify_totp_code(totp_sec, totp_code):
+            attempts = [t for t in admin_failed_attempts.get(client_ip, []) if now_ts - t < 900]
+            attempts.append(now_ts)
+            admin_failed_attempts[client_ip] = attempts
+            log_admin_security_event("Failed 2FA TOTP", client_ip, username, "failed", "Incorrect Authenticator TOTP code")
+            return JSONResponse(status_code=401, content={"ok": False, "error": "Incorrect Authenticator (TOTP) code."})
 
     # Success: reset failed attempts & create cryptographic session
     admin_failed_attempts.pop(client_ip, None)
@@ -4319,10 +4656,14 @@ async def admin_get_security(request: Request):
         "username": admin_security.get("username", "admin"),
         "is_default_password": bool(admin_security.get("is_default_password", False)),
         "pin_enabled": bool(admin_security.get("pin_enabled", False)),
+        "totp_enabled": bool(admin_security.get("totp_enabled", False)),
+        "wallet_daily_limit_usd": float(admin_security.get("wallet_daily_limit_usd", 100.0)),
+        "wallet_velocity_max_tx_5m": int(admin_security.get("wallet_velocity_max_tx_5m", 8)),
         "session_timeout_hours": int(admin_security.get("session_timeout_hours", 24)),
         "telegram_login_alert": bool(admin_security.get("telegram_login_alert", True)),
         "active_sessions": sessions_list,
         "login_logs": logs[:20],
+        "audit_logs": admin_security.get("audit_logs", [])[:40],
         "failed_24h": failed_24h
     }
 
@@ -4360,6 +4701,7 @@ async def admin_change_password(request: Request):
 
     client_ip = get_admin_effective_ip(request) or "unknown"
     log_admin_security_event("Credentials Updated", client_ip, new_user, "success", "Admin password & username updated; other sessions revoked")
+    _record_admin_audit(request, "Admin Credentials Changed", new_user, "Username/password rotated; other sessions revoked")
     save_admin_security()
     return {"ok": True, "message": "Admin credentials updated securely!"}
 
@@ -4384,11 +4726,69 @@ async def admin_update_security_policy(request: Request):
     admin_security["pin_enabled"] = pin_enabled
     admin_security["session_timeout_hours"] = max(1, min(168, timeout_hours))
     admin_security["telegram_login_alert"] = telegram_alert
+    if "wallet_daily_limit_usd" in body and body["wallet_daily_limit_usd"] is not None:
+        try:
+            admin_security["wallet_daily_limit_usd"] = max(0.0, round(float(body["wallet_daily_limit_usd"]), 2))
+        except (ValueError, TypeError):
+            pass
+    if "wallet_velocity_max_tx_5m" in body and body["wallet_velocity_max_tx_5m"] is not None:
+        try:
+            admin_security["wallet_velocity_max_tx_5m"] = max(2, min(100, int(body["wallet_velocity_max_tx_5m"])))
+        except (ValueError, TypeError):
+            pass
 
     client_ip = get_admin_effective_ip(request) or "unknown"
-    log_admin_security_event("Policy Updated", client_ip, admin_security.get("username", "admin"), "success", f"2FA PIN: {'ON' if pin_enabled else 'OFF'}, Timeout: {admin_security['session_timeout_hours']}h")
+    log_admin_security_event("Policy Updated", client_ip, admin_security.get("username", "admin"), "success", f"2FA PIN: {'ON' if pin_enabled else 'OFF'}, WalletLimit: ${admin_security['wallet_daily_limit_usd']}")
+    _record_admin_audit(request, "Security Policy Updated", "policy", f"PIN={'ON' if pin_enabled else 'OFF'}, DailyWalletLimit=${admin_security['wallet_daily_limit_usd']}")
     save_admin_security()
     return {"ok": True, "message": "Security policies saved!"}
+
+@app.post("/api/admin/security/totp/setup")
+async def admin_totp_setup(request: Request):
+    secret_b32 = _generate_totp_secret()
+    admin_security["totp_pending_secret_enc"] = _encrypt_secret(secret_b32)
+    save_admin_security()
+    qr_url, uri = _totp_qr_data_url(secret_b32, admin_security.get("username", "admin"))
+    return {
+        "ok": True,
+        "qr_data_url": qr_url,
+        "manual_secret": secret_b32,
+        "otpauth_uri": uri
+    }
+
+@app.post("/api/admin/security/totp/verify")
+async def admin_totp_verify(request: Request):
+    body = await request.json() if (await request.body()) else {}
+    code = str(body.get("code") or "").strip()
+    pending_enc = admin_security.get("totp_pending_secret_enc", "")
+    secret_b32 = _decrypt_secret(pending_enc)
+    if not secret_b32:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Please click Generate Authenticator QR first."})
+    if not _verify_totp_code(secret_b32, code):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid 6-digit code. Check phone time & try again."})
+    admin_security["totp_secret_enc"] = _encrypt_secret(secret_b32)
+    admin_security["totp_pending_secret_enc"] = ""
+    admin_security["totp_enabled"] = True
+    save_admin_security()
+    _record_admin_audit(request, "TOTP 2FA Enabled", admin_security.get("username", "admin"), "Google Authenticator TOTP activated")
+    return {"ok": True, "message": "Google Authenticator (TOTP) 2FA enabled!"}
+
+@app.post("/api/admin/security/totp/disable")
+async def admin_totp_disable(request: Request):
+    body = await request.json() if (await request.body()) else {}
+    pw = str(body.get("current_password") or "")
+    code = str(body.get("code") or "").strip()
+    pw_ok = bool(pw) and hmac.compare_digest(hash_admin_secret(pw, admin_security.get("password_salt", "")), admin_security.get("password_hash", ""))
+    totp_sec = _decrypt_secret(admin_security.get("totp_secret_enc", ""))
+    code_ok = bool(code) and _verify_totp_code(totp_sec, code)
+    if not (pw_ok or code_ok):
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Enter your current password or current TOTP code to disable TOTP."})
+    admin_security["totp_enabled"] = False
+    admin_security["totp_secret_enc"] = ""
+    admin_security["totp_pending_secret_enc"] = ""
+    save_admin_security()
+    _record_admin_audit(request, "TOTP 2FA Disabled", admin_security.get("username", "admin"), "Authenticator 2FA turned off")
+    return {"ok": True, "message": "Authenticator (TOTP) 2FA disabled."}
 
 @app.post("/api/admin/security/revoke-sessions")
 async def admin_revoke_sessions(request: Request):
@@ -4761,19 +5161,26 @@ async def admin_delete_package(request: Request):
 # Settings Admin
 @app.get("/api/admin/settings")
 async def admin_get_settings():
-    return {"ok": True, "settings": settings}
+    masked = dict(settings)
+    for _sk in _SETTINGS_SECRET_KEYS:
+        if masked.get(_sk):
+            masked[_sk] = "••••••••"
+    return {"ok": True, "settings": masked}
 
 @app.post("/api/admin/settings")
 async def admin_save_settings(request: Request):
     body = await request.json() if (await request.body()) else {}
-    for key in ["store_name", "telegram_handle", "khqr_merchant_name", "khqr_account", "khqrpay_api_key", "khqrpay_base_url", "home_banner", "roblox_banner", "google_client_id"]:
+    for key in ["store_name", "telegram_handle", "khqr_merchant_name", "khqr_account", "khqrpay_base_url", "home_banner", "roblox_banner", "google_client_id", "turnstile_site_key"]:
         if key in body and body[key] is not None:
             settings[key] = str(body[key]).strip()
-    if "telegram_bot_token" in body and body["telegram_bot_token"] is not None:
-        settings["telegram_bot_token"] = str(body["telegram_bot_token"]).strip()
+    for sk_key in _SETTINGS_SECRET_KEYS:
+        if sk_key in body and body[sk_key] is not None:
+            val = str(body[sk_key]).strip()
+            if val and val != "••••••••":
+                settings[sk_key] = val
     if "telegram_chat_id" in body and body["telegram_chat_id"] is not None:
         settings["telegram_chat_id"] = str(body["telegram_chat_id"]).strip()
-    for sm_key in ["smtp_host", "smtp_email", "smtp_password", "admin_recovery_email"]:
+    for sm_key in ["smtp_host", "smtp_email", "admin_recovery_email"]:
         if sm_key in body and body[sm_key] is not None:
             settings[sm_key] = str(body[sm_key]).strip()
     if "smtp_port" in body and body["smtp_port"] is not None:
@@ -4785,7 +5192,12 @@ async def admin_save_settings(request: Request):
         settings["auto_deliver"] = body["auto_deliver"]
 
     save_settings()
-    return {"ok": True, "settings": settings}
+    _record_admin_audit(request, "Store Settings Updated", settings.get("store_name", "store"), "Gateway/Telegram/Turnstile/SMTP settings saved (encrypted at rest)")
+    masked = dict(settings)
+    for _sk in _SETTINGS_SECRET_KEYS:
+        if masked.get(_sk):
+            masked[_sk] = "••••••••"
+    return {"ok": True, "settings": masked}
 
 @app.post("/api/admin/email/test")
 async def admin_test_email(request: Request):
@@ -5220,7 +5632,7 @@ async def admin_inventory_add_bot(request: Request):
         "name": name,
         "group_id": group_id,
         "group_name": group_name,
-        "cookie": cookie,
+        "cookie": _encrypt_secret(cookie),
         "group_funds": funds_found,
         "status": status_bot,
         "last_synced": datetime.now().strftime("%Y-%m-%d %H:%M"),
@@ -5231,6 +5643,7 @@ async def admin_inventory_add_bot(request: Request):
         inventory["bots"] = []
     inventory["bots"].append(new_bot)
     save_inventory()
+    _record_admin_audit(request, "Payout Bot Added", name, f"Group #{group_id or '-'} ({funds_found} R$)")
 
     return {"ok": True, "bot": _mask_bot_public(new_bot), "total_stock": get_total_inventory_stock()}
 
@@ -5248,7 +5661,7 @@ async def admin_inventory_sync_bot(request: Request):
         if bot_id and b.get("id") != bot_id:
             continue
         g_id = b.get("group_id")
-        cookie = b.get("cookie")
+        cookie = _get_bot_cookie(b)
         b["last_synced"] = datetime.now().strftime("%Y-%m-%d %H:%M")
         
         if cookie and g_id:
@@ -5385,7 +5798,7 @@ async def admin_inventory_cookie_save(request: Request):
         "avatar_url": avatar_url,
         "group_id": group_id,
         "group_name": group_name,
-        "cookie": clean_c,
+        "cookie": _encrypt_secret(clean_c),
         "group_funds": funds,
         "status": "active",
         "last_synced": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -5394,6 +5807,7 @@ async def admin_inventory_cookie_save(request: Request):
     inventory["bots"] = [bot_item]
     inventory["manual_stock_enabled"] = False
     save_inventory()
+    _record_admin_audit(request, "Roblox Bot Cookie Connected", roblox_username or name, f"Funds: {funds} R$ (cookie encrypted at rest)")
 
     return {"ok": True, "bot": _mask_bot_public(bot_item), "total_stock": funds}
 
@@ -5404,7 +5818,7 @@ async def sync_primary_bot_balance() -> Dict[str, Any]:
         return {"ok": False, "status_code": 400, "error": "No bot cookie configured to sync"}
 
     b = bots[0]
-    cookie = b.get("cookie", "")
+    cookie = _get_bot_cookie(b)
     group_id = b.get("group_id", "")
     if not cookie:
         return {"ok": False, "status_code": 400, "error": "Empty bot cookie"}
@@ -5528,6 +5942,7 @@ async def admin_add_blacklist(request: Request):
         blacklist["logs"] = blacklist["logs"][:100]
 
     save_blacklist()
+    _record_admin_audit(request, "Blacklist Added", f"{btype}:{clean_target}", reason)
     return {"ok": True, "message": f"{target} added to {btype} blacklist", "blacklist": blacklist}
 
 @app.post("/api/admin/blacklist/remove")
@@ -5547,6 +5962,7 @@ async def admin_remove_blacklist(request: Request):
         blacklist[key].remove(clean_target)
 
     save_blacklist()
+    _record_admin_audit(request, "Blacklist Removed", f"{btype}:{clean_target}", "Target unblocked by admin")
     return {"ok": True, "message": f"{target} removed from blacklist", "blacklist": blacklist}
 
 @app.post("/api/admin/blacklist/rules")
@@ -5563,6 +5979,81 @@ async def admin_update_blacklist_rules(request: Request):
 
     save_blacklist()
     return {"ok": True, "rules": blacklist["rules"]}
+
+@app.get("/api/admin/waf")
+async def admin_get_waf_status():
+    _sync_waf_bans_from_blacklist()
+    now_ts = time.time()
+    persisted = blacklist.setdefault("waf_bans", {})
+    active_bans = []
+    dirty = False
+    for ip_k, until_ts in list(_scanner_bans.items()):
+        if until_ts <= now_ts:
+            _scanner_bans.pop(ip_k, None)
+            if ip_k in persisted:
+                persisted.pop(ip_k, None)
+                dirty = True
+            continue
+        meta = persisted.get(ip_k) or {}
+        active_bans.append({
+            "ip": ip_k,
+            "remaining_sec": max(1, int(until_ts - now_ts)),
+            "banned_until": datetime.fromtimestamp(until_ts, tz=timezone.utc).isoformat(),
+            "reason": meta.get("reason") or "Automated hacker/WAF scanner detection",
+            "strikes": int(meta.get("strikes", 3)),
+            "last_seen": meta.get("last_seen", "")
+        })
+    if dirty:
+        save_blacklist()
+    active_bans.sort(key=lambda x: x["remaining_sec"], reverse=True)
+    waf_logs = [l for l in blacklist.get("logs", []) if l.get("game") == "waf"][:30]
+    return {
+        "ok": True,
+        "active_bans": active_bans,
+        "active_ban_count": len(active_bans),
+        "tracked_strike_ips": len(_scanner_strikes),
+        "recent_waf_logs": waf_logs
+    }
+
+@app.post("/api/admin/waf/unban")
+async def admin_waf_unban(request: Request):
+    body = await request.json() if (await request.body()) else {}
+    ip = str(body.get("ip") or "").strip()
+    if not ip:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "IP address is required"})
+    _scanner_bans.pop(ip, None)
+    _scanner_strikes.pop(ip, None)
+    if isinstance(blacklist.get("waf_bans"), dict):
+        blacklist["waf_bans"].pop(ip, None)
+        save_blacklist()
+    _record_admin_audit(request, "WAF IP Unbanned", ip, "Temporary WAF ban lifted by admin")
+    return {"ok": True, "message": f"IP {ip} unbanned from WAF"}
+
+@app.post("/api/admin/waf/ban-permanent")
+async def admin_waf_permanent_ban(request: Request):
+    body = await request.json() if (await request.body()) else {}
+    ip = str(body.get("ip") or "").strip()
+    reason = str(body.get("reason") or "Escalated from WAF attack logs").strip()[:140]
+    if not ip:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "IP address is required"})
+    _scanner_bans.pop(ip, None)
+    _scanner_strikes.pop(ip, None)
+    if isinstance(blacklist.get("waf_bans"), dict):
+        blacklist["waf_bans"].pop(ip, None)
+    b_ips = blacklist.setdefault("blocked_ips", [])
+    if ip not in b_ips:
+        b_ips.append(ip)
+    blacklist.setdefault("logs", []).insert(0, {
+        "id": "blk_" + str(int(time.time() * 1000)),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "target": ip,
+        "type": "ip",
+        "reason": reason,
+        "blocked_by": "Admin (WAF Escalation)"
+    })
+    save_blacklist()
+    _record_admin_audit(request, "WAF IP Permanently Blocked", ip, reason)
+    return {"ok": True, "message": f"IP {ip} permanently blacklisted"}
 
 # ==========================================
 # TOGGLE PACKAGE STOCK API (IN STOCK / OUT OF STOCK)
@@ -5835,6 +6326,8 @@ async def admin_get_users():
             "username": u.get("username"),
             "email": u.get("email"),
             "balance": u.get("balance", 0.0),
+            "wallet_frozen": bool(u.get("wallet_frozen", False)),
+            "wallet_freeze_reason": u.get("wallet_freeze_reason", ""),
             "created_at": u.get("created_at"),
             "total_orders": len([o for o in orders if o.get("user_id") == u.get("id")])
         }
@@ -5894,7 +6387,22 @@ async def admin_delete_user(request: Request):
         return JSONResponse(status_code=404, content={"ok": False, "error": "User not found"})
     deleted = users.pop(idx)
     save_users()
+    _record_admin_audit(request, "Customer Account Deleted", str(deleted.get("username") or user_id), f"User ID: {deleted.get('id')}")
     return {"ok": True, "message": f"Account {deleted.get('username')} deleted"}
+
+@app.post("/api/admin/users/toggle-wallet-freeze")
+async def admin_toggle_wallet_freeze(request: Request):
+    body = await request.json() if (await request.body()) else {}
+    user_id = body.get("user_id")
+    user = next((u for u in users if u.get("id") == user_id or u.get("username") == user_id), None)
+    if not user:
+        return JSONResponse(status_code=404, content={"ok": False, "error": "User not found"})
+    new_state = not bool(user.get("wallet_frozen", False)) if "frozen" not in body else bool(body["frozen"])
+    user["wallet_frozen"] = new_state
+    user["wallet_freeze_reason"] = str(body.get("reason") or ("Frozen by Admin" if new_state else "")).strip() if new_state else ""
+    save_users()
+    _record_admin_audit(request, "Wallet Freeze Toggled", str(user.get("username") or user_id), f"Frozen={new_state}")
+    return {"ok": True, "wallet_frozen": new_state, "message": f"Wallet {'frozen' if new_state else 'unfrozen'} for {user.get('username')}"}
 
 @app.post("/api/admin/users/adjust-balance")
 async def admin_adjust_balance(request: Request):
@@ -5930,6 +6438,7 @@ async def admin_adjust_balance(request: Request):
         "date": datetime.now(timezone.utc).isoformat()
     })
     save_wallet_tx()
+    _record_admin_audit(request, "Wallet Balance Adjusted", str(user.get("username") or user_id), f"{num:+.2f} USD -> New Bal: ${user['balance']:.2f} ({reason or 'no reason'})")
 
     return {"ok": True, "message": f"Balance updated for {user.get('username')}", "balance": user["balance"]}
 

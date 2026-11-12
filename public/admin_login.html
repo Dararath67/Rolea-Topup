@@ -112,6 +112,13 @@
     </label>
   </div>
 
+  <div class="pin-wrap" id="totp-wrap">
+    <label>
+      Authenticator 6-Digit Code (TOTP)
+      <input type="text" id="adm-totp" placeholder="123456" inputmode="numeric" maxlength="6" autocomplete="one-time-code" style="font-family:'JetBrains Mono',monospace;letter-spacing:4px;text-align:center;font-weight:700">
+    </label>
+  </div>
+
   <div class="login-err" id="login-err"></div>
 
   <button class="btn big" id="login-btn" type="submit" style="margin-top:20px">Sign in to Console</button>
@@ -170,9 +177,12 @@ document.getElementById('login-form').addEventListener('submit', async function(
   const err = document.getElementById('login-err');
   const pinWrap = document.getElementById('pin-wrap');
   const pinInput = document.getElementById('adm-pin');
+  const totpWrap = document.getElementById('totp-wrap');
+  const totpInput = document.getElementById('adm-totp');
   const u = document.getElementById('adm-user').value.trim();
   const p = document.getElementById('adm-pass').value;
   const pin = pinInput ? pinInput.value.trim() : '';
+  const totp_code = totpInput ? totpInput.value.trim() : '';
 
   btn.disabled = true;
   btn.textContent = 'Verifying…';
@@ -183,23 +193,30 @@ document.getElementById('login-form').addEventListener('submit', async function(
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: u, password: p, pin: pin })
+      body: JSON.stringify({ username: u, password: p, pin: pin, totp_code: totp_code })
     });
     const j = await res.json();
     if (res.ok && j.ok) {
       localStorage.setItem('rolea_admin_token', j.token);
       window.location.assign('/admin');
-    } else if (j.require_pin) {
-      pinWrap.style.display = 'block';
-      pinInput.required = true;
-      pinInput.focus();
+    } else if (j.require_pin || j.require_totp) {
+      if (j.require_pin) {
+        pinWrap.style.display = 'block';
+        pinInput.required = true;
+        pinInput.focus();
+      }
+      if (j.require_totp) {
+        totpWrap.style.display = 'block';
+        totpInput.required = true;
+        if (!j.require_pin) totpInput.focus();
+      }
       btn.disabled = false;
-      btn.textContent = 'Verify PIN & Sign In';
+      btn.textContent = 'Verify 2FA & Sign In';
     } else {
       err.textContent = j.error || 'Invalid credentials.';
       err.style.display = 'block';
       btn.disabled = false;
-      btn.textContent = pinWrap.style.display === 'block' ? 'Verify PIN & Sign In' : 'Sign in to Console';
+      btn.textContent = (pinWrap.style.display === 'block' || totpWrap.style.display === 'block') ? 'Verify 2FA & Sign In' : 'Sign in to Console';
     }
   } catch (ex) {
     err.textContent = 'Network error. Try again.';

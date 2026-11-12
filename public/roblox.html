@@ -313,6 +313,7 @@
       <label class="chk" id="agree-label">
         <input type="checkbox" id="agree"> <span id="agree-text">I agree to the terms and confirm my Roblox username is correct.</span>
       </label>
+      <div id="ts-order-box" style="display:none;margin:10px 0"></div>
       <button class="btn big" id="pay" type="button" disabled>Pay now</button>
       <div class="msg err" id="pmsg"></div>
     </aside>
@@ -969,8 +970,12 @@ $("pay").onclick = async () => {
       checkout_ref: checkout.order_id,
       receipt_token: checkout.token,
       promo_code: appliedPromoData ? appliedPromoData.code : undefined,
-      payment_method: selectedPaymentMethod
+      payment_method: selectedPaymentMethod,
+      cf_turnstile_token: window._roleaOrderTsToken || ""
     }));
+    if (!ok && window.turnstile && window._roleaOrderTsId !== undefined) {
+      try { window.turnstile.reset(window._roleaOrderTsId); window._roleaOrderTsToken = ""; } catch (_) {}
+    }
   } catch (e) {
     ok = false;
     j = { error: e?.message || "Connection error." };
@@ -1139,6 +1144,30 @@ $("qc").onclick = () => {
   clearInterval(poll);
   ready();
 };
+
+(async function initTurnstileOrder() {
+  try {
+    const r = await fetch('/api/settings');
+    const j = await r.json();
+    const sk = j && j.turnstile_site_key;
+    if (!sk) return;
+    const box = document.getElementById('ts-order-box');
+    if (!box) return;
+    box.style.display = 'block';
+    window.onloadTurnstileOrder = function () {
+      if (!window.turnstile) return;
+      window._roleaOrderTsId = window.turnstile.render('#ts-order-box', {
+        sitekey: sk,
+        callback: function (tok) { window._roleaOrderTsToken = tok; },
+        'expired-callback': function () { window._roleaOrderTsToken = ''; }
+      });
+    };
+    const sc = document.createElement('script');
+    sc.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onloadTurnstileOrder';
+    sc.async = true; sc.defer = true;
+    document.head.appendChild(sc);
+  } catch (_) {}
+})();
 </script>
 <script src="/auth_wallet.js?v=20261110_v4"></script>
   <script src="/google_chooser.js?v=20261110_v2"></script>

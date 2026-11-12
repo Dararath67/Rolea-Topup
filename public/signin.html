@@ -626,6 +626,9 @@
             <div class="error-msg" id="err-pass">Password must be at least 6 characters</div>
           </div>
 
+          <!-- Optional Cloudflare Turnstile Widget (auto-shown if configured) -->
+          <div id="ts-auth-box" style="display:none;margin-bottom:12px"></div>
+
           <!-- Global Form Error Alert -->
           <div class="error-msg" id="form-general-error" style="margin-bottom:12px"></div>
 
@@ -819,7 +822,8 @@
 
       try {
         const endpoint = isRegisterMode ? '/api/auth/register' : '/api/auth/login';
-        const payload = isRegisterMode ? { username, password, email } : { username, password };
+        const cf_turnstile_token = window._roleaTurnstileToken || '';
+        const payload = isRegisterMode ? { username, password, email, cf_turnstile_token } : { username, password, cf_turnstile_token };
 
         const res = await fetch(endpoint, {
           method: 'POST',
@@ -837,6 +841,9 @@
           const redirect = urlParams.get('redirect') || '/my-account';
           window.location.replace(redirect);
         } else {
+          if (window.turnstile && window._roleaTsWidgetId !== undefined) {
+            try { window.turnstile.reset(window._roleaTsWidgetId); window._roleaTurnstileToken = ''; } catch (_) {}
+          }
           errGen.textContent = data.error || 'Authentication failed. Please check credentials.';
           errGen.style.display = 'block';
         }
@@ -854,6 +861,31 @@
         window.RoleaGoogleChooser.open();
       }
     }
+
+    // Auto-check Turnstile config (only loads widget if site_key + secret_key configured)
+    (async function initTurnstileAuth() {
+      try {
+        const r = await fetch('/api/settings');
+        const j = await r.json();
+        const sk = j && j.turnstile_site_key;
+        if (!sk) return;
+        const box = document.getElementById('ts-auth-box');
+        if (!box) return;
+        box.style.display = 'block';
+        window.onloadTurnstileCallback = function () {
+          if (!window.turnstile) return;
+          window._roleaTsWidgetId = window.turnstile.render('#ts-auth-box', {
+            sitekey: sk,
+            callback: function (tok) { window._roleaTurnstileToken = tok; },
+            'expired-callback': function () { window._roleaTurnstileToken = ''; }
+          });
+        };
+        const sc = document.createElement('script');
+        sc.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onloadTurnstileCallback';
+        sc.async = true; sc.defer = true;
+        document.head.appendChild(sc);
+      } catch (_) {}
+    })();
 
     // Auto-check if already logged in -> go to account
     (async function checkAuth() {
