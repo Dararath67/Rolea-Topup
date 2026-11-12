@@ -426,25 +426,11 @@
         </div>
       </div>
 
-      <!-- Right: Player & Payment -->
+      <!-- Right: Payment & Spin -->
       <div class="ticket-card">
-        <h3 class="ticket-step-title"><span class="ticket-step-num">1</span> Enter Roblox Username</h3>
-        <div class="user-verify-row">
-          <input type="text" id="spin-username" placeholder="Enter your Roblox username" autocomplete="off">
-          <button type="button" class="btn-check-u" id="btn-verify-u" onclick="verifyRobloxForSpin()">Check</button>
-        </div>
-
-        <div class="verified-pill" id="spin-verified-pill">
-          <img id="spin-u-avatar" src="/media/robux-coin.svg" alt="Avatar">
-          <div>
-            <b id="spin-u-display" style="font-size:13.5px;color:#0f172a;display:block">—</b>
-            <span id="spin-u-handle" style="font-size:11.5px;color:#059669;font-weight:700">—</span>
-          </div>
-        </div>
-
-        <h3 class="ticket-step-title" style="margin-top:22px"><span class="ticket-step-num">2</span> Choose Payment &amp; Spin</h3>
-        <p style="font-size:12.5px;color:#64748b;margin:0 0 6px;line-height:1.5">
-          All prizes are generated securely on the server. Winning Robux prizes are automatically queued for delivery!
+        <h3 class="ticket-step-title"><span class="ticket-step-num">1</span> Choose Payment &amp; Spin</h3>
+        <p style="font-size:12.5px;color:#64748b;margin:0 0 10px;line-height:1.5">
+          Spin first — no username needed upfront! When you win Robux, enter your Roblox username to submit your claim to Admin (or claim later in <b>My Spin Rewards</b>).
         </p>
 
         <div class="spin-err" id="spin-err-box"></div>
@@ -642,60 +628,9 @@ function hideSpinError() {
   document.getElementById('spin-err-box').style.display = 'none';
 }
 
-async function verifyRobloxForSpin() {
-  hideSpinError();
-  const uname = document.getElementById('spin-username').value.trim().replace(/^@/, '');
-  if (!uname || uname.length < 2) {
-    showSpinError('Please enter a valid Roblox username.');
-    return null;
-  }
-  const btn = document.getElementById('btn-verify-u');
-  btn.textContent = 'Checking…';
-  btn.disabled = true;
-  try {
-    const res = await fetch('/api/check-id', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ game: 'roblox', player_id: uname })
-    });
-    const j = await res.json();
-    if (res.ok && j.ok) {
-      verifiedUser = {
-        username: j.username || uname,
-        display_name: j.display_name || uname,
-        roblox_id: j.roblox_id || null,
-        avatar: j.avatar || '/media/robux-coin.svg'
-      };
-      document.getElementById('spin-u-avatar').src = verifiedUser.avatar;
-      document.getElementById('spin-u-display').textContent = verifiedUser.display_name;
-      document.getElementById('spin-u-handle').textContent = '@' + verifiedUser.username + ' · Verified';
-      document.getElementById('spin-verified-pill').style.display = 'flex';
-      return verifiedUser;
-    } else {
-      showSpinError(j.error || 'Roblox account not found.');
-      return null;
-    }
-  } catch (e) {
-    showSpinError('Failed to verify Roblox username.');
-    return null;
-  } finally {
-    btn.textContent = 'Check';
-    btn.disabled = false;
-  }
-}
-
 async function buyAndSpin(method) {
   if (isSpinning) return;
   hideSpinError();
-  const inputName = document.getElementById('spin-username').value.trim().replace(/^@/, '');
-  if (!inputName) {
-    showSpinError('Please enter your Roblox username in Step 1 first.');
-    return;
-  }
-  if (!verifiedUser || verifiedUser.username.toLowerCase() !== inputName.toLowerCase()) {
-    const v = await verifyRobloxForSpin();
-    if (!v) return;
-  }
 
   const token = localStorage.getItem('rolea_token') || '';
   if (method === 'wallet' && !token) {
@@ -717,10 +652,6 @@ async function buyAndSpin(method) {
       method: 'POST',
       headers,
       body: JSON.stringify({
-        username: verifiedUser.username,
-        roblox_id: verifiedUser.roblox_id,
-        display_name: verifiedUser.display_name,
-        avatar: verifiedUser.avatar,
         payment_method: method
       })
     });

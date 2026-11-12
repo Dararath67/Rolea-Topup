@@ -3897,6 +3897,7 @@ function renderOrders() {
       let profileLink = '#';
       let profileText = `@${o.roblox_username || 'Player'} ↗`;
 
+      const isUnclaimedSpin = o.package_id === 'spin_reward' && !o.claim_submitted && !o.delivered;
       if (isTikTok) {
         buyerAvatar = '/media/tiktok-thumb.svg';
         const raw = String(o.target_url || o.player_id || o.roblox_username || '').trim();
@@ -3919,13 +3920,16 @@ function renderOrders() {
       } else if (isFF) {
         buyerAvatar = '/media/freefire-thumb.svg';
         profileText = `UID: ${o.player_id || o.roblox_username || 'n/a'}`;
+      } else if (isUnclaimedSpin) {
+        profileLink = '#';
+        profileText = 'Waiting user claim…';
       } else {
         profileLink = o.roblox_id ? `https://www.roblox.com/users/${o.roblox_id}/profile` : '#';
         profileText = `@${o.roblox_username || 'Player'} ↗`;
       }
 
       const payStatus = o.paid ? 'paid' : (o.status === 'expired' ? 'expired' : 'pending');
-      const delStatus = o.delivered ? 'delivered' : (o.step || 'wait');
+      const delStatus = o.delivered ? 'delivered' : (isUnclaimedSpin ? 'wait' : (o.step || 'wait'));
 
       tr.innerHTML = `
         <td><span class="order-id-badge" onclick="copyText('${o.order_id}')" title="Click to copy">${o.order_id}</span></td>
@@ -3933,20 +3937,20 @@ function renderOrders() {
           <div class="buyer-cell">
             <img src="${buyerAvatar}" onerror="this.src='/media/robux-coin.svg'" style="object-fit:cover">
             <div>
-              <b>${isTikTok ? (o.display_name || o.roblox_username || 'TikTok Customer') : (o.display_name || o.roblox_username || 'Player')}</b>
-              <a href="${profileLink}" target="_blank" rel="noopener">${profileText}</a>
+              <b>${isUnclaimedSpin ? 'Unclaimed Spin Prize' : (isTikTok ? (o.display_name || o.roblox_username || 'TikTok Customer') : (o.display_name || o.roblox_username || 'Player'))}</b>
+              <a href="${profileLink}" ${profileLink === '#' ? '' : 'target="_blank" rel="noopener"'}>${profileText}</a>
             </div>
           </div>
         </td>
         <td><b>${o.package || 'Robux'}</b></td>
         <td><b style="color:#2563eb;font-size:14px;font-family:'Plus Jakarta Sans','Inter',sans-serif">$${Number(o.amount || 0).toFixed(2)}</b></td>
         <td><span class="chip ${payStatus}">${payStatus}</span></td>
-        <td><span class="chip ${delStatus}">${delStatus}</span></td>
+        <td><span class="chip ${delStatus}">${isUnclaimedSpin ? 'unclaimed' : delStatus}</span></td>
         <td style="font-size:12px;color:#64748b">${new Date(o.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
         <td>
           <div style="display:flex;gap:4px">
             ${!o.paid ? `<button class="btn-top primary" style="padding:4px 8px;font-size:11px" onclick="orderAction('${o.order_id}', 'mark_paid')">Pay</button>` : ''}
-            ${!o.delivered ? `<button class="btn-top" style="padding:4px 8px;font-size:11px" onclick="orderAction('${o.order_id}', 'deliver')">Send</button>` : ''}
+            ${(!o.delivered && !isUnclaimedSpin) ? `<button class="btn-top" style="padding:4px 8px;font-size:11px" onclick="orderAction('${o.order_id}', 'deliver')">Send</button>` : ''}
             <button class="btn-top" style="padding:4px 8px;font-size:11px" onclick="orderAction('${o.order_id}', 'hold')">Hold</button>
             <button class="btn-top" style="padding:4px 7px;font-size:11px;background:#f0fdf4;color:#15803d;border-color:#bbf7d0" title="View & Print Official Receipt" onclick="openInvoiceModal('${o.order_id}')">Receipt</button>
             <button class="btn-top" style="padding:4px 7px;font-size:11px;background:#fef2f2;color:#b91c1c;border-color:#fecaca" title="Blacklist User" onclick="quickBlacklist('${o.roblox_username || o.player_id}')">Block</button>

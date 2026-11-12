@@ -1472,6 +1472,8 @@ def _finalize_spin_win_order(username: str, roblox_id: Optional[str], avatar: st
     now_iso = datetime.now(timezone.utc).isoformat()
     order_id = None
     receipt_token = None
+    clean_user = (username or "").strip().lstrip("@")
+    fallback_buyer = (user_obj["username"] if user_obj else None) or clean_user or "Lucky Player"
 
     if robux_won > 0:
         order_id = spin_id
@@ -1480,7 +1482,7 @@ def _finalize_spin_win_order(username: str, roblox_id: Optional[str], avatar: st
             "order_id": order_id,
             "token": receipt_token,
             "user_id": user_obj["id"] if user_obj else None,
-            "buyer_account": user_obj["username"] if user_obj else username,
+            "buyer_account": fallback_buyer,
             "game": "roblox",
             "product_name": "Lucky Spin Robux",
             "product_type": "roblox",
@@ -1492,30 +1494,30 @@ def _finalize_spin_win_order(username: str, roblox_id: Optional[str], avatar: st
             "promo_code": None,
             "amount": float(spin_data.get("spin_price_usd", 0.50)),
             "payment_method": pay_method,
-            "player_id": username,
-            "roblox_username": username,
-            "display_name": display_name or username,
+            "player_id": clean_user,
+            "roblox_username": clean_user,
+            "display_name": display_name or fallback_buyer,
             "roblox_id": roblox_id,
             "avatar": avatar or "/media/robux-coin.svg",
             "profile_url": f"https://www.roblox.com/users/{roblox_id}/profile" if roblox_id else "",
             "status": "paid",
-            "step": "sending",
+            "step": "unclaimed",
             "paid": True,
             "delivered": False,
             "claim_submitted": False,
+            "telegram_alerted": False,
             "claim_note": "",
             "created_at": now_iso,
-            "label": f"Lucky Spin Winner ({robux_won} R$) — Ready for Admin claim"
+            "label": f"Lucky Spin Winner ({robux_won} R$) — Waiting user claim"
         }
         orders.insert(0, new_order)
         if len(orders) > 500:
             orders[:] = orders[:500]
         save_orders()
-        asyncio.create_task(send_telegram_paid_alert(new_order))
 
     hist_entry = {
         "spin_id": spin_id,
-        "username": username,
+        "username": fallback_buyer,
         "label": slice_obj.get("label", "Thank You"),
         "robux": robux_won,
         "price_usd": float(spin_data.get("spin_price_usd", 0.50)),
@@ -1571,20 +1573,18 @@ async def create_spin_ticket(request: Request):
         return JSONResponse(status_code=400, content={"ok": False, "error": "Lucky Spin Robux is temporarily disabled by Admin."})
 
     body = await request.json() if (await request.body()) else {}
+    current_user = get_user_from_req(request)
     username = str(body.get("username") or "").strip().lstrip("@")
     pay_method = str(body.get("payment_method") or "wallet").lower().strip()
     roblox_id = str(body.get("roblox_id") or "").strip() or None
-    display_name = str(body.get("display_name") or username).strip()
+    display_name = str(body.get("display_name") or username or (current_user["username"] if current_user else "Lucky Player")).strip()
     avatar = str(body.get("avatar") or "/media/robux-coin.svg").strip()
-
-    if not username or len(username) < 2:
-        return JSONResponse(status_code=400, content={"ok": False, "error": "Please enter your Roblox username first."})
 
     if pay_method not in ("wallet", "khqr"):
         return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid payment method"})
 
     client_ip = get_admin_effective_ip(request)
-    blocked, b_reason = is_blacklisted(player_id=username, username=username, ip=client_ip)
+    blocked, b_reason = is_blacklisted(player_id=username or None, username=username or None, ip=client_ip)
     if blocked:
         return JSONResponse(status_code=403, content={"ok": False, "error": f"Account blocked: {b_reason}"})
 
@@ -1593,7 +1593,6 @@ async def create_spin_ticket(request: Request):
         return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid spin ticket configuration."})
 
     spin_id = "SPIN" + secrets.token_hex(4).upper()
-    current_user = get_user_from_req(request)
 
     if pay_method == "wallet":
         if not current_user:
@@ -1768,10 +1767,12 @@ async def submit_spin_claim(request: Request):
         if robux_won <= 0:
             return JSONResponse(status_code=400, content={"ok": False, "error": "No Robux prize to claim on this spin."})
 
+        was_submitted = bool(order.get("claim_submitted"))
         order["roblox_username"] = roblox_username
         order["player_id"] = roblox_username
         order["display_name"] = roblox_username
         order["claim_submitted"] = True
+        order["telegram_alerted"] = True
         order["claim_note"] = note
         order["claimed_at"] = datetime.now(timezone.utc).isoformat()
         order["status"] = "paid"
@@ -1780,8 +1781,18 @@ async def submit_spin_claim(request: Request):
         order["label"] = f"Claim Submitted for @{roblox_username} ({robux_won} R$)" + (f" · {note}" if note else "")
         save_orders()
 
+        hist_updated = False
+        for h in spin_data.get("history", []):
+            if h.get("order_id") == order_id:
+                h["username"] = roblox_username
+                hist_updated = True
+                break
+        if hist_updated:
+            save_spin_data()
+
+    alert_header = "[SPIN CLAIM UPDATED]" if was_submitted else "[SPIN CLAIM SUBMITTED]"
     asyncio.create_task(send_telegram_admin_alert(
-        f"<b>[SPIN CLAIM SUBMITTED] User Requesting Robux Prize</b>\n"
+        f"<b>{alert_header} User Requesting Robux Prize</b>\n"
         f"Order ID: <code>{order_id}</code>\n"
         f"Roblox Account: <code>@{roblox_username}</code>\n"
         f"Prize: <b>{robux_won:,} Robux</b>\n"
