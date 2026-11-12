@@ -2198,43 +2198,6 @@ class MaxBodySizeMiddleware:
 # Initialize FastAPI App
 app = FastAPI(title="Rolea Topup API", version="2.0.0")
 
-HOME_WIFI_NETWORK = ipaddress.ip_network("192.168.100.0/24", strict=False)
-HOME_WIFI_PUBLIC_IPS = {"202.56.3.46"}
-_blocked_ip_log_cooldown: Dict[str, float] = {}
-
-def _get_extra_admin_networks() -> List[Any]:
-    raw = os.environ.get("ADMIN_ALLOWED_IPS", "").strip()
-    nets = []
-    for part in raw.split(","):
-        part = part.strip()
-        if not part or part == "*":
-            continue
-        try:
-            nets.append(ipaddress.ip_network(part, strict=False))
-        except ValueError:
-            pass
-    return nets
-
-def _is_single_ip_allowed(ip_str: str) -> bool:
-    if not ip_str:
-        return False
-    try:
-        ip_obj = ipaddress.ip_address(ip_str)
-        if getattr(ip_obj, "ipv4_mapped", None):
-            ip_obj = ip_obj.ipv4_mapped
-        if ip_obj.is_loopback:
-            return True
-        if str(ip_obj) in HOME_WIFI_PUBLIC_IPS:
-            return True
-        if isinstance(ip_obj, ipaddress.IPv4Address) and ip_obj in HOME_WIFI_NETWORK:
-            return True
-        for net in _get_extra_admin_networks():
-            if ip_obj in net:
-                return True
-    except ValueError:
-        return False
-    return False
-
 def _is_trusted_proxy_peer(ip_str: str) -> bool:
     if not ip_str:
         return False
@@ -2285,21 +2248,6 @@ def get_admin_effective_ip(request: Request) -> str:
     elif _is_trusted_vercel_proxy(request):
         return _normalize_ip(request.headers.get("x-vercel-forwarded-for", ""))
     return peer_ip
-
-def is_admin_ip_allowed(request: Request) -> tuple[bool, str]:
-    effective_ip = get_admin_effective_ip(request)
-    allowed_env = os.environ.get("ADMIN_ALLOWED_IPS", "").strip()
-    if allowed_env == "*" or settings.get("admin_ip_restriction") is False:
-        return True, effective_ip or "remote"
-
-    peer_ip = _normalize_ip(request.client.host if request.client else "")
-    if not (_is_trusted_vercel_proxy(request) or _is_trusted_proxy_peer(peer_ip)):
-        if not _is_single_ip_allowed(peer_ip):
-            return False, peer_ip or "unknown"
-
-    if not _is_single_ip_allowed(effective_ip):
-        return False, effective_ip or "unknown"
-    return True, effective_ip
 
 def _is_allowed_origin(raw_url: str, request: Request) -> bool:
     try:
@@ -2392,45 +2340,6 @@ async def security_and_no_cache_middleware(request: Request, call_next):
             headers={"Retry-After": str(retry_after)},
             content={"ok": False, "error": f"Too many requests. Please wait {retry_after}s and try again."}
         )
-
-    is_admin_route = (
-        norm_path == "/admin"
-        or norm_path.startswith("/admin/")
-        or norm_path.startswith("/api/admin")
-        or norm_path in ("/admin.html", "/admin_login.html")
-    )
-
-    if is_admin_route:
-        allowed, blocked_ip = is_admin_ip_allowed(request)
-        if not allowed:
-            now_ts = time.time()
-            if now_ts - _blocked_ip_log_cooldown.get(blocked_ip, 0) > 10:
-                _blocked_ip_log_cooldown[blocked_ip] = now_ts
-                log_admin_security_event(
-                    "Blocked Unauthorized IP",
-                    blocked_ip,
-                    "-",
-                    "locked",
-                    f"Attempted access to {norm_path} outside Home WiFi (192.168.100.x)"
-                )
-            if norm_path.startswith("/api/"):
-                return JSONResponse(
-                    status_code=403,
-                    content={"ok": False, "error": "Access Denied: Admin Console is restricted to Home WiFi (192.168.100.x) & Localhost only."}
-                )
-            return HTMLResponse(
-                status_code=403,
-                content=(
-                    "<!doctype html><html><head><meta charset='utf-8'><title>403 Forbidden</title>"
-                    "<style>body{font-family:system-ui,sans-serif;background:#f8fafc;color:#0f172a;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}"
-                    ".box{background:#fff;border:1px solid #fecaca;border-radius:16px;padding:32px;max-width:420px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.06)}"
-                    "h1{color:#dc2626;font-size:20px;margin:0 0 8px}p{color:#475569;font-size:14px;line-height:1.5;margin:0 0 18px}"
-                    "a{display:inline-block;padding:10px 18px;background:#2563eb;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:13px}</style></head>"
-                    "<body><div class='box'><h1>403 Forbidden</h1>"
-                    "<p>Admin Console access is restricted strictly to <b>Home WiFi (192.168.100.x) &amp; Localhost</b> only.</p>"
-                    "<a href='/'>Back to Storefront</a></div></body></html>"
-                )
-            )
 
     # Strict CSRF Origin / Sec-Fetch-Site check on admin mutating endpoints
     if request.method.upper() in _ADMIN_CSRF_MUTATION_METHODS and norm_path.startswith("/api/admin"):
