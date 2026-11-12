@@ -6527,11 +6527,15 @@ async def google_oauth_callback(code: str = "", error: str = ""):
     <h3>Redirecting to your account...</h3>
   </div>
   <script>
+    const h = window.location.hash || '';
+    const s = window.location.search || '';
     if (window.opener) {
-      window.opener.postMessage({ type: 'GOOGLE_AUTH_CALLBACK' }, '*');
+      try {
+        window.opener.postMessage({ type: 'GOOGLE_AUTH_CALLBACK', hash: h, search: s }, window.location.origin);
+      } catch (e) {}
       window.close();
     } else {
-      window.location.replace('/my-account');
+      window.location.replace('/signin' + s + h);
     }
   </script>
 </body>

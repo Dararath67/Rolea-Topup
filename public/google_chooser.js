@@ -210,9 +210,15 @@
 
   // Listen for OAuth postMessage callback
   window.addEventListener('message', async (event) => {
+    if (event.origin !== window.location.origin) return;
     if (event.data && event.data.type === 'GOOGLE_AUTH_CALLBACK') {
-      if (event.data.code) {
-        // Backend handle code
+      const rawHash = String(event.data.hash || '').replace(/^#/, '');
+      if (rawHash) {
+        const params = new URLSearchParams(rawHash);
+        const token = params.get('access_token');
+        if (token) {
+          await handleGoogleAccessToken(token);
+        }
       }
     }
   });
