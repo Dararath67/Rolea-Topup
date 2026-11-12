@@ -478,7 +478,8 @@
     <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:16px;padding:14px;display:inline-block;margin-bottom:14px">
       <img id="spin-qr-img" src="" alt="KHQR" style="width:210px;height:210px;display:block">
     </div>
-    <div id="spin-khqr-amt" style="font-size:18px;font-weight:900;color:#2563eb;margin-bottom:14px">$0.50 USD</div>
+    <div id="spin-khqr-amt" style="font-size:18px;font-weight:900;color:#2563eb;margin-bottom:8px">$0.50 USD</div>
+    <div id="spin-khqr-ttl" style="display:inline-block;padding:4px 12px;border-radius:999px;background:#f1f5f9;color:#475569;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;margin-bottom:14px">Expires in 05:00</div>
     <button type="button" class="btn-check-u" onclick="cancelKhqrSpin()" style="width:100%;padding:11px">Cancel</button>
   </div>
 </div>
@@ -676,6 +677,7 @@ async function buyAndSpin(method) {
       document.getElementById('spin-qr-img').src = j.qr_url;
       document.getElementById('spin-khqr-amt').textContent = `$${Number(j.amount || 0.5).toFixed(2)} USD`;
       document.getElementById('spin-khqr-modal').classList.add('open');
+      startKhqrTtl(j.expires_at);
       startKhqrPolling(j.spin_id);
     }
   } catch (err) {
@@ -683,6 +685,36 @@ async function buyAndSpin(method) {
     btnW.disabled = false;
     btnK.disabled = false;
   }
+}
+
+let spinTtlTimer = null;
+
+function startKhqrTtl(expiresAt) {
+  if (spinTtlTimer) { clearInterval(spinTtlTimer); spinTtlTimer = null; }
+  const ttlEl = document.getElementById('spin-khqr-ttl');
+  const expMs = expiresAt ? new Date(expiresAt).getTime() : (Date.now() + 5 * 60 * 1000);
+  const tick = () => {
+    const sec = Math.max(0, Math.floor((expMs - Date.now()) / 1000));
+    const mm = String(Math.floor(sec / 60)).padStart(2, '0');
+    const ss = String(sec % 60).padStart(2, '0');
+    if (ttlEl) {
+      if (sec <= 0) {
+        ttlEl.textContent = 'QR Expired — Click Cancel to retry';
+        ttlEl.style.background = '#fef2f2';
+        ttlEl.style.color = '#dc2626';
+      } else {
+        ttlEl.textContent = `Expires in ${mm}:${ss}`;
+        ttlEl.style.background = sec <= 60 ? '#fffbeb' : '#f1f5f9';
+        ttlEl.style.color = sec <= 60 ? '#d97706' : '#475569';
+      }
+    }
+    if (sec <= 0) {
+      if (khqrPollTimer) { clearInterval(khqrPollTimer); khqrPollTimer = null; }
+      if (spinTtlTimer) { clearInterval(spinTtlTimer); spinTtlTimer = null; }
+    }
+  };
+  tick();
+  spinTtlTimer = setInterval(tick, 1000);
 }
 
 function startKhqrPolling(spinId) {
@@ -694,6 +726,7 @@ function startKhqrPolling(spinId) {
       if (res.ok && j.ok && j.paid && j.result) {
         clearInterval(khqrPollTimer);
         khqrPollTimer = null;
+        if (spinTtlTimer) { clearInterval(spinTtlTimer); spinTtlTimer = null; }
         document.getElementById('spin-khqr-modal').classList.remove('open');
         if (j.result.order_id && j.result.receipt_token) {
           saveSpinOrderLocally(j.result.order_id, j.result.receipt_token, Number(j.result.slice?.robux || 0));
@@ -706,6 +739,7 @@ function startKhqrPolling(spinId) {
 
 function cancelKhqrSpin() {
   if (khqrPollTimer) { clearInterval(khqrPollTimer); khqrPollTimer = null; }
+  if (spinTtlTimer) { clearInterval(spinTtlTimer); spinTtlTimer = null; }
   document.getElementById('spin-khqr-modal').classList.remove('open');
   document.getElementById('btn-spin-wallet').disabled = false;
   document.getElementById('btn-spin-khqr').disabled = false;

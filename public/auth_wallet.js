@@ -577,6 +577,7 @@
 
   // Wallet Modal (Top-up balance via KHQR)
   let walletPollingInterval = null;
+  let walletTtlInterval = null;
 
   function openWalletModal() {
     if (!currentUser) {
@@ -641,10 +642,11 @@
             <div style="margin:14px auto;width:200px;height:200px;border-radius:16px;overflow:hidden;border:2px solid #e2e8f0;background:#fff;display:flex;align-items:center;justify-content:center">
               <img id="wallet-qr-img" src="" alt="KHQR" style="width:100%;height:100%;object-fit:contain">
             </div>
-            <div style="font-size:12px;color:#64748b;display:flex;align-items:center;justify-content:center;gap:6px">
+            <div id="wallet-qr-status" style="font-size:12px;color:#64748b;display:flex;align-items:center;justify-content:center;gap:6px">
               <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;animation:pulse 1.5s infinite"></span>
               Waiting for KHQR payment confirmation…
             </div>
+            <div id="wallet-qr-ttl" style="margin-top:8px;display:inline-block;padding:4px 12px;border-radius:999px;background:#f1f5f9;color:#475569;font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums">Expires in 10:00</div>
             <div style="margin-top:14px;display:flex;gap:10px">
               <a id="wallet-aba-deeplink" href="#" class="btn-rolea-submit" style="background:#0056b3;text-decoration:none;display:none;flex:1;text-align:center">Open ABA App</a>
               <button class="btn-rolea-submit" style="background:#f1f5f9;color:#334155;flex:1" onclick="window.RoleaAuth.backToDepositAmount()">Cancel</button>
@@ -705,6 +707,35 @@
           deepBtn.style.display = 'inline-block';
         }
 
+        // Start live TTL countdown
+        if (walletTtlInterval) clearInterval(walletTtlInterval);
+        const ttlEl = document.getElementById('wallet-qr-ttl');
+        const statusEl = document.getElementById('wallet-qr-status');
+        const expMs = j.expires_at ? new Date(j.expires_at).getTime() : (Date.now() + 10 * 60 * 1000);
+        const updateWalletTtl = () => {
+          const sec = Math.max(0, Math.floor((expMs - Date.now()) / 1000));
+          const mm = String(Math.floor(sec / 60)).padStart(2, '0');
+          const ss = String(sec % 60).padStart(2, '0');
+          if (ttlEl) {
+            if (sec <= 0) {
+              ttlEl.textContent = 'QR Expired';
+              ttlEl.style.background = '#fef2f2';
+              ttlEl.style.color = '#dc2626';
+            } else {
+              ttlEl.textContent = `Expires in ${mm}:${ss}`;
+              ttlEl.style.background = sec <= 60 ? '#fffbeb' : '#f1f5f9';
+              ttlEl.style.color = sec <= 60 ? '#d97706' : '#475569';
+            }
+          }
+          if (sec <= 0) {
+            if (walletPollingInterval) clearInterval(walletPollingInterval);
+            if (walletTtlInterval) clearInterval(walletTtlInterval);
+            if (statusEl) statusEl.textContent = 'QR code expired. Click Cancel to generate a new QR.';
+          }
+        };
+        updateWalletTtl();
+        walletTtlInterval = setInterval(updateWalletTtl, 1000);
+
         // Poll order status
         if (walletPollingInterval) clearInterval(walletPollingInterval);
         walletPollingInterval = setInterval(async () => {
@@ -713,6 +744,7 @@
             const stData = await stRes.json();
             if (stData.ok && (stData.paid || stData.status === 'completed')) {
               clearInterval(walletPollingInterval);
+              if (walletTtlInterval) clearInterval(walletTtlInterval);
               await checkCurrentUser();
               closeModals();
               await RoleaDialog.alert({
@@ -721,6 +753,15 @@
                 type: 'success',
                 confirmText: 'Done'
               });
+            } else if (stData.status === 'expired') {
+              clearInterval(walletPollingInterval);
+              if (walletTtlInterval) clearInterval(walletTtlInterval);
+              if (ttlEl) {
+                ttlEl.textContent = 'QR Expired';
+                ttlEl.style.background = '#fef2f2';
+                ttlEl.style.color = '#dc2626';
+              }
+              if (statusEl) statusEl.textContent = 'QR code expired. Click Cancel to generate a new QR.';
             }
           } catch (e) {}
         }, 2500);
@@ -743,6 +784,7 @@
 
   function backToDepositAmount() {
     if (walletPollingInterval) clearInterval(walletPollingInterval);
+    if (walletTtlInterval) clearInterval(walletTtlInterval);
     document.getElementById('wallet-step-select').style.display = 'block';
     document.getElementById('wallet-step-qr').style.display = 'none';
   }
@@ -758,6 +800,7 @@
 
   function closeModals() {
     if (walletPollingInterval) clearInterval(walletPollingInterval);
+    if (walletTtlInterval) clearInterval(walletTtlInterval);
     document.querySelectorAll('.rolea-modal-backdrop').forEach(m => m.remove());
     document.querySelectorAll('.user-menu-popover').forEach(p => p.classList.remove('active'));
   }
