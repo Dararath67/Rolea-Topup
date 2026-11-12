@@ -94,43 +94,8 @@
 
     /* Top-up amounts */
     .topup-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
-    .topup-amt-btn {
-      position: relative; padding: 13px 8px; border: 1.5px solid #e2e8f0; border-radius: 14px;
-      font-size: 14.5px; font-weight: 800; text-align: center; cursor: pointer;
-      background: #f8fafc; color: #0f172a; transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-      font-variant-numeric: tabular-nums;
-    }
-    .topup-amt-btn:hover { border-color: #94a3b8; background: #ffffff; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06); }
-    .topup-amt-btn.selected {
-      border-color: #10b981; background: #ecfdf5; color: #065f46;
-      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.14), 0 6px 14px -4px rgba(16, 185, 129, 0.22);
-    }
-    .wallet-balance-card {
-      position: relative; overflow: hidden;
-      background: linear-gradient(135deg, #064e3b 0%, #047857 55%, #059669 100%);
-      border-radius: 18px; padding: 18px 20px;
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 20px; color: #ffffff;
-      box-shadow: 0 14px 28px -10px rgba(6, 78, 59, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.18);
-    }
-    .wallet-balance-card::after {
-      content: ''; position: absolute; right: -26px; top: -28px;
-      width: 110px; height: 110px; border-radius: 50%;
-      background: radial-gradient(circle, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 70%);
-      pointer-events: none;
-    }
-    .btn-wallet-cta {
-      width: 100%; padding: 13px 16px;
-      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-      color: #ffffff; border: none; border-radius: 14px;
-      font-size: 14px; font-weight: 800; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; gap: 8px;
-      box-shadow: 0 10px 22px -6px rgba(37, 99, 235, 0.45);
-      transition: transform 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
-    }
-    .btn-wallet-cta:hover { transform: translateY(-1px); box-shadow: 0 14px 26px -6px rgba(37, 99, 235, 0.55); }
-    .btn-wallet-cta:active { transform: scale(0.99); }
-    .btn-wallet-cta:disabled { opacity: 0.7; cursor: wait; transform: none; }
+    .topup-amt-btn { padding: 12px 8px; border: 1.5px solid #e2e8f0; border-radius: 12px; font-size: 14px; font-weight: 700; text-align: center; cursor: pointer; background: #f8fafc; color: #0f172a; transition: all 0.2s; }
+    .topup-amt-btn:hover, .topup-amt-btn.selected { border-color: #10b981; background: #ecfdf5; color: #065f46; }
 
     .btn-google-auth { width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 11px 16px; font-size: 13.5px; font-weight: 700; color: #1e293b; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.04); font-family: inherit; margin-bottom: 14px; }
     .btn-google-auth:hover { background: #f8fafc; border-color: #94a3b8; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
@@ -625,40 +590,32 @@
     modal.onclick = (e) => { if (e.target === modal) closeModals(); };
 
     modal.innerHTML = `
-      <div class="rolea-modal-card" style="max-width:420px;border-radius:24px;box-shadow:0 28px 60px -15px rgba(15,23,42,0.32)">
-        <div class="rolea-modal-head" style="padding:20px 22px 16px;border-bottom:1px solid #f1f5f9">
-          <div style="display:flex;align-items:center;gap:12px">
-            <div style="width:40px;height:40px;border-radius:12px;background:#eff6ff;color:#2563eb;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid #dbeafe">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></svg>
-            </div>
-            <div>
-              <h3 style="margin:0;font-size:17px;font-weight:800;color:#0f172a;letter-spacing:-0.01em">Rolea Customer Wallet</h3>
-              <span style="font-size:12px;color:#64748b;font-weight:500">Instant top-up &amp; 1-click checkout</span>
-            </div>
+      <div class="rolea-modal-card">
+        <div class="rolea-modal-head">
+          <div>
+            <h3 style="display:flex;align-items:center;gap:10px">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></svg>
+              Rolea Customer Wallet
+            </h3>
+            <span style="font-size:12px;color:#64748b">Instant top-up & 1-click checkout</span>
           </div>
-          <button class="rolea-modal-close" onclick="window.RoleaAuth.closeModals()" aria-label="Close">
+          <button class="rolea-modal-close" onclick="window.RoleaAuth.closeModals()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
-        <div class="rolea-modal-body" style="padding:20px 22px 22px">
-          <div class="wallet-balance-card">
+        <div class="rolea-modal-body">
+          <div style="background:#ecfdf5;border:1.5px solid #a7f3d0;border-radius:14px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
             <div>
-              <div style="font-size:11px;font-weight:700;color:rgba(236,253,245,0.85);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px">Available Balance</div>
-              <div style="font-size:28px;font-weight:900;letter-spacing:-0.02em;font-variant-numeric:tabular-nums" id="wallet-modal-cur-bal">$${Number(currentUser.balance || 0).toFixed(2)} <span style="font-size:14px;font-weight:700;opacity:0.85">USD</span></div>
+              <div style="font-size:11px;font-weight:700;color:#047857;text-transform:uppercase;letter-spacing:0.5px">Current Balance</div>
+              <div style="font-size:24px;font-weight:900;color:#065f46" id="wallet-modal-cur-bal">$${Number(currentUser.balance || 0).toFixed(2)} USD</div>
             </div>
-            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-              <div style="width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,0.16);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;color:#ffffff">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-              </div>
-              <span style="font-size:10px;font-weight:700;background:rgba(255,255,255,0.16);padding:2px 8px;border-radius:999px;letter-spacing:0.3px">KHQR READY</span>
+            <div style="width:44px;height:44px;border-radius:12px;background:#d1fae5;display:flex;align-items:center;justify-content:center;color:#059669;flex-shrink:0">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
             </div>
           </div>
 
           <div id="wallet-step-select">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-              <label style="font-size:12.5px;font-weight:700;color:#334155">Select Deposit Amount (USD)</label>
-              <span style="font-size:11px;font-weight:600;color:#64748b">Min. $0.50</span>
-            </div>
+            <label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:8px">Select Deposit Amount (USD)</label>
             <div class="topup-grid">
               <div class="topup-amt-btn selected" onclick="window.RoleaAuth.selectTopupAmt(1.00, this)">$1.00</div>
               <div class="topup-amt-btn" onclick="window.RoleaAuth.selectTopupAmt(2.00, this)">$2.00</div>
@@ -669,32 +626,28 @@
             </div>
 
             <div id="wallet-custom-input-box" style="display:none;margin-bottom:14px">
-              <label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:6px">Custom Amount ($ USD)</label>
-              <div style="position:relative">
-                <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-weight:800;color:#64748b;font-size:15px">$</span>
-                <input type="number" id="wallet-custom-amt" step="0.5" min="0.5" value="15.00" style="width:100%;padding:11px 14px 11px 28px;border:1.5px solid #cbd5e1;border-radius:12px;font-size:15px;font-weight:700;box-sizing:border-box;outline:none">
-              </div>
+              <label style="font-size:12px;font-weight:700;color:#475569">Custom Amount ($ USD)</label>
+              <input type="number" id="wallet-custom-amt" step="0.5" min="0.5" value="15.00" style="width:100%;padding:10px 14px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:16px;box-sizing:border-box">
             </div>
 
-            <button id="btn-generate-wallet-qr" class="btn-wallet-cta" onclick="window.RoleaAuth.createWalletDeposit()">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3z"/><path d="M17 17h4v4h-4z"/><path d="M21 14v.01"/><path d="M14 21v.01"/></svg>
+            <button class="btn-rolea-submit" onclick="window.RoleaAuth.createWalletDeposit()">
               Generate ABA KHQR Deposit QR
             </button>
           </div>
 
           <div id="wallet-step-qr" style="display:none;text-align:center">
-            <div style="font-size:13px;font-weight:700;color:#334155;margin-bottom:6px">Scan with ABA Mobile or any KHQR Bank</div>
-            <div style="display:inline-block;padding:4px 14px;border-radius:999px;background:#eff6ff;color:#1d4ed8;font-size:18px;font-weight:900;border:1px solid #dbeafe" id="wallet-qr-amount">$1.00 USD</div>
-            <div style="margin:14px auto;width:210px;height:210px;padding:10px;border-radius:18px;border:1.5px solid #e2e8f0;background:#fff;box-shadow:0 10px 25px -10px rgba(15,23,42,0.12);display:flex;align-items:center;justify-content:center;box-sizing:border-box">
-              <img id="wallet-qr-img" src="" alt="KHQR" style="width:100%;height:100%;object-fit:contain;border-radius:8px">
+            <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:6px">Scan with ABA Mobile or any KHQR Bank</div>
+            <div style="font-size:20px;font-weight:900;color:#0056b3" id="wallet-qr-amount">$1.00 USD</div>
+            <div style="margin:14px auto;width:200px;height:200px;border-radius:16px;overflow:hidden;border:2px solid #e2e8f0;background:#fff;display:flex;align-items:center;justify-content:center">
+              <img id="wallet-qr-img" src="" alt="KHQR" style="width:100%;height:100%;object-fit:contain">
             </div>
-            <div style="font-size:12.5px;font-weight:600;color:#475569;display:flex;align-items:center;justify-content:center;gap:7px">
+            <div style="font-size:12px;color:#64748b;display:flex;align-items:center;justify-content:center;gap:6px">
               <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;animation:pulse 1.5s infinite"></span>
               Waiting for KHQR payment confirmation…
             </div>
-            <div style="margin-top:16px;display:flex;gap:10px">
-              <a id="wallet-aba-deeplink" href="#" class="btn-wallet-cta" style="text-decoration:none;display:none;flex:1">Open ABA App</a>
-              <button class="btn-rolea-submit" style="margin-top:0;background:#f1f5f9;color:#334155;flex:1;border-radius:14px" onclick="window.RoleaAuth.backToDepositAmount()">Back</button>
+            <div style="margin-top:14px;display:flex;gap:10px">
+              <a id="wallet-aba-deeplink" href="#" class="btn-rolea-submit" style="background:#0056b3;text-decoration:none;display:none;flex:1;text-align:center">Open ABA App</a>
+              <button class="btn-rolea-submit" style="background:#f1f5f9;color:#334155;flex:1" onclick="window.RoleaAuth.backToDepositAmount()">Cancel</button>
             </div>
           </div>
 
