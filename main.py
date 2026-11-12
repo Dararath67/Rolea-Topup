@@ -1418,23 +1418,37 @@ def _build_tg_admin_home() -> tuple[str, Dict[str, Any]]:
     total_users = len(users)
     total_wallet = sum(float(u.get("balance") or 0.0) for u in users)
     store_name = html.escape(str(settings.get("store_name", "Rolea Topup")), quote=False)
+    maint_str = "🛠️ MAINTENANCE" if settings.get("maintenance_mode") else "🟢 ONLINE"
+    spin_str = "🟢 ON" if spin_data.get("enabled", True) else "⛔ OFF"
     text = (
         f"🛡️ <b>{store_name} — Telegram Admin Panel</b>\n\n"
-        f"👥 <b>Total Users:</b> {total_users}\n"
-        f"💳 <b>Total User Wallets:</b> ${total_wallet:.2f} USD\n"
-        f"📦 <b>Active/Pending Orders:</b> {pending_cnt}\n\n"
-        f"👇 <i>Select an action below (no typing needed):</i>"
+        f"🌐 <b>Store:</b> {maint_str}  |  🎡 <b>Spin:</b> {spin_str}\n"
+        f"👥 <b>Users:</b> {total_users}  |  💳 <b>Wallets:</b> ${total_wallet:.2f}\n"
+        f"📦 <b>Active Orders:</b> {pending_cnt}\n\n"
+        f"👇 <i>Tap any button below (no commands needed):</i>"
     )
     markup = {
         "inline_keyboard": [
             [{"text": "💰 Add / Deduct User Balance", "callback_data": "adm:users:0"}],
             [
                 {"text": "🔍 Find User by ID", "callback_data": "adm:find"},
-                {"text": f"📦 Pending Orders ({pending_cnt})", "callback_data": "adm:pending:0"}
+                {"text": "🔎 Find Order by ID", "callback_data": "adm:find_ord"}
             ],
             [
-                {"text": "📊 Store Stats", "callback_data": "adm:stats"},
-                {"text": "🎡 Spin Stats", "callback_data": "adm:spin"}
+                {"text": f"📦 Pending Orders ({pending_cnt})", "callback_data": "adm:pending:0"},
+                {"text": "📊 Store Stats", "callback_data": "adm:stats"}
+            ],
+            [
+                {"text": "🎮 Games ON/OFF", "callback_data": "adm:games"},
+                {"text": "🎡 Spin Control", "callback_data": "adm:spin"}
+            ],
+            [
+                {"text": "🤖 Robux Bot Stock", "callback_data": "adm:bot"},
+                {"text": "🎟️ Promo Codes", "callback_data": "adm:promos:0"}
+            ],
+            [
+                {"text": "🚫 Blacklist / Block", "callback_data": "adm:blk"},
+                {"text": "📢 Broadcast & Store", "callback_data": "adm:store_ctrl"}
             ],
             [{"text": "🔄 Refresh Panel", "callback_data": "adm:home"}]
         ]
@@ -1609,17 +1623,32 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         if card and msg_id:
             await edit_telegram_message(token, chat_id, msg_id, card[0], card[1])
 
-    elif sub in ("find", "cadd", "csub"):
+    elif sub in ("find", "find_ord", "cadd", "csub", "promo_new", "blk_u", "blk_ip", "bcast"):
         uid = parts[2] if len(parts) > 2 else ""
         if sub == "find":
             _tg_admin_state[chat_id] = {"mode": "find"}
             prompt = "🔍 <b>Find User</b>\nReply with the <b>User ID</b> (e.g. <code>usr_...</code>), username, or email:"
+        elif sub == "find_ord":
+            _tg_admin_state[chat_id] = {"mode": "find_ord"}
+            prompt = "🔎 <b>Find Order</b>\nReply with the <b>Order ID</b> (e.g. <code>ORD-...</code> or <code>SPIN...</code>):"
         elif sub == "cadd":
             _tg_admin_state[chat_id] = {"mode": "cadd", "user_id": uid}
             prompt = f"✏️ <b>Add Custom Amount</b>\nReply with the USD amount to <b>ADD</b> to user <code>{html.escape(uid, quote=False)}</code> (e.g. <code>25</code>):"
-        else:
+        elif sub == "csub":
             _tg_admin_state[chat_id] = {"mode": "csub", "user_id": uid}
             prompt = f"✏️ <b>Deduct Custom Amount</b>\nReply with the USD amount to <b>DEDUCT</b> from user <code>{html.escape(uid, quote=False)}</code> (e.g. <code>5</code>):"
+        elif sub == "promo_new":
+            _tg_admin_state[chat_id] = {"mode": "promo_new"}
+            prompt = "🎟️ <b>Create Promo Code</b>\nReply with <code>CODE VALUE</code> (e.g. <code>ROLEA10 10%</code> or <code>SAVE5 $5</code>):"
+        elif sub == "blk_u":
+            _tg_admin_state[chat_id] = {"mode": "blk_u"}
+            prompt = "🚫 <b>Block Username</b>\nReply with the Roblox username to blacklist:"
+        elif sub == "blk_ip":
+            _tg_admin_state[chat_id] = {"mode": "blk_ip"}
+            prompt = "🚫 <b>Block IP Address</b>\nReply with the IP address to blacklist:"
+        else:
+            _tg_admin_state[chat_id] = {"mode": "bcast"}
+            prompt = "📢 <b>Telegram Broadcast</b>\nReply with the announcement message to send to all linked customers:"
         await answer_callback_query(token, query_id, "")
         await send_telegram_direct_message(token, chat_id, prompt, {"force_reply": True, "selective": True})
 
@@ -1661,22 +1690,184 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, text, {"inline_keyboard": [[{"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]})
 
-    elif sub == "spin":
-        sp_cfg = settings.get("spin_config", {})
-        st_en = "✅ Enabled" if sp_cfg.get("enabled", True) else "⛔ Disabled"
-        hist = settings.get("spin_history", [])
-        tot_spins = len(hist)
-        tot_rbx = sum(int(h.get("robux") or 0) for h in hist)
+    elif sub in ("spin", "spin_tog", "spin_p"):
+        if sub == "spin_tog":
+            spin_data["enabled"] = not bool(spin_data.get("enabled", True))
+            save_spin_data()
+            await answer_callback_query(token, query_id, f"Spin Wheel is now {'ENABLED 🟢' if spin_data['enabled'] else 'DISABLED ⛔'}")
+        elif sub == "spin_p" and len(parts) >= 3:
+            try:
+                p_val = float(parts[2])
+                if p_val > 0:
+                    spin_data["spin_price_usd"] = round(p_val, 2)
+                    save_spin_data()
+                    await answer_callback_query(token, query_id, f"Spin price set to ${p_val:.2f} USD")
+            except ValueError:
+                await answer_callback_query(token, query_id, "Invalid price.")
+        else:
+            await answer_callback_query(token, query_id, "")
+
+        st_en = "🟢 Enabled" if spin_data.get("enabled", True) else "⛔ Disabled"
+        sp_price = float(spin_data.get("spin_price_usd") or 0.5)
+        tot_spins = int(spin_data.get("total_spins") or len(spin_data.get("history", [])))
+        tot_rev = float(spin_data.get("total_revenue_usd") or 0.0)
+        tot_rbx = int(spin_data.get("total_robux_awarded") or 0)
         text = (
-            f"🎡 <b>Spin Robux Stats</b>\n\n"
+            f"🎡 <b>Spin Robux Control</b>\n\n"
             f"<b>Status:</b> {st_en}\n"
-            f"<b>Price/Spin:</b> ${float(sp_cfg.get('spin_price_usd') or 0.5):.2f} USD\n"
+            f"<b>Price/Spin:</b> <code>${sp_price:.2f} USD</code>\n"
             f"<b>Total Spins:</b> {tot_spins}\n"
+            f"<b>Spin Revenue:</b> ${tot_rev:.2f} USD\n"
             f"<b>Total Robux Won:</b> {tot_rbx:,} R$"
         )
-        await answer_callback_query(token, query_id, "")
+        markup = {
+            "inline_keyboard": [
+                [{"text": "⛔ Disable Spin" if spin_data.get("enabled", True) else "✅ Enable Spin", "callback_data": "adm:spin_tog"}],
+                [
+                    {"text": "💲 $0.25", "callback_data": "adm:spin_p:0.25"},
+                    {"text": "💲 $0.50", "callback_data": "adm:spin_p:0.50"},
+                    {"text": "💲 $1.00", "callback_data": "adm:spin_p:1.00"}
+                ],
+                [{"text": "🏠 Admin Menu", "callback_data": "adm:home"}]
+            ]
+        }
         if msg_id:
-            await edit_telegram_message(token, chat_id, msg_id, text, {"inline_keyboard": [[{"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]})
+            await edit_telegram_message(token, chat_id, msg_id, text, markup)
+
+    elif sub in ("games", "gtog"):
+        if sub == "gtog" and len(parts) >= 3:
+            gid = parts[2]
+            if gid in games:
+                games[gid]["enabled"] = not games[gid].get("enabled", True)
+                save_games()
+                await answer_callback_query(token, query_id, f"{games[gid].get('name', gid)} is now {'ON 🟢' if games[gid]['enabled'] else 'OFF ⛔'}")
+            else:
+                await answer_callback_query(token, query_id, "Game not found.")
+        else:
+            await answer_callback_query(token, query_id, "")
+        rows = []
+        for gid, g in games.items():
+            en = g.get("enabled", True)
+            gname = str(g.get("name") or gid)
+            rows.append([{"text": f"{'🟢' if en else '⛔'} {gname} ({'ON' if en else 'OFF'})", "callback_data": f"adm:gtog:{gid}"}])
+        rows.append([{"text": "🏠 Admin Menu", "callback_data": "adm:home"}])
+        text = "🎮 <b>Games Status (Tap to Toggle ON/OFF)</b>"
+        if msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, text, {"inline_keyboard": rows})
+
+    elif sub in ("bot", "bot_sync"):
+        sync_note = ""
+        if sub == "bot_sync":
+            await answer_callback_query(token, query_id, "Syncing Robux balance…")
+            sr = await sync_primary_bot_balance()
+            sync_note = "\n✅ <i>Synced just now!</i>" if sr.get("ok") else f"\n⚠️ <i>{html.escape(str(sr.get('error', 'Sync failed')), quote=False)}</i>"
+        else:
+            await answer_callback_query(token, query_id, "")
+        bots = inventory.get("bots", [])
+        if not bots:
+            bot_txt = "No Roblox Bot connected."
+        else:
+            b = bots[0]
+            bot_txt = (
+                f"<b>Bot:</b> {html.escape(str(b.get('roblox_username') or b.get('name') or 'Primary Bot'), quote=False)}\n"
+                f"<b>Group ID:</b> <code>{html.escape(str(b.get('group_id') or 'Personal'), quote=False)}</code>\n"
+                f"<b>Live Robux:</b> <code>{int(b.get('group_funds') or 0):,} R$</code>\n"
+                f"<b>Status:</b> {html.escape(str(b.get('status') or 'unknown'), quote=False)}\n"
+                f"<b>Last Sync:</b> {html.escape(str(b.get('last_synced') or '—'), quote=False)}"
+            )
+        man_en = inventory.get("manual_stock_enabled", False)
+        man_rbx = int(inventory.get("manual_stock_robux") or 0)
+        text = f"🤖 <b>Robux Bot &amp; Stock</b>\n\n{bot_txt}\n\n<b>Manual Stock:</b> {'ON (' + f'{man_rbx:,} R$' + ')' if man_en else 'OFF'}{sync_note}"
+        markup = {
+            "inline_keyboard": [
+                [{"text": "🔄 Sync Live Robux Now", "callback_data": "adm:bot_sync"}],
+                [{"text": "🏠 Admin Menu", "callback_data": "adm:home"}]
+            ]
+        }
+        if msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, text, markup)
+
+    elif sub in ("promos", "ptog"):
+        page = 0
+        if sub == "ptog" and len(parts) >= 3:
+            pid = parts[2]
+            cp = next((c for c in coupons if c.get("id") == pid or c.get("code") == pid), None)
+            if cp:
+                cp["enabled"] = not cp.get("enabled", True)
+                save_coupons()
+                await answer_callback_query(token, query_id, f"{cp['code']} is now {'ON 🟢' if cp['enabled'] else 'OFF ⛔'}")
+            else:
+                await answer_callback_query(token, query_id, "Promo not found.")
+        else:
+            page = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
+            await answer_callback_query(token, query_id, "")
+        per_p = 6
+        max_p = max(0, (len(coupons) - 1) // per_p)
+        page = max(0, min(page, max_p))
+        sl = coupons[page * per_p : (page + 1) * per_p]
+        rows = []
+        for c in sl:
+            en = c.get("enabled", True)
+            val_str = f"${c.get('value')}" if c.get("type") == "fixed" else f"{c.get('value')}%"
+            rows.append([{"text": f"{'🟢' if en else '⛔'} {c.get('code')} ({val_str}) · Used {c.get('used_count', 0)}", "callback_data": f"adm:ptog:{c.get('id')}"}])
+        nav = []
+        if page > 0:
+            nav.append({"text": "⬅️ Prev", "callback_data": f"adm:promos:{page - 1}"})
+        if page < max_p:
+            nav.append({"text": "Next ➡️", "callback_data": f"adm:promos:{page + 1}"})
+        if nav:
+            rows.append(nav)
+        rows.append([{"text": "➕ Quick Create Promo", "callback_data": "adm:promo_new"}, {"text": "🏠 Admin Menu", "callback_data": "adm:home"}])
+        text = f"🎟️ <b>Promo Codes ({len(coupons)})</b>\nTap a promo code to toggle ON/OFF:"
+        if msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, text, {"inline_keyboard": rows})
+
+    elif sub in ("blk", "unblk"):
+        if sub == "unblk" and len(parts) >= 4:
+            btype, bval = parts[2], ":".join(parts[3:])
+            if btype == "u":
+                blacklist["blocked_users"] = [x for x in blacklist.get("blocked_users", []) if x != bval]
+            elif btype == "ip":
+                blacklist["blocked_ips"] = [x for x in blacklist.get("blocked_ips", []) if x != bval]
+            save_blacklist()
+            await answer_callback_query(token, query_id, f"🔓 Unblocked {bval}")
+        else:
+            await answer_callback_query(token, query_id, "")
+        bu = blacklist.get("blocked_users", [])
+        bi = blacklist.get("blocked_ips", [])
+        rows = []
+        for u_blk in bu[:4]:
+            rows.append([{"text": f"🔓 Unblock User: {u_blk}", "callback_data": f"adm:unblk:u:{u_blk}"}])
+        for ip_blk in bi[:4]:
+            rows.append([{"text": f"🔓 Unblock IP: {ip_blk}", "callback_data": f"adm:unblk:ip:{ip_blk}"}])
+        rows.append([{"text": "➕ Block Username", "callback_data": "adm:blk_u"}, {"text": "➕ Block IP", "callback_data": "adm:blk_ip"}])
+        rows.append([{"text": "🏠 Admin Menu", "callback_data": "adm:home"}])
+        text = f"🚫 <b>Blacklist Manager</b>\n\n<b>Blocked Users:</b> {len(bu)}\n<b>Blocked IPs:</b> {len(bi)}\n\nTap any entry below to unblock:"
+        if msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, text, {"inline_keyboard": rows})
+
+    elif sub in ("store_ctrl", "maint_tog"):
+        if sub == "maint_tog":
+            settings["maintenance_mode"] = not bool(settings.get("maintenance_mode", False))
+            save_settings()
+            await answer_callback_query(token, query_id, f"Maintenance Mode: {'ON 🛠️' if settings['maintenance_mode'] else 'OFF 🟢'}")
+        else:
+            await answer_callback_query(token, query_id, "")
+        maint = bool(settings.get("maintenance_mode", False))
+        text = (
+            f"📢 <b>Broadcast &amp; Store Control</b>\n\n"
+            f"<b>Store Status:</b> {'🛠️ Maintenance ON' if maint else '🟢 Online'}\n\n"
+            f"Use the buttons below to toggle Maintenance Mode or broadcast a message to all linked Telegram customers:"
+        )
+        markup = {
+            "inline_keyboard": [
+                [{"text": "🟢 Set Store Online" if maint else "🛠️ Enable Maintenance Mode", "callback_data": "adm:maint_tog"}],
+                [{"text": "📢 Send Telegram Broadcast", "callback_data": "adm:bcast"}],
+                [{"text": "🏠 Admin Menu", "callback_data": "adm:home"}]
+            ]
+        }
+        if msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, text, markup)
 
 async def handle_telegram_callback_query(query: Dict[str, Any], token: str):
     query_id = query.get("id")
@@ -1856,6 +2047,73 @@ async def telegram_polling_loop():
                                                 await send_telegram_direct_message(token, chat_id, f"✅ <b>{html.escape(note, quote=False)}</b>\n\n{card[0]}", card[1])
                                         else:
                                             await send_telegram_direct_message(token, chat_id, f"❌ {html.escape(note, quote=False)}")
+                                    elif mode == "find_ord":
+                                        q_ord = text.strip().lstrip("#").upper()
+                                        ord_obj = next((o for o in orders if str(o.get("order_id", "")).upper() in (q_ord, f"ORD-{q_ord}")), None)
+                                        if not ord_obj:
+                                            await send_telegram_direct_message(token, chat_id, f"❌ Order <code>{html.escape(text, quote=False)}</code> not found.", {"inline_keyboard": [[{"text": "🔎 Try Again", "callback_data": "adm:find_ord"}, {"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]})
+                                        else:
+                                            oid = str(ord_obj.get("order_id") or "")
+                                            cust = html.escape(str(ord_obj.get("roblox_username") or ord_obj.get("buyer_account") or "Customer"), quote=False)
+                                            pkg = html.escape(str(ord_obj.get("package") or "—"), quote=False)
+                                            amt = float(ord_obj.get("amount") or 0)
+                                            st = str(ord_obj.get("status") or "pending").upper()
+                                            o_txt = (
+                                                f"🔎 <b>Order Details</b>\n\n"
+                                                f"🆔 <b>Order ID:</b> <code>{html.escape(oid, quote=False)}</code>\n"
+                                                f"👤 <b>Account:</b> {cust}\n"
+                                                f"📦 <b>Package:</b> {pkg}\n"
+                                                f"💵 <b>Amount:</b> ${amt:.2f} USD\n"
+                                                f"📌 <b>Status:</b> {st}"
+                                            )
+                                            o_rows = []
+                                            if ord_obj.get("status") in ("pending", "sending", "paid"):
+                                                o_rows.append([{"text": "✅ Complete", "callback_data": f"complete:{oid}"}, {"text": "❌ Reject & Refund", "callback_data": f"reject:{oid}"}])
+                                            o_rows.append([{"text": "🏠 Admin Menu", "callback_data": "adm:home"}])
+                                            await send_telegram_direct_message(token, chat_id, o_txt, {"inline_keyboard": o_rows})
+                                    elif mode == "promo_new":
+                                        parts_p = text.strip().split()
+                                        if len(parts_p) < 2:
+                                            await send_telegram_direct_message(token, chat_id, "❌ Format: <code>CODE 10%</code> or <code>CODE $5</code>", {"inline_keyboard": [[{"text": "🎟️ Promo Codes", "callback_data": "adm:promos:0"}, {"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]})
+                                        else:
+                                            p_code = parts_p[0].upper()
+                                            raw_v = parts_p[1]
+                                            p_type = "fixed" if "$" in raw_v else "percentage"
+                                            try:
+                                                p_val = float(raw_v.replace("$", "").replace("%", ""))
+                                                if p_val <= 0:
+                                                    raise ValueError()
+                                                if any(c.get("code", "").upper() == p_code for c in coupons):
+                                                    await send_telegram_direct_message(token, chat_id, f"⚠️ Promo <code>{html.escape(p_code, quote=False)}</code> already exists.", {"inline_keyboard": [[{"text": "🎟️ Promo Codes", "callback_data": "adm:promos:0"}]]})
+                                                else:
+                                                    coupons.insert(0, {"id": "cpn_" + secrets.token_hex(4), "code": p_code, "type": p_type, "value": p_val, "min_spend": 0.0, "max_uses": 0, "used_count": 0, "enabled": True, "description": f"{p_val}{'$' if p_type == 'fixed' else '%'} Discount"})
+                                                    save_coupons()
+                                                    await send_telegram_direct_message(token, chat_id, f"✅ Created promo <code>{html.escape(p_code, quote=False)}</code> ({html.escape(raw_v, quote=False)})!", {"inline_keyboard": [[{"text": "🎟️ View Promos", "callback_data": "adm:promos:0"}, {"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]})
+                                            except ValueError:
+                                                await send_telegram_direct_message(token, chat_id, "❌ Invalid discount value.", {"inline_keyboard": [[{"text": "🎟️ Promo Codes", "callback_data": "adm:promos:0"}]]})
+                                    elif mode in ("blk_u", "blk_ip"):
+                                        target_v = text.strip()
+                                        key = "blocked_users" if mode == "blk_u" else "blocked_ips"
+                                        lst = blacklist.setdefault(key, [])
+                                        if target_v and target_v not in lst:
+                                            lst.append(target_v)
+                                            save_blacklist()
+                                        await send_telegram_direct_message(token, chat_id, f"🚫 Blacklisted <code>{html.escape(target_v, quote=False)}</code>!", {"inline_keyboard": [[{"text": "🚫 Blacklist Menu", "callback_data": "adm:blk"}, {"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]})
+                                    elif mode == "bcast":
+                                        targets = set()
+                                        for u_it in users:
+                                            if u_it.get("telegram_chat_id"):
+                                                targets.add(str(u_it["telegram_chat_id"]).strip())
+                                        for o_it in orders:
+                                            if o_it.get("customer_telegram_chat_id"):
+                                                targets.add(str(o_it["customer_telegram_chat_id"]).strip())
+                                        targets.discard(target_chat_id)
+                                        sent_cnt = 0
+                                        b_msg = f"📢 <b>{html.escape(str(settings.get('store_name', 'Rolea Topup')), quote=False)}</b>\n\n{html.escape(text.strip(), quote=False)}"
+                                        for tc in targets:
+                                            if await send_telegram_direct_message(token, tc, b_msg):
+                                                sent_cnt += 1
+                                        await send_telegram_direct_message(token, chat_id, f"✅ Broadcast sent to <b>{sent_cnt}</b> customer(s)!", {"inline_keyboard": [[{"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]})
                                 elif text.startswith("/start"):
                                     parts = text.split(maxsplit=1)
                                     param = parts[1].strip() if len(parts) > 1 else ""
