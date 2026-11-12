@@ -558,11 +558,18 @@ def save_json(path: Path, data: Any):
 orders = load_json(DB_PATH, orders)
 packages = load_json(PACKAGES_PATH, packages)
 settings = load_json(SETTINGS_PATH, settings)
+_undecryptable_settings: Dict[str, str] = {}
 _settings_needs_reencrypt = False
 for _sk in _SETTINGS_SECRET_KEYS:
     _val = str(settings.get(_sk) or "")
     if _val.startswith(_ENC_PREFIX):
-        settings[_sk] = _decrypt_secret(_val)
+        _dec_val = _decrypt_secret(_val)
+        if _dec_val:
+            settings[_sk] = _dec_val
+        else:
+            print(f"[Crypto] Warning: Could not decrypt settings['{_sk}'] with current key; preserving ciphertext.")
+            _undecryptable_settings[_sk] = _val
+            settings[_sk] = ""
     elif _val:
         _settings_needs_reencrypt = True
 for _env_k, _set_k in (
@@ -756,6 +763,8 @@ def save_settings():
     for _sk in _SETTINGS_SECRET_KEYS:
         if enc_settings.get(_sk):
             enc_settings[_sk] = _encrypt_secret(enc_settings[_sk])
+        elif _sk in _undecryptable_settings:
+            enc_settings[_sk] = _undecryptable_settings[_sk]
     save_json(SETTINGS_PATH, enc_settings)
 if _settings_needs_reencrypt:
     save_settings()
@@ -1312,29 +1321,41 @@ async def edit_telegram_message(token: str, chat_id: Any, message_id: Any, text:
         pass
 
 
-async def send_telegram_direct_message(token: str, chat_id: Union[int, str], text: str, reply_markup: Optional[Dict] = None):
-    try:
-        url = f"https://api.telegram.org/bot{token}/sendMessage"
-        payload = {
-            "chat_id": chat_id,
-            "text": text,
-            "parse_mode": "HTML"
-        }
-        if reply_markup:
-            payload["reply_markup"] = reply_markup
-        async with httpx.AsyncClient(timeout=8.0) as client:
-            await client.post(url, json=payload)
-    except Exception as e:
-        print(f"Customer telegram msg error: {e}")
+async def send_telegram_direct_message(token: str, chat_id: Union[int, str], text: str, reply_markup: Optional[Dict] = None) -> bool:
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    payload: Dict[str, Any] = {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML"
+    }
+    if reply_markup:
+        payload["reply_markup"] = reply_markup
+    for attempt in range(1, 4):
+        try:
+            async with httpx.AsyncClient(timeout=12.0) as client:
+                res = await client.post(url, json=payload)
+                try:
+                    data = res.json()
+                except Exception:
+                    data = None
+                if res.status_code == 200 and isinstance(data, dict) and data.get("ok"):
+                    return True
+                print(f"Telegram sendMessage attempt {attempt} error (HTTP {res.status_code}): {data}")
+        except Exception as e:
+            print(f"Telegram sendMessage attempt {attempt} failed: {e}")
+        if attempt < 3:
+            await asyncio.sleep(1.0)
+    return False
 
 
-async def send_telegram_admin_alert(text: str):
+async def send_telegram_admin_alert(text: str, reply_markup: Optional[Dict] = None) -> bool:
     """Send an HTML alert message to the configured admin Telegram chat."""
     token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
     chat_id = settings.get("telegram_chat_id") or os.environ.get("TELEGRAM_CHAT_ID", "") or "8710759437"
     if not token or not chat_id or not text:
-        return
-    await send_telegram_direct_message(token, chat_id, text)
+        print(f"[Telegram] Skipped admin alert (token_present={bool(token)}, chat_id={chat_id!r})")
+        return False
+    return await send_telegram_direct_message(token, chat_id, text, reply_markup=reply_markup)
 
 async def notify_customer_order_completed(order: Dict[str, Any]):
     token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
@@ -2955,7 +2976,7 @@ async def submit_spin_claim(request: Request):
         order["player_id"] = roblox_username
         order["display_name"] = roblox_username
         order["claim_submitted"] = True
-        order["telegram_alerted"] = True
+        order["telegram_alerted"] = False
         order["claim_note"] = note
         order["claimed_at"] = datetime.now(timezone.utc).isoformat()
         order["status"] = "paid"
@@ -2974,14 +2995,26 @@ async def submit_spin_claim(request: Request):
             save_spin_data()
 
     alert_header = "[SPIN CLAIM UPDATED]" if was_submitted else "[SPIN CLAIM SUBMITTED]"
-    asyncio.create_task(send_telegram_admin_alert(
-        f"<b>{alert_header} User Requesting Robux Prize</b>\n"
-        f"Order ID: <code>{html.escape(order_id, quote=False)}</code>\n"
-        f"Roblox Account: <code>@{html.escape(roblox_username, quote=False)}</code>\n"
-        f"Prize: <b>{robux_won:,} Robux</b>\n"
-        + (f"Note: <i>{html.escape(note, quote=False)}</i>\n" if note else "")
-        + "Please send Robux in Admin Orders Queue!"
-    ))
+    claim_markup = {
+        "inline_keyboard": [[
+            {"text": "✅ Complete Order", "callback_data": f"complete:{order_id}"},
+            {"text": "❌ Reject & Refund", "callback_data": f"reject:{order_id}"}
+        ]]
+    }
+    async def _send_spin_claim_tg():
+        sent = await send_telegram_admin_alert(
+            f"<b>{alert_header} User Requesting Robux Prize</b>\n"
+            f"Order ID: <code>{html.escape(order_id, quote=False)}</code>\n"
+            f"Roblox Account: <code>@{html.escape(roblox_username, quote=False)}</code>\n"
+            f"Prize: <b>{robux_won:,} Robux</b>\n"
+            + (f"Note: <i>{html.escape(note, quote=False)}</i>\n" if note else "")
+            + "Please send Robux in Admin Orders Queue!",
+            reply_markup=claim_markup
+        )
+        if sent:
+            order["telegram_alerted"] = True
+            save_orders()
+    asyncio.create_task(_send_spin_claim_tg())
 
     return {
         "ok": True,
@@ -5183,6 +5216,7 @@ async def admin_save_settings(request: Request):
             val = str(body[sk_key]).strip()
             if val and val != "••••••••":
                 settings[sk_key] = val
+                _undecryptable_settings.pop(sk_key, None)
     if "telegram_chat_id" in body and body["telegram_chat_id"] is not None:
         settings["telegram_chat_id"] = str(body["telegram_chat_id"]).strip()
     for sm_key in ["smtp_host", "smtp_email", "admin_recovery_email"]:
