@@ -13,7 +13,7 @@ import smtplib
 import ssl
 import threading
 import time
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse, unquote, quote_plus
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime, timezone, timedelta
@@ -253,6 +253,198 @@ def _mysql_set(store_key: str, data: Any):
         except Exception as e:
             print(f"[MySQL] Write failed ({store_key}): {e}")
 
+
+# ==========================================
+# REDIS CACHE-ASIDE LAYER (WITH MEMORY FALLBACK)
+# ==========================================
+try:
+    import redis as redis_lib
+except ImportError:
+    redis_lib = None
+
+_cache_lock = threading.Lock()
+_redis_client = None
+_redis_retry_after = 0.0
+_mem_cache: Dict[str, tuple[float, str]] = {}
+_MEM_CACHE_MAX = 1024
+_cache_stats: Dict[str, Any] = {
+    "hits": 0,
+    "misses": 0,
+    "writes": 0,
+    "invalidations": 0,
+    "errors": 0,
+    "last_error": "",
+}
+
+_STORE_CACHE_INVALIDATION_MAP: Dict[str, tuple[str, ...]] = {
+    "settings": ("rolea:settings:public",),
+    "games": ("rolea:games:all", "rolea:game:*", "rolea:live_proof"),
+    "packages": ("rolea:packages:*", "rolea:game:*"),
+    "reviews": ("rolea:reviews:approved",),
+    "orders": ("rolea:live_proof",),
+    "spin": ("rolea:spin:config",),
+}
+
+
+def _get_redis_url() -> str:
+    url = (os.environ.get("REDIS_URL") or "").strip()
+    if url:
+        return url
+    host = (os.environ.get("REDIS_HOST") or "").strip()
+    if not host:
+        return ""
+    port = (os.environ.get("REDIS_PORT") or "6379").strip()
+    db = (os.environ.get("REDIS_DB") or "0").strip()
+    pwd = (os.environ.get("REDIS_PASSWORD") or "").strip()
+    user = (os.environ.get("REDIS_USER") or "default").strip()
+    if pwd:
+        return f"redis://{quote_plus(user)}:{quote_plus(pwd)}@{host}:{port}/{db}"
+    return f"redis://{host}:{port}/{db}"
+
+
+def _get_redis():
+    global _redis_client, _redis_retry_after
+    if _redis_client is not None:
+        return _redis_client
+    if redis_lib is None:
+        return None
+    url = _get_redis_url()
+    if not url:
+        return None
+    now = time.time()
+    if now < _redis_retry_after:
+        return None
+    try:
+        client = redis_lib.Redis.from_url(
+            url,
+            decode_responses=True,
+            socket_connect_timeout=1.5,
+            socket_timeout=1.5,
+        )
+        client.ping()
+        _redis_client = client
+        print(f"[Redis] Connected cache-aside store")
+        return _redis_client
+    except Exception as e:
+        _redis_client = None
+        _redis_retry_after = now + 30.0
+        _cache_stats["errors"] += 1
+        _cache_stats["last_error"] = str(e)
+        return None
+
+
+def cache_backend_name() -> str:
+    return "redis" if _get_redis() is not None else "memory-fallback"
+
+
+def cache_get(key: str) -> Optional[Any]:
+    r = _get_redis()
+    if r is not None:
+        try:
+            raw = r.get(key)
+            if raw is not None:
+                _cache_stats["hits"] += 1
+                return json.loads(raw)
+            _cache_stats["misses"] += 1
+            return None
+        except Exception as e:
+            global _redis_client, _redis_retry_after
+            _redis_client = None
+            _redis_retry_after = time.time() + 30.0
+            _cache_stats["errors"] += 1
+            _cache_stats["last_error"] = str(e)
+
+    with _cache_lock:
+        entry = _mem_cache.get(key)
+        if entry is not None:
+            exp, raw = entry
+            if time.time() < exp:
+                _cache_stats["hits"] += 1
+                return json.loads(raw)
+            _mem_cache.pop(key, None)
+        _cache_stats["misses"] += 1
+    return None
+
+
+def cache_set(key: str, value: Any, ttl_seconds: int = 300):
+    if ttl_seconds <= 0:
+        return
+    try:
+        raw = json.dumps(value, ensure_ascii=False)
+    except Exception:
+        return
+
+    r = _get_redis()
+    if r is not None:
+        try:
+            r.setex(key, int(ttl_seconds), raw)
+            _cache_stats["writes"] += 1
+            return
+        except Exception as e:
+            global _redis_client, _redis_retry_after
+            _redis_client = None
+            _redis_retry_after = time.time() + 30.0
+            _cache_stats["errors"] += 1
+            _cache_stats["last_error"] = str(e)
+
+    with _cache_lock:
+        if len(_mem_cache) >= _MEM_CACHE_MAX:
+            now = time.time()
+            expired = [k for k, (exp, _) in _mem_cache.items() if exp <= now]
+            for k in expired:
+                _mem_cache.pop(k, None)
+            if len(_mem_cache) >= _MEM_CACHE_MAX:
+                _mem_cache.pop(next(iter(_mem_cache)), None)
+        _mem_cache[key] = (time.time() + int(ttl_seconds), raw)
+        _cache_stats["writes"] += 1
+
+
+def cache_delete(*keys_or_patterns: str):
+    if not keys_or_patterns:
+        return
+    r = _get_redis()
+    for pat in keys_or_patterns:
+        if not pat:
+            continue
+        if r is not None:
+            try:
+                if "*" in pat:
+                    batch = list(r.scan_iter(match=pat, count=100))
+                    if batch:
+                        r.delete(*batch)
+                else:
+                    r.delete(pat)
+            except Exception as e:
+                _cache_stats["errors"] += 1
+                _cache_stats["last_error"] = str(e)
+
+        with _cache_lock:
+            if "*" in pat:
+                prefix = pat.split("*", 1)[0]
+                doomed = [k for k in _mem_cache if k.startswith(prefix)]
+                for k in doomed:
+                    _mem_cache.pop(k, None)
+            else:
+                _mem_cache.pop(pat, None)
+    _cache_stats["invalidations"] += 1
+
+
+def cache_invalidate_store(store_key: str):
+    pats = _STORE_CACHE_INVALIDATION_MAP.get(store_key)
+    if pats:
+        cache_delete(*pats)
+
+
+def cache_aside_get(key: str, ttl_seconds: int, loader_fn) -> tuple[Any, str]:
+    cached = cache_get(key)
+    if cached is not None:
+        return cached, "HIT"
+    data = loader_fn()
+    if data is not None:
+        cache_set(key, data, ttl_seconds)
+    return data, "MISS"
+
+
 def load_json(path: Path, default: Any) -> Any:
     key = path.stem
     db_val = _mysql_get(key)
@@ -285,6 +477,7 @@ def save_json(path: Path, data: Any):
     except Exception as e:
         print(f"Error saving {path}: {e}")
     _mysql_set(path.stem, data)
+    cache_invalidate_store(path.stem)
 
 # Load initial data
 orders = load_json(DB_PATH, orders)
@@ -1345,35 +1538,61 @@ async def startup_event():
 # PUBLIC STORE APIS
 # ==========================================
 
+def _cached_json_response(payload: Any, cache_state: str) -> JSONResponse:
+    return JSONResponse(
+        content=payload,
+        headers={
+            "X-Cache": cache_state,
+            "X-Cache-Backend": cache_backend_name(),
+        },
+    )
+
+
 @app.get("/api/settings")
 async def get_public_settings():
-    return {
-        "ok": True,
-        "store_name": settings.get("store_name"),
-        "telegram_handle": settings.get("telegram_handle"),
-        "khqr_merchant_name": settings.get("khqr_merchant_name"),
-        "home_banner": settings.get("home_banner", "/media/banner1.webp"),
-        "roblox_banner": settings.get("roblox_banner", "/media/roblox-banner.webp"),
-        "google_client_id": settings.get("google_client_id", "220196407393-n5m72vbjquni5g4uuo9bfpdrmmn41c24.apps.googleusercontent.com")
-    }
+    data, state = cache_aside_get(
+        "rolea:settings:public",
+        300,
+        lambda: {
+            "ok": True,
+            "store_name": settings.get("store_name"),
+            "telegram_handle": settings.get("telegram_handle"),
+            "khqr_merchant_name": settings.get("khqr_merchant_name"),
+            "home_banner": settings.get("home_banner", "/media/banner1.webp"),
+            "roblox_banner": settings.get("roblox_banner", "/media/roblox-banner.webp"),
+            "google_client_id": settings.get("google_client_id", "220196407393-n5m72vbjquni5g4uuo9bfpdrmmn41c24.apps.googleusercontent.com")
+        },
+    )
+    return _cached_json_response(data, state)
 
 @app.get("/api/games")
 async def get_games():
-    return {"ok": True, "games": games}
+    data, state = cache_aside_get("rolea:games:all", 300, lambda: {"ok": True, "games": games})
+    return _cached_json_response(data, state)
 
 @app.get("/api/packages")
 async def get_public_packages(game: Optional[str] = None):
-    if game:
-        return {"ok": True, "packages": [p for p in packages if p.get("game", "roblox") == game and p.get("ok") != 0]}
-    return {"ok": True, "packages": [p for p in packages if p.get("ok") != 0]}
+    cache_key = f"rolea:packages:{game or 'all'}"
+    data, state = cache_aside_get(
+        cache_key,
+        300,
+        lambda: {"ok": True, "packages": [p for p in packages if (not game or p.get("game", "roblox") == game) and p.get("ok") != 0]},
+    )
+    return _cached_json_response(data, state)
 
 @app.get("/api/game/{game_id}")
 async def get_game_detail(game_id: str):
+    cache_key = f"rolea:game:{game_id}"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return _cached_json_response(cached, "HIT")
     g = games.get(game_id)
     if not g:
         return JSONResponse(status_code=404, content={"ok": False, "error": "Game not found"})
     pkgs = [p for p in packages if p.get("game", "roblox") == game_id and p.get("ok") != 0]
-    return {"ok": True, "game": g, "packages": pkgs}
+    payload = {"ok": True, "game": g, "packages": pkgs}
+    cache_set(cache_key, payload, 300)
+    return _cached_json_response(payload, "MISS")
 
 @app.post("/api/check-id")
 async def check_player_id(request: Request):
@@ -1387,6 +1606,10 @@ async def check_player_id(request: Request):
         return JSONResponse(status_code=400, content={"ok": False, "error": "Please enter a valid username or ID."})
 
     if game == "roblox":
+        r_key = f"rolea:roblox_user:{query.lower()}"
+        cached_u = cache_get(r_key)
+        if cached_u is not None:
+            return _cached_json_response(cached_u, "HIT")
         try:
             async with httpx.AsyncClient(timeout=3.0) as client:
                 res = await client.post(
@@ -1406,13 +1629,15 @@ async def check_player_id(request: Request):
                             avatar = av_data["data"][0].get("imageUrl", "")
                     except Exception:
                         pass
-                    return {
+                    payload = {
                         "ok": True,
                         "username": u["name"],
                         "display_name": u.get("displayName") or u["name"],
                         "roblox_id": str(u["id"]),
                         "avatar": avatar or "https://tr.rbxcdn.com/30DAY-AvatarHeadshot-150x150-Png/150/150/AvatarHeadshot/Png/noFilter"
                     }
+                    cache_set(r_key, payload, 600)
+                    return _cached_json_response(payload, "MISS")
         except Exception:
             pass
 
@@ -1448,6 +1673,10 @@ async def check_player_id(request: Request):
 
 @app.get("/api/roblox-avatar/{user_id}")
 async def get_roblox_avatar(user_id: str):
+    av_key = f"rolea:roblox_avatar:{user_id}"
+    cached_av = cache_get(av_key)
+    if cached_av is not None:
+        return _cached_json_response(cached_av, "HIT")
     try:
         async with httpx.AsyncClient(timeout=3.0) as client:
             av_res = await client.get(
@@ -1457,7 +1686,9 @@ async def get_roblox_avatar(user_id: str):
             if av_data and av_data.get("data") and len(av_data["data"]) > 0:
                 img_url = av_data["data"][0].get("imageUrl")
                 if img_url:
-                    return {"avatar": img_url}
+                    payload = {"avatar": img_url}
+                    cache_set(av_key, payload, 900)
+                    return _cached_json_response(payload, "MISS")
     except Exception:
         pass
     return {"avatar": "https://tr.rbxcdn.com/30DAY-AvatarHeadshot-150x150-Png/150/150/AvatarHeadshot/Png/noFilter"}
@@ -1534,38 +1765,42 @@ def _finalize_spin_win_order(username: str, roblox_id: Optional[str], avatar: st
 
 @app.get("/api/spin/config")
 async def get_public_spin_config():
-    public_slices = [
-        {
-            "id": s.get("id"),
-            "label": s.get("label"),
-            "robux": int(s.get("robux", 0)),
-            "color": s.get("color", "#2563eb"),
-            "text_color": s.get("text_color", "#ffffff")
+    def _build_spin_config():
+        public_slices = [
+            {
+                "id": s.get("id"),
+                "label": s.get("label"),
+                "robux": int(s.get("robux", 0)),
+                "color": s.get("color", "#2563eb"),
+                "text_color": s.get("text_color", "#ffffff")
+            }
+            for s in spin_data.get("slices", [])
+        ]
+        recent_winners = []
+        for h in spin_data.get("history", []):
+            if int(h.get("robux", 0)) > 0:
+                u = str(h.get("username") or "Player")
+                masked = (u[:3] + "***") if len(u) > 3 else (u + "***")
+                recent_winners.append({
+                    "username": masked,
+                    "robux": int(h.get("robux", 0)),
+                    "label": h.get("label"),
+                    "created_at": h.get("created_at")
+                })
+                if len(recent_winners) >= 12:
+                    break
+        return {
+            "ok": True,
+            "enabled": bool(spin_data.get("enabled", True)),
+            "title": spin_data.get("title", "Lucky Robux Wheel"),
+            "subtitle": spin_data.get("subtitle", "Spin to win instant Robux up to 1,000 R$!"),
+            "spin_price_usd": float(spin_data.get("spin_price_usd", 0.50)),
+            "slices": public_slices,
+            "recent_winners": recent_winners
         }
-        for s in spin_data.get("slices", [])
-    ]
-    recent_winners = []
-    for h in spin_data.get("history", []):
-        if int(h.get("robux", 0)) > 0:
-            u = str(h.get("username") or "Player")
-            masked = (u[:3] + "***") if len(u) > 3 else (u + "***")
-            recent_winners.append({
-                "username": masked,
-                "robux": int(h.get("robux", 0)),
-                "label": h.get("label"),
-                "created_at": h.get("created_at")
-            })
-            if len(recent_winners) >= 12:
-                break
-    return {
-        "ok": True,
-        "enabled": bool(spin_data.get("enabled", True)),
-        "title": spin_data.get("title", "Lucky Robux Wheel"),
-        "subtitle": spin_data.get("subtitle", "Spin to win instant Robux up to 1,000 R$!"),
-        "spin_price_usd": float(spin_data.get("spin_price_usd", 0.50)),
-        "slices": public_slices,
-        "recent_winners": recent_winners
-    }
+
+    data, state = cache_aside_get("rolea:spin:config", 120, _build_spin_config)
+    return _cached_json_response(data, state)
 
 @app.post("/api/spin/create-ticket")
 async def create_spin_ticket(request: Request):
@@ -2525,17 +2760,21 @@ async def apply_promo(request: Request):
 
 @app.get("/api/reviews")
 async def get_reviews():
-    approved = [r for r in reviews if r.get("approved") is not False]
-    total = len(approved)
-    avg = sum(float(r.get("rating", 5)) for r in approved) / total if total > 0 else 5.0
-    return {
-        "ok": True,
-        "reviews": approved,
-        "stats": {
-            "total": total,
-            "average_rating": round(avg, 1)
+    def _build_reviews():
+        approved = [r for r in reviews if r.get("approved") is not False]
+        total = len(approved)
+        avg = sum(float(r.get("rating", 5)) for r in approved) / total if total > 0 else 5.0
+        return {
+            "ok": True,
+            "reviews": approved,
+            "stats": {
+                "total": total,
+                "average_rating": round(avg, 1)
+            }
         }
-    }
+
+    data, state = cache_aside_get("rolea:reviews:approved", 300, _build_reviews)
+    return _cached_json_response(data, state)
 
 @app.post("/api/reviews/submit")
 async def submit_review(request: Request):
@@ -2574,26 +2813,67 @@ async def submit_review(request: Request):
 
 @app.get("/api/live-proof")
 async def get_live_proof():
-    live_list = []
-    for o in orders:
-        if o.get("paid") and o.get("type") != "wallet_topup":
-            raw_name = o.get("roblox_username") or o.get("username") or o.get("display_name") or "Customer"
-            masked = raw_name[:3] + "***" if len(raw_name) > 3 else raw_name + "***"
-            g_name = o.get("product_name") or games.get(o.get("game", ""), {}).get("name") or "Game Topup"
-            live_list.append({
-                "order_id": o.get("order_id"),
-                "username": masked,
-                "game": g_name,
-                "package": o.get("package"),
-                "amount": o.get("amount"),
-                "time": o.get("created_at")
-            })
-            if len(live_list) >= 15:
-                break
+    def _build_live_proof():
+        live_list = []
+        for o in orders:
+            if o.get("paid") and o.get("type") != "wallet_topup":
+                raw_name = o.get("roblox_username") or o.get("username") or o.get("display_name") or "Customer"
+                masked = raw_name[:3] + "***" if len(raw_name) > 3 else raw_name + "***"
+                g_name = o.get("product_name") or games.get(o.get("game", ""), {}).get("name") or "Game Topup"
+                live_list.append({
+                    "order_id": o.get("order_id"),
+                    "username": masked,
+                    "game": g_name,
+                    "package": o.get("package"),
+                    "amount": o.get("amount"),
+                    "time": o.get("created_at")
+                })
+                if len(live_list) >= 15:
+                    break
+        return {"ok": True, "live_proof": live_list}
 
-    # Only return real paid orders (no fake seed entries)
+    data, state = cache_aside_get("rolea:live_proof", 45, _build_live_proof)
+    return _cached_json_response(data, state)
 
-    return {"ok": True, "live_proof": live_list}
+
+@app.get("/api/admin/cache/status")
+async def admin_cache_status(request: Request):
+    if not verify_admin_session(request):
+        return JSONResponse(status_code=401, content={"ok": False, "error": "Unauthorized"})
+    hits = int(_cache_stats.get("hits", 0))
+    misses = int(_cache_stats.get("misses", 0))
+    total = hits + misses
+    hit_rate = round((hits / total) * 100.0, 1) if total > 0 else 0.0
+    r = _get_redis()
+    redis_keys = None
+    if r is not None:
+        try:
+            redis_keys = sum(1 for _ in r.scan_iter(match="rolea:*", count=200))
+        except Exception:
+            redis_keys = None
+    return {
+        "ok": True,
+        "strategy": "cache-aside",
+        "backend": "redis" if r is not None else "memory-fallback",
+        "redis_configured": bool(_get_redis_url()),
+        "redis_connected": r is not None,
+        "cached_keys": redis_keys if redis_keys is not None else len(_mem_cache),
+        "hits": hits,
+        "misses": misses,
+        "hit_rate_pct": hit_rate,
+        "writes": int(_cache_stats.get("writes", 0)),
+        "invalidations": int(_cache_stats.get("invalidations", 0)),
+        "errors": int(_cache_stats.get("errors", 0)),
+        "last_error": _cache_stats.get("last_error", ""),
+    }
+
+
+@app.post("/api/admin/cache/flush")
+async def admin_cache_flush(request: Request):
+    if not verify_admin_session(request):
+        return JSONResponse(status_code=401, content={"ok": False, "error": "Unauthorized"})
+    cache_delete("rolea:*")
+    return {"ok": True, "message": "Cache flushed successfully."}
 
 # ==========================================
 # CREATE & CHECK ORDERS
