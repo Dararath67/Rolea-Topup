@@ -720,6 +720,10 @@
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 3L10 14"/><path d="M21 3l-7 18-4-7-7-4z"/></svg>
                 <span id="usr-tg">Telegram: Not linked</span>
               </span>
+              <span id="usr-id-wrap" onclick="copyUserId()" title="Click to copy User ID" style="cursor:pointer;background:#f1f5f9;padding:2px 9px;border-radius:999px;border:1px solid #e2e8f0;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:#334155;display:inline-flex;align-items:center;gap:5px;transition:all 0.15s">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <span>ID: <span id="usr-id">—</span></span>
+              </span>
             </div>
           </div>
         </div>
@@ -938,6 +942,7 @@ async function loadDashboardData() {
     document.getElementById('usr-username').textContent = u.username;
     document.getElementById('usr-email').textContent = u.email || 'customer@rolea.com';
     document.getElementById('usr-tg').textContent = u.telegram ? ('@' + u.telegram) : 'Telegram: Not linked';
+    document.getElementById('usr-id').textContent = u.id || '—';
     document.getElementById('usr-balance').textContent = '$' + Number(u.balance || 0).toFixed(2);
     if (u.avatar) document.getElementById('usr-avatar').src = u.avatar;
 
@@ -953,6 +958,28 @@ async function loadDashboardData() {
 
   } catch (e) {
     console.error(e);
+  }
+}
+
+function copyUserId() {
+  const idEl = document.getElementById('usr-id');
+  const wrap = document.getElementById('usr-id-wrap');
+  const val = idEl ? idEl.textContent.trim() : '';
+  if (!val || val === '—') return;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(val).catch(() => {});
+  }
+  if (wrap) {
+    const oldBg = wrap.style.background;
+    const oldColor = wrap.style.color;
+    wrap.style.background = '#ecfdf5';
+    wrap.style.color = '#059669';
+    idEl.textContent = val + ' (Copied!)';
+    setTimeout(() => {
+      wrap.style.background = oldBg || '#f1f5f9';
+      wrap.style.color = oldColor || '#334155';
+      idEl.textContent = val;
+    }, 1400);
   }
 }
 
