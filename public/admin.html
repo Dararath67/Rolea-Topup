@@ -50,7 +50,6 @@
     .ad-layout.sidebar-collapsed .side-brand-text,
     .ad-layout.sidebar-collapsed .nav-group-title,
     .ad-layout.sidebar-collapsed .nav-label,
-    .ad-layout.sidebar-collapsed .server-card-info,
     .ad-layout.sidebar-collapsed .foot-label,
     .ad-layout.sidebar-collapsed .sidebar-toggle-btn {
       display: none !important;
@@ -67,10 +66,6 @@
       right: 6px;
       padding: 2px 4px;
       font-size: 9px;
-    }
-    .ad-layout.sidebar-collapsed .server-card {
-      justify-content: center;
-      padding: 10px 0;
     }
     .ad-layout.sidebar-collapsed .side-foot a {
       justify-content: center;
@@ -254,30 +249,6 @@
     .side-nav a.on .badge-pill {
       background: #2563eb;
       color: #ffffff;
-    }
-
-    /* Sidebar Server Status Card */
-    .server-card {
-      background: var(--adm-sidebar-card);
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      padding: 10px 12px;
-      margin-top: 12px;
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .server-card-info b {
-      display: block;
-      color: #0f172a;
-      font-size: 12px;
-      font-weight: 700;
-    }
-    .server-card-info span {
-      font-size: 11px;
-      color: #059669;
-      font-weight: 600;
     }
 
     .side-foot {
@@ -1097,8 +1068,7 @@
         padding: 0 4px 14px !important;
         margin-bottom: 12px !important;
       }
-      .side .side-brand-text,
-      .side .server-card-info {
+      .side .side-brand-text {
         display: block !important;
       }
       .side .nav-label,
@@ -1357,15 +1327,6 @@
         <span class="badge-pill" id="badge-sec-warn" style="background:#f59e0b;color:#fff;font-weight:700;display:none">!</span>
       </a>
     </nav>
-
-    <!-- Server health -->
-    <div class="server-card">
-      <div class="server-card-info">
-        <b>Server Node v24</b>
-        <span>● Online & Polling</span>
-      </div>
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-    </div>
 
     <div class="side-foot">
       <a class="store-link" href="/" target="_blank" title="View Storefront">
