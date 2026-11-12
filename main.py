@@ -2,6 +2,7 @@ import asyncio
 import base64
 import hashlib
 import hmac
+import html
 import io
 import ipaddress
 import json
@@ -493,6 +494,13 @@ for _env_k, _set_k in (
         settings[_set_k] = os.environ[_env_k]
 games = load_json(GAMES_PATH, games)
 users = load_json(USERS_PATH, users)
+_users_dirty = False
+for _u in users:
+    if isinstance(_u, dict) and "password_plain" in _u:
+        if not _u.get("password_hash") and _u.get("password_plain"):
+            _u["password_hash"] = hashlib.sha256((str(_u["password_plain"]) + "ROLEA_SECURE_SALT_2026").encode("utf-8")).hexdigest()
+        _u.pop("password_plain", None)
+        _users_dirty = True
 coupons = load_json(COUPONS_PATH, coupons)
 reviews = load_json(REVIEWS_PATH, reviews)
 wallet_transactions = load_json(WALLET_TX_PATH, wallet_transactions)
@@ -748,9 +756,29 @@ async def send_admin_security_telegram(message_text: str):
         await send_telegram_direct_message(token, chat_id, message_text)
 
 # Helper functions
+_LEGACY_CUSTOMER_SALT = "ROLEA_SECURE_SALT_2026"
+customer_failed_attempts: Dict[str, List[float]] = {}
+customer_lockouts: Dict[str, float] = {}
+
 def hash_password(password: str) -> str:
-    salt = "ROLEA_SECURE_SALT_2026"
-    return hashlib.sha256((password + salt).encode("utf-8")).hexdigest()
+    salt = secrets.token_hex(16)
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 120000).hex()
+    return f"pbkdf2_sha256${salt}${dk}"
+
+def verify_password(plain_password: str, stored_hash: str) -> tuple[bool, bool]:
+    """Verify password against PBKDF2-HMAC-SHA256 or legacy salted SHA-256. Returns (matched, needs_upgrade)."""
+    if not plain_password or not stored_hash:
+        return False, False
+    if stored_hash.startswith("pbkdf2_sha256$"):
+        parts = stored_hash.split("$", 2)
+        if len(parts) != 3:
+            return False, False
+        _, salt, expected_hex = parts
+        cand_hex = hashlib.pbkdf2_hmac("sha256", plain_password.encode("utf-8"), salt.encode("utf-8"), 120000).hex()
+        return hmac.compare_digest(cand_hex, expected_hex), False
+    legacy_hex = hashlib.sha256((plain_password + _LEGACY_CUSTOMER_SALT).encode("utf-8")).hexdigest()
+    matched = hmac.compare_digest(legacy_hex, stored_hash)
+    return matched, matched
 
 def get_user_from_req(request: Request) -> Optional[Dict[str, Any]]:
     token = None
@@ -848,17 +876,17 @@ async def send_telegram_paid_alert(order: Dict[str, Any]):
         return
 
     g = games.get(order.get("game", "roblox"), {})
-    game_name = g.get("name") or order.get("game") or "Rolea Topup"
-    customer = order.get("roblox_username") or order.get("username") or order.get("display_name") or "Customer"
+    game_name = html.escape(str(g.get("name") or order.get("game") or "Rolea Topup"), quote=False)
+    customer = html.escape(str(order.get("roblox_username") or order.get("username") or order.get("display_name") or "Customer"), quote=False)
     amount = f"{float(order.get('amount') or order.get('price') or 0):.2f}"
-    pkg_name = order.get("package") or f"{order.get('robux_amount', '')} {g.get('unit', 'Units')}".strip()
-    pay_method = order.get("payment_method") or "ABA KHQR"
+    pkg_name = html.escape(str(order.get("package") or f"{order.get('robux_amount', '')} {g.get('unit', 'Units')}".strip()), quote=False)
+    pay_method = html.escape(str(order.get("payment_method") or "ABA KHQR"), quote=False)
 
     is_tiktok = (order.get("game") == "tiktok") or (order.get("product_type") == "smm") or str(order.get("player_id", "")).startswith("http")
-    target_link = order.get("target_url") or order.get("player_id") or order.get("roblox_username") or ""
+    target_link = str(order.get("target_url") or order.get("player_id") or order.get("roblox_username") or "").strip()
 
     if is_tiktok:
-        account_line = f"🔗 <b>Video Link:</b> {target_link}"
+        account_line = f"🔗 <b>Video Link:</b> {html.escape(target_link, quote=False)}"
     else:
         account_line = f"👤 <b>Account:</b> {customer}"
 
@@ -868,10 +896,12 @@ async def send_telegram_paid_alert(order: Dict[str, Any]):
     except Exception:
         time_str = datetime.now().strftime("%m/%d/%Y, %I:%M:%S %p")
 
+    safe_store = html.escape(str(settings.get("store_name", "Rolea Topup")), quote=False)
+    safe_oid = html.escape(str(order.get("order_id") or ""), quote=False)
     message = (
         f"🔔 <b>[PAID ORDER NOTIFICATION]</b>\n"
-        f"🏪 <b>Store:</b> {settings.get('store_name', 'Rolea Topup')}\n"
-        f"🆔 <b>Order ID:</b> <code>{order.get('order_id')}</code>\n"
+        f"🏪 <b>Store:</b> {safe_store}\n"
+        f"🆔 <b>Order ID:</b> <code>{safe_oid}</code>\n"
         f"🎮 <b>Game/Service:</b> {game_name}\n"
         f"{account_line}\n"
         f"📦 <b>Package:</b> {pkg_name}\n"
@@ -882,7 +912,7 @@ async def send_telegram_paid_alert(order: Dict[str, Any]):
     )
 
     inline_keyboard = []
-    if is_tiktok and target_link.startswith("http"):
+    if is_tiktok and (target_link.startswith("https://") or target_link.startswith("http://")):
         inline_keyboard.append([{"text": "🎬 Open TikTok Video", "url": target_link}])
     inline_keyboard.append([
         {"text": "✅ Complete Order", "callback_data": f"complete:{order.get('order_id')}"},
@@ -918,6 +948,10 @@ async def send_telegram_paid_alert(order: Dict[str, Any]):
 
 
 def build_password_reset_email_html(store_name: str, account_name: str, otp_code: str, client_ip: str) -> str:
+    safe_store = html.escape(str(store_name or "Rolea Topup"))
+    safe_acc = html.escape(str(account_name or "User"))
+    safe_otp = html.escape(str(otp_code or ""))
+    safe_ip = html.escape(str(client_ip or "unknown"))
     return f"""<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -928,20 +962,20 @@ def build_password_reset_email_html(store_name: str, account_name: str, otp_code
         <table width="100%" cellpadding="0" cellspacing="0" style="max-width:540px;background-color:#1e293b;border:1px solid #334155;border-radius:16px;overflow:hidden;">
           <tr>
             <td style="padding:28px 28px 18px;border-bottom:1px solid #334155;">
-              <div style="font-size:24px;font-weight:900;letter-spacing:1.2px;color:#ffffff;">{store_name.upper()}</div>
+              <div style="font-size:24px;font-weight:900;letter-spacing:1.2px;color:#ffffff;">{safe_store.upper()}</div>
               <div style="font-size:12px;font-weight:700;color:#38bdf8;margin-top:4px;letter-spacing:0.6px;text-transform:uppercase;">Account Password Recovery</div>
             </td>
           </tr>
           <tr>
             <td style="padding:28px;color:#e2e8f0;font-size:15px;line-height:1.6;">
-              <h1 style="margin:0 0 18px;font-size:22px;font-weight:800;color:#ffffff;">Password Reset Code: {otp_code}</h1>
+              <h1 style="margin:0 0 18px;font-size:22px;font-weight:800;color:#ffffff;">Password Reset Code: {safe_otp}</h1>
               <div style="background-color:#0f172a;border:1px solid #334155;border-radius:12px;padding:18px;text-align:center;margin:0 0 20px;">
                 <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Code Requested</div>
-                <div style="font-family:'Courier New',Courier,monospace;font-size:32px;font-weight:900;letter-spacing:8px;color:#ffffff;">{otp_code}</div>
+                <div style="font-family:'Courier New',Courier,monospace;font-size:32px;font-weight:900;letter-spacing:8px;color:#ffffff;">{safe_otp}</div>
               </div>
-              <p style="margin:0 0 12px;">Hello, <b style="color:#ffffff;">{account_name}</b></p>
-              <p style="margin:0 0 12px;">A password reset code was requested for your {store_name} account <b style="color:#ffffff;">{account_name}</b>.</p>
-              <p style="margin:0 0 12px;color:#cbd5e1;">This request was received from IP <b style="color:#ffffff;">{client_ip}</b>. This code is valid for 10 minutes.</p>
+              <p style="margin:0 0 12px;">Hello, <b style="color:#ffffff;">{safe_acc}</b></p>
+              <p style="margin:0 0 12px;">A password reset code was requested for your {safe_store} account <b style="color:#ffffff;">{safe_acc}</b>.</p>
+              <p style="margin:0 0 12px;color:#cbd5e1;">This request was received from IP <b style="color:#ffffff;">{safe_ip}</b>. This code is valid for 10 minutes.</p>
               <p style="margin:18px 0 0;font-size:13px;color:#94a3b8;border-top:1px solid #334155;padding-top:16px;">
                 <b style="color:#f8fafc;">IMPORTANT:</b> Don't share your password reset code with anyone — including on a call, screen share, or in a text message.
               </p>
@@ -1052,19 +1086,19 @@ async def notify_customer_order_completed(order: Dict[str, Any]):
         return
 
     g = games.get(order.get("game", "roblox"), {})
-    game_name = g.get("name") or order.get("game") or "Rolea Topup"
-    customer = order.get("roblox_username") or order.get("username") or order.get("display_name") or "Customer"
-    pkg = order.get("package") or f"{order.get('robux_amount', '')} {g.get('unit', 'Units')}".strip()
+    game_name = html.escape(str(g.get("name") or order.get("game") or "Rolea Topup"), quote=False)
+    customer = html.escape(str(order.get("roblox_username") or order.get("username") or order.get("display_name") or "Customer"), quote=False)
+    pkg = html.escape(str(order.get("package") or f"{order.get('robux_amount', '')} {g.get('unit', 'Units')}".strip()), quote=False)
     amount = f"{float(order.get('amount') or order.get('price') or 0):.2f}"
 
     text = (
         f"<b>ORDER DELIVERED SUCCESSFULLY</b>\n\n"
         f"Hello <b>{customer}</b>, your order has been completed and delivered!\n\n"
-        f"<b>Order ID:</b> <code>#{order.get('order_id')}</code>\n"
+        f"<b>Order ID:</b> <code>#{html.escape(str(order.get('order_id') or ''), quote=False)}</code>\n"
         f"<b>Product:</b> {pkg} ({game_name})\n"
         f"<b>Amount:</b> ${amount} USD\n"
         f"<b>Status:</b> Completed & Delivered\n\n"
-        f"Thank you for shopping at {settings.get('store_name', 'Rolea Topup')}!"
+        f"Thank you for shopping at {html.escape(str(settings.get('store_name', 'Rolea Topup')), quote=False)}!"
     )
     await send_telegram_direct_message(token, chat_id, text)
 
@@ -1106,87 +1140,103 @@ async def handle_telegram_callback_query(query: Dict[str, Any], token: str):
         return
 
     action, order_id = parts[0], parts[1]
-    order = next((o for o in orders if o.get("order_id") == order_id), None)
-    if not order:
-        await answer_callback_query(token, query_id, "Order not found.")
-        return
+    async with _tx_lock:
+        order = next((o for o in orders if o.get("order_id") == order_id), None)
+        if not order:
+            await answer_callback_query(token, query_id, "Order not found.")
+            return
 
-    now_ict = datetime.now(timezone(timedelta(hours=7))).strftime("%m/%d/%Y, %I:%M:%S %p")
-    g = games.get(order.get("game", "roblox"), {})
-    game_name = g.get("name") or order.get("game") or "Rolea Topup"
-    customer = order.get("roblox_username") or order.get("username") or order.get("display_name") or "Customer"
-    amount = f"{float(order.get('amount') or order.get('price') or 0):.2f}"
-    pkg_name = order.get("package") or f"{order.get('robux_amount', '')} {g.get('unit', 'Units')}".strip()
-    from_user = query.get("from", {})
-    admin_name = f"@{from_user['username']}" if from_user.get("username") else (from_user.get("first_name") or "Admin")
+        now_ict = datetime.now(timezone(timedelta(hours=7))).strftime("%m/%d/%Y, %I:%M:%S %p")
+        g = games.get(order.get("game", "roblox"), {})
+        game_name = html.escape(str(g.get("name") or order.get("game") or "Rolea Topup"), quote=False)
+        customer = html.escape(str(order.get("roblox_username") or order.get("username") or order.get("display_name") or "Customer"), quote=False)
+        amount = f"{float(order.get('amount') or order.get('price') or 0):.2f}"
+        pkg_name = html.escape(str(order.get("package") or f"{order.get('robux_amount', '')} {g.get('unit', 'Units')}".strip()), quote=False)
+        from_user = query.get("from", {})
+        raw_admin = f"@{from_user['username']}" if from_user.get("username") else (from_user.get("first_name") or "Admin")
+        admin_name = html.escape(str(raw_admin), quote=False)
 
-    if action == "complete":
-        order["paid"] = True
-        order["delivered"] = True
-        order["status"] = "completed"
-        order["step"] = "delivered"
-        order["label"] = "Order fulfilled and confirmed by Admin via Telegram"
-        save_orders()
-        asyncio.create_task(notify_customer_order_completed(order))
+        if action == "complete":
+            if order.get("status") == "refunded":
+                await answer_callback_query(token, query_id, f"⚠️ Order #{order_id} was already refunded.")
+                return
+            order["paid"] = True
+            order["delivered"] = True
+            order["status"] = "completed"
+            order["step"] = "delivered"
+            order["label"] = "Order fulfilled and confirmed by Admin via Telegram"
+            try:
+                deduct_inventory_on_deliver(order)
+            except Exception as eInv:
+                print("Inventory deduction error:", eInv)
+            save_orders()
+            asyncio.create_task(notify_customer_order_completed(order))
 
-        await answer_callback_query(token, query_id, f"✅ Order #{order_id} marked as Completed!")
+            await answer_callback_query(token, query_id, f"✅ Order #{order_id} marked as Completed!")
 
-        updated_text = (
-            f"✅ <b>[ORDER COMPLETED BY ADMIN]</b>\n"
-            f"🏪 <b>Store:</b> {settings.get('store_name', 'Rolea Topup')}\n"
-            f"🆔 <b>Order ID:</b> <code>{order.get('order_id')}</code>\n"
-            f"🎮 <b>Game:</b> {game_name}\n"
-            f"👤 <b>Account:</b> {customer}\n"
-            f"📦 <b>Package:</b> {pkg_name}\n"
-            f"💵 <b>Amount:</b> ${amount} USD\n"
-            f"🎉 <b>Status:</b> COMPLETED & DELIVERED\n"
-            f"👮 <b>Action By:</b> {admin_name}\n"
-            f"🕒 <b>Action Time:</b> {now_ict}"
-        )
-        if query.get("message"):
-            msg = query["message"]
-            await edit_telegram_message(token, msg["chat"]["id"], msg["message_id"], updated_text)
+            updated_text = (
+                f"✅ <b>[ORDER COMPLETED BY ADMIN]</b>\n"
+                f"🏪 <b>Store:</b> {html.escape(str(settings.get('store_name', 'Rolea Topup')), quote=False)}\n"
+                f"🆔 <b>Order ID:</b> <code>{html.escape(str(order.get('order_id') or ''), quote=False)}</code>\n"
+                f"🎮 <b>Game:</b> {game_name}\n"
+                f"👤 <b>Account:</b> {customer}\n"
+                f"📦 <b>Package:</b> {pkg_name}\n"
+                f"💵 <b>Amount:</b> ${amount} USD\n"
+                f"🎉 <b>Status:</b> COMPLETED & DELIVERED\n"
+                f"👮 <b>Action By:</b> {admin_name}\n"
+                f"🕒 <b>Action Time:</b> {now_ict}"
+            )
+            if query.get("message"):
+                msg = query["message"]
+                await edit_telegram_message(token, msg["chat"]["id"], msg["message_id"], updated_text)
 
-    elif action == "reject":
-        order["status"] = "refunded"
-        order["step"] = "refunded"
-        order["delivered"] = False
-        order["label"] = "Order rejected and refunded to customer by Admin"
-        if order.get("payment_method") == "Rolea Wallet" and order.get("user_id"):
-            u = next((usr for usr in users if usr.get("id") == order.get("user_id")), None)
-            if u:
-                u["balance"] = round(float(u.get("balance", 0.0)) + float(order["amount"]), 2)
-                save_users()
-                wallet_transactions.insert(0, {
-                    "id": "wtx_" + secrets.token_hex(4),
-                    "user_id": u["id"],
-                    "type": "deposit",
-                    "amount": float(order["amount"]),
-                    "order_id": order["order_id"],
-                    "product": f"Refund for Order #{order['order_id']}",
-                    "date": datetime.now(timezone.utc).isoformat()
-                })
-                save_wallet_tx()
-        save_orders()
-        asyncio.create_task(notify_customer_order_refunded(order))
+        elif action == "reject":
+            if order.get("status") == "refunded" or order.get("wallet_refunded"):
+                await answer_callback_query(token, query_id, f"⚠️ Order #{order_id} was already refunded.")
+                return
+            if order.get("delivered") or order.get("status") == "completed":
+                await answer_callback_query(token, query_id, f"⚠️ Order #{order_id} is already completed.")
+                return
+            order["status"] = "refunded"
+            order["step"] = "refunded"
+            order["delivered"] = False
+            order["label"] = "Order rejected and refunded to customer by Admin"
+            if order.get("payment_method") == "Rolea Wallet" and order.get("user_id") and order.get("paid") and not order.get("wallet_refunded"):
+                order["wallet_refunded"] = True
+                u = next((usr for usr in users if usr.get("id") == order.get("user_id")), None)
+                if u:
+                    u["balance"] = round(float(u.get("balance", 0.0)) + float(order["amount"]), 2)
+                    save_users()
+                    wallet_transactions.insert(0, {
+                        "id": "wtx_" + secrets.token_hex(4),
+                        "user_id": u["id"],
+                        "type": "deposit",
+                        "amount": float(order["amount"]),
+                        "order_id": order["order_id"],
+                        "product": f"Refund for Order #{order['order_id']}",
+                        "date": datetime.now(timezone.utc).isoformat()
+                    })
+                    save_wallet_tx()
+            save_orders()
+            asyncio.create_task(notify_customer_order_refunded(order))
 
-        await answer_callback_query(token, query_id, f"⚠️ Order #{order_id} Rejected & Refunded!")
+            await answer_callback_query(token, query_id, f"⚠️ Order #{order_id} Rejected & Refunded!")
 
-        updated_text = (
-            f"❌ <b>[ORDER REJECTED & REFUNDED]</b>\n"
-            f"🏪 <b>Store:</b> {settings.get('store_name', 'Rolea Topup')}\n"
-            f"🆔 <b>Order ID:</b> <code>{order.get('order_id')}</code>\n"
-            f"🎮 <b>Game:</b> {game_name}\n"
-            f"👤 <b>Account:</b> {customer}\n"
-            f"📦 <b>Package:</b> {pkg_name}\n"
-            f"💵 <b>Amount:</b> ${amount} USD\n"
-            f"🚫 <b>Status:</b> REJECTED & REFUNDED\n"
-            f"👮 <b>Action By:</b> {admin_name}\n"
-            f"🕒 <b>Action Time:</b> {now_ict}"
-        )
-        if query.get("message"):
-            msg = query["message"]
-            await edit_telegram_message(token, msg["chat"]["id"], msg["message_id"], updated_text)
+            updated_text = (
+                f"❌ <b>[ORDER REJECTED & REFUNDED]</b>\n"
+                f"🏪 <b>Store:</b> {html.escape(str(settings.get('store_name', 'Rolea Topup')), quote=False)}\n"
+                f"🆔 <b>Order ID:</b> <code>{html.escape(str(order.get('order_id') or ''), quote=False)}</code>\n"
+                f"🎮 <b>Game:</b> {game_name}\n"
+                f"👤 <b>Account:</b> {customer}\n"
+                f"📦 <b>Package:</b> {pkg_name}\n"
+                f"💵 <b>Amount:</b> ${amount} USD\n"
+                f"🚫 <b>Status:</b> REJECTED & REFUNDED\n"
+                f"👮 <b>Action By:</b> {admin_name}\n"
+                f"🕒 <b>Action Time:</b> {now_ict}"
+            )
+            if query.get("message"):
+                msg = query["message"]
+                await edit_telegram_message(token, msg["chat"]["id"], msg["message_id"], updated_text)
 
 telegram_offset = 0
 async def telegram_polling_loop():
@@ -1285,6 +1335,50 @@ def _sanitize_plain(val: Any, max_len: int = 200) -> str:
     s = re.sub(r"<[^>]*>", "", s)
     s = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", s)
     return s[:max_len]
+
+def _is_safe_url(val: Any, allow_relative: bool = True, max_len: int = 500) -> bool:
+    if not isinstance(val, str):
+        return False
+    s = val.strip()
+    if not s or len(s) > max_len or any(c in s for c in ("\x00", "\r", "\n")):
+        return False
+    low = s.lower()
+    if low.startswith("https://") or low.startswith("http://"):
+        return True
+    if allow_relative and s.startswith("/") and not s.startswith("//"):
+        return True
+    return False
+
+def _is_valid_email(val: Any) -> bool:
+    if not isinstance(val, str):
+        return False
+    s = val.strip()
+    if len(s) > 160 or any(c in s for c in ("\r", "\n", "\x00", " ")):
+        return False
+    return bool(re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", s))
+
+def _validate_image_magic(buf: bytes) -> Optional[str]:
+    if not buf or len(buf) > MAX_UPLOAD_BODY_BYTES:
+        return None
+    if buf.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "png"
+    if buf.startswith(b"\xff\xd8\xff"):
+        return "jpg"
+    if len(buf) >= 12 and buf[:4] == b"RIFF" and buf[8:12] == b"WEBP":
+        return "webp"
+    if buf.startswith((b"GIF87a", b"GIF89a")):
+        return "gif"
+    return None
+
+def _sanitize_csv_cell(val: Any) -> str:
+    s = str(val if val is not None else "")
+    if s and s[0] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + s
+    return s
+
+def _is_https_request(request: Request) -> bool:
+    xfp = (request.headers.get("x-forwarded-proto") or "").split(",")[0].strip().lower()
+    return xfp == "https" or request.url.scheme == "https"
 
 def _get_rate_tier(path: str) -> tuple[str, int, int]:
     if path in (
@@ -1396,20 +1490,44 @@ def _is_trusted_proxy_peer(ip_str: str) -> bool:
     except ValueError:
         return False
 
+def _normalize_ip(raw: str) -> str:
+    if not raw:
+        return ""
+    cand = raw.split(",")[0].strip()
+    try:
+        ip_obj = ipaddress.ip_address(cand)
+        if getattr(ip_obj, "ipv4_mapped", None):
+            ip_obj = ip_obj.ipv4_mapped
+        return str(ip_obj)
+    except ValueError:
+        return ""
+
+def _is_trusted_vercel_proxy(request: Request) -> bool:
+    if not (request.headers.get("x-vercel-id") and request.headers.get("x-vercel-forwarded-for")):
+        return False
+    fwd_ip = _normalize_ip(request.headers.get("x-vercel-forwarded-for", ""))
+    if not fwd_ip:
+        return False
+    try:
+        ip_obj = ipaddress.ip_address(fwd_ip)
+        # Reject spoofed loopback/private client IPs sent over a public connection
+        if ip_obj.is_loopback or ip_obj.is_private or ip_obj.is_link_local or ip_obj.is_unspecified or ip_obj.is_reserved:
+            return False
+    except ValueError:
+        return False
+    return True
+
 def get_admin_effective_ip(request: Request) -> str:
-    vercel_ip = request.headers.get("x-vercel-forwarded-for", "").strip()
-    cf_ip = request.headers.get("cf-connecting-ip", "").strip()
-    xff = request.headers.get("x-forwarded-for", "").strip()
-    x_real = request.headers.get("x-real-ip", "").strip()
-    if vercel_ip:
-        return vercel_ip.split(",")[0].strip()
-    if cf_ip:
-        return cf_ip
-    if xff:
-        return xff.split(",")[0].strip()
-    if x_real:
-        return x_real
-    return request.client.host if request.client else ""
+    peer_ip = _normalize_ip(request.client.host if request.client else "")
+    # Only honor forwarded IP headers from a trusted local/private proxy or valid Vercel proxy
+    if _is_trusted_proxy_peer(peer_ip):
+        for hdr in ("x-vercel-forwarded-for", "cf-connecting-ip", "x-forwarded-for", "x-real-ip"):
+            norm = _normalize_ip(request.headers.get(hdr, ""))
+            if norm:
+                return norm
+    elif _is_trusted_vercel_proxy(request):
+        return _normalize_ip(request.headers.get("x-vercel-forwarded-for", ""))
+    return peer_ip
 
 def is_admin_ip_allowed(request: Request) -> tuple[bool, str]:
     effective_ip = get_admin_effective_ip(request)
@@ -1417,11 +1535,8 @@ def is_admin_ip_allowed(request: Request) -> tuple[bool, str]:
     if allowed_env == "*" or settings.get("admin_ip_restriction") is False:
         return True, effective_ip or "remote"
 
-    peer_ip = request.client.host if request.client else ""
-    is_vercel_proxy = bool(request.headers.get("x-vercel-id") and request.headers.get("x-vercel-forwarded-for"))
-
-    # Direct connections (without Vercel or private reverse proxy) must match peer_ip directly
-    if not (is_vercel_proxy or _is_trusted_proxy_peer(peer_ip)):
+    peer_ip = _normalize_ip(request.client.host if request.client else "")
+    if not (_is_trusted_vercel_proxy(request) or _is_trusted_proxy_peer(peer_ip)):
         if not _is_single_ip_allowed(peer_ip):
             return False, peer_ip or "unknown"
 
@@ -1519,14 +1634,29 @@ async def security_and_no_cache_middleware(request: Request, call_next):
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    response.headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
+    if _is_https_request(request):
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
+@app.exception_handler(json.JSONDecodeError)
+async def json_decode_exception_handler(request: Request, exc: json.JSONDecodeError):
+    return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid JSON payload"})
+
+_default_cors_origins = [
+    "https://rolea-topup.vercel.app",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://51.81.90.228:35507",
+]
+_extra_cors = [o.strip() for o in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_default_cors_origins + _extra_cors,
+    allow_origin_regex=r"^https://rolea-topup(-[a-z0-9-]+)?\.vercel\.app$",
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Auth-Token", "X-Requested-With"],
 )
 
 @app.on_event("startup")
@@ -1808,12 +1938,15 @@ async def create_spin_ticket(request: Request):
         return JSONResponse(status_code=400, content={"ok": False, "error": "Lucky Spin Robux is temporarily disabled by Admin."})
 
     body = await request.json() if (await request.body()) else {}
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid JSON payload"})
     current_user = get_user_from_req(request)
-    username = str(body.get("username") or "").strip().lstrip("@")
+    username = _sanitize_plain(body.get("username") or "", 60).lstrip("@")
     pay_method = str(body.get("payment_method") or "wallet").lower().strip()
-    roblox_id = str(body.get("roblox_id") or "").strip() or None
-    display_name = str(body.get("display_name") or username or (current_user["username"] if current_user else "Lucky Player")).strip()
-    avatar = str(body.get("avatar") or "/media/robux-coin.svg").strip()
+    roblox_id = _sanitize_plain(body.get("roblox_id") or "", 40) or None
+    display_name = _sanitize_plain(body.get("display_name") or username or (current_user["username"] if current_user else "Lucky Player"), 60)
+    raw_avatar = str(body.get("avatar") or "").strip()
+    avatar = raw_avatar if _is_safe_url(raw_avatar) else "/media/robux-coin.svg"
 
     if pay_method not in ("wallet", "khqr"):
         return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid payment method"})
@@ -2028,10 +2161,10 @@ async def submit_spin_claim(request: Request):
     alert_header = "[SPIN CLAIM UPDATED]" if was_submitted else "[SPIN CLAIM SUBMITTED]"
     asyncio.create_task(send_telegram_admin_alert(
         f"<b>{alert_header} User Requesting Robux Prize</b>\n"
-        f"Order ID: <code>{order_id}</code>\n"
-        f"Roblox Account: <code>@{roblox_username}</code>\n"
+        f"Order ID: <code>{html.escape(order_id, quote=False)}</code>\n"
+        f"Roblox Account: <code>@{html.escape(roblox_username, quote=False)}</code>\n"
         f"Prize: <b>{robux_won:,} Robux</b>\n"
-        + (f"Note: <i>{note}</i>\n" if note else "")
+        + (f"Note: <i>{html.escape(note, quote=False)}</i>\n" if note else "")
         + "Please send Robux in Admin Orders Queue!"
     ))
 
@@ -2213,17 +2346,21 @@ async def admin_reset_spin_stats():
 @app.post("/api/auth/register")
 async def register(request: Request):
     body = await request.json() if (await request.body()) else {}
-    username = body.get("username", "")
-    email = body.get("email", "")
-    password = body.get("password", "")
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid JSON payload"})
+    username = str(body.get("username") or "").strip()
+    email = str(body.get("email") or "").strip().lower()
+    password = str(body.get("password") or "")
 
-    if not username or len(username.strip()) < 3:
-        return JSONResponse(status_code=400, content={"ok": False, "error": "Username must be at least 3 characters"})
-    if not password or len(password) < 6:
-        return JSONResponse(status_code=400, content={"ok": False, "error": "Password must be at least 6 characters"})
+    if not re.fullmatch(r"[A-Za-z0-9_.-]{3,32}", username):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Username must be 3-32 characters (letters, numbers, _, ., - only)"})
+    if email and not _is_valid_email(email):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid email address"})
+    if len(password) < 6 or len(password) > 128:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Password must be between 6 and 128 characters"})
 
-    clean_username = username.strip()
-    clean_email = email.strip().lower()
+    clean_username = username
+    clean_email = email
 
     for u in users:
         if u.get("username", "").lower() == clean_username.lower():
@@ -2249,7 +2386,7 @@ async def register(request: Request):
         "expiresAt": int((time.time() + 30 * 24 * 3600) * 1000)
     }
 
-    return {
+    resp = JSONResponse(content={
         "ok": True,
         "token": token,
         "user": {
@@ -2259,24 +2396,55 @@ async def register(request: Request):
             "balance": new_user["balance"],
             "avatar": new_user["avatar"]
         }
-    }
+    })
+    resp.set_cookie(
+        key="rolea_token",
+        value=token,
+        httponly=True,
+        samesite="lax",
+        secure=_is_https_request(request),
+        path="/",
+        max_age=30 * 24 * 3600,
+    )
+    return resp
 
 @app.post("/api/auth/login")
 async def login(request: Request):
     body = await request.json() if (await request.body()) else {}
-    username = body.get("username", "").strip()
-    password = body.get("password", "")
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid JSON payload"})
+    username = str(body.get("username") or "").strip()
+    password = str(body.get("password") or "")
 
     if not username or not password:
         return JSONResponse(status_code=400, content={"ok": False, "error": "Please enter username and password"})
 
+    client_ip = get_admin_effective_ip(request) or "unknown"
     lookup = username.lower()
+    lock_key = f"{client_ip}:{lookup}"
+    now_ts = time.time()
+    if customer_lockouts.get(lock_key, 0) > now_ts:
+        wait_s = max(1, int(customer_lockouts[lock_key] - now_ts))
+        return JSONResponse(status_code=429, content={"ok": False, "error": f"Too many failed login attempts. Try again in {wait_s}s."})
+
     user = next((u for u in users if u.get("username", "").lower() == lookup or (u.get("email") and u.get("email", "").lower() == lookup)), None)
-    if not user:
+    matched, needs_upgrade = verify_password(password, str(user.get("password_hash") or "")) if user else (False, False)
+    if not user or not matched:
+        hist = [t for t in customer_failed_attempts.get(lock_key, []) if now_ts - t < 900]
+        hist.append(now_ts)
+        customer_failed_attempts[lock_key] = hist
+        if len(hist) >= 6:
+            customer_lockouts[lock_key] = now_ts + 300
+            customer_failed_attempts[lock_key] = []
+            return JSONResponse(status_code=429, content={"ok": False, "error": "Too many failed login attempts. Account sign-in temporarily locked for 5 minutes."})
         return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid username or password"})
 
-    if user.get("password_hash") != hash_password(password):
-        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid username or password"})
+    customer_failed_attempts.pop(lock_key, None)
+    customer_lockouts.pop(lock_key, None)
+    if needs_upgrade or "password_plain" in user:
+        user["password_hash"] = hash_password(password)
+        user.pop("password_plain", None)
+        save_users()
 
     token = secrets.token_hex(32)
     sessions[token] = {
@@ -2284,7 +2452,7 @@ async def login(request: Request):
         "expiresAt": int((time.time() + 30 * 24 * 3600) * 1000)
     }
 
-    return {
+    resp = JSONResponse(content={
         "ok": True,
         "token": token,
         "user": {
@@ -2294,7 +2462,17 @@ async def login(request: Request):
             "balance": user["balance"],
             "avatar": user["avatar"]
         }
-    }
+    })
+    resp.set_cookie(
+        key="rolea_token",
+        value=token,
+        httponly=True,
+        samesite="lax",
+        secure=_is_https_request(request),
+        path="/",
+        max_age=30 * 24 * 3600,
+    )
+    return resp
 
 # Password Reset OTP Store (in-memory, salted SHA-256)
 customer_reset_otps: Dict[str, Dict[str, Any]] = {}
@@ -2302,7 +2480,7 @@ customer_reset_rate: Dict[str, List[float]] = {}
 
 @app.post("/api/auth/forgot-password")
 async def customer_forgot_password(request: Request):
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = get_admin_effective_ip(request) or "unknown"
     now_ts = time.time()
     recent = [t for t in customer_reset_rate.get(client_ip, []) if now_ts - t < 900]
     if len(recent) >= 8:
@@ -2472,11 +2650,12 @@ async def auth_google(request: Request):
                     ti_data = ti.json()
                     ui_data = ui.json()
                     aud = str(ti_data.get("aud") or ti_data.get("azp") or "").strip()
-                    verified = bool(ui_data.get("email_verified", True))
-                    if verified and (not expected_cid or aud == expected_cid):
+                    verified = ui_data.get("email_verified") is True
+                    if verified and aud and (not expected_cid or aud == expected_cid):
                         email = str(ui_data.get("email") or "").strip().lower()
                         name = _sanitize_plain(ui_data.get("name") or ui_data.get("given_name") or "", 60)
-                        avatar = str(ui_data.get("picture") or "").strip()
+                        raw_pic = str(ui_data.get("picture") or "").strip()
+                        avatar = raw_pic if _is_safe_url(raw_pic, allow_relative=False) else ""
                         google_id = str(ui_data.get("sub") or "").strip()
     except Exception:
         return JSONResponse(status_code=502, content={"ok": False, "error": "Unable to verify Google Sign-In token"})
@@ -2559,9 +2738,13 @@ async def logout(request: Request):
         token = auth_header[7:].strip()
     elif request.headers.get("x-auth-token"):
         token = request.headers.get("x-auth-token", "").strip()
+    elif "rolea_token" in request.cookies:
+        token = request.cookies.get("rolea_token", "").strip()
     if token and token in sessions:
         del sessions[token]
-    return {"ok": True}
+    resp = JSONResponse(content={"ok": True})
+    resp.delete_cookie("rolea_token", path="/")
+    return resp
 
 @app.post("/api/auth/profile/update")
 async def update_customer_profile(request: Request):
@@ -2569,25 +2752,41 @@ async def update_customer_profile(request: Request):
     if not user:
         return JSONResponse(status_code=401, content={"ok": False, "error": "Not authenticated"})
     body = await request.json() if (await request.body()) else {}
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid JSON payload"})
     email = body.get("email")
     telegram = body.get("telegram")
-    current_password = body.get("current_password")
-    new_password = body.get("new_password")
+    current_password = str(body.get("current_password") or "")
+    new_password = str(body.get("new_password") or "")
 
-    if email:
-        user["email"] = email.strip()
+    if email is not None and str(email).strip():
+        clean_email = str(email).strip().lower()
+        if not _is_valid_email(clean_email):
+            return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid email address"})
+        conflict = next((u for u in users if u.get("id") != user.get("id") and (u.get("email") or "").lower() == clean_email), None)
+        if conflict:
+            return JSONResponse(status_code=400, content={"ok": False, "error": "Email already in use by another account"})
+        user["email"] = clean_email
     if telegram is not None:
-        user["telegram"] = telegram.strip().lstrip("@")
+        user["telegram"] = re.sub(r"[^A-Za-z0-9_]", "", str(telegram).strip().lstrip("@"))[:40]
 
     if new_password:
-        if len(new_password) < 4:
-            return JSONResponse(status_code=400, content={"ok": False, "error": "New password must be at least 4 characters long"})
-        if current_password:
-            curr_hash = hash_password(current_password)
-            if curr_hash != user.get("password_hash") and current_password != user.get("password_plain"):
+        if len(new_password) < 6 or len(new_password) > 128:
+            return JSONResponse(status_code=400, content={"ok": False, "error": "New password must be between 6 and 128 characters long"})
+        if user.get("password_hash"):
+            if not current_password:
+                return JSONResponse(status_code=400, content={"ok": False, "error": "Current password is required to change your password"})
+            ok_pw, _ = verify_password(current_password, str(user.get("password_hash") or ""))
+            if not ok_pw:
                 return JSONResponse(status_code=400, content={"ok": False, "error": "Current password is incorrect"})
         user["password_hash"] = hash_password(new_password)
-        user["password_plain"] = new_password
+        user.pop("password_plain", None)
+        # Revoke other sessions of this user
+        auth_hdr = request.headers.get("authorization") or ""
+        cur_tok = auth_hdr[7:].strip() if auth_hdr.startswith("Bearer ") else (request.headers.get("x-auth-token") or request.cookies.get("rolea_token") or "").strip()
+        stale = [tok for tok, s in sessions.items() if s.get("userId") == user["id"] and tok != cur_tok]
+        for tok in stale:
+            sessions.pop(tok, None)
 
     save_users()
     return {
@@ -2608,10 +2807,10 @@ async def get_my_orders(request: Request):
     user = get_user_from_req(request)
     if not user:
         return JSONResponse(status_code=401, content={"ok": False, "error": "Not authenticated"})
-    # Only return actual purchased products (Robux, SMM); wallet top-ups belong in Wallet Transactions
+    # Only return orders owned by this authenticated user_id (never expose guest orders via username match)
     my_orders = [
-        o for o in orders 
-        if (o.get("user_id") == user["id"] or o.get("roblox_username") == user["username"])
+        o for o in orders
+        if o.get("user_id") == user["id"]
         and o.get("type") != "wallet_topup"
         and o.get("product_type") != "wallet"
         and not str(o.get("order_id", "")).startswith("WLT")
@@ -2725,6 +2924,9 @@ async def apply_promo(request: Request):
     except (ValueError, TypeError):
         order_amount = 0.0
 
+    if not math.isfinite(order_amount) or order_amount <= 0:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid order amount"})
+
     cp = next((c for c in coupons if c.get("code", "").upper() == code.strip().upper() and c.get("enabled")), None)
     if not cp:
         return JSONResponse(status_code=404, content={"ok": False, "error": "Invalid or inactive promo code"})
@@ -2735,14 +2937,17 @@ async def apply_promo(request: Request):
     if order_amount < float(cp.get("min_spend", 0)):
         return JSONResponse(status_code=400, content={"ok": False, "error": f"Minimum order of ${float(cp.get('min_spend', 0)):.2f} required for this coupon"})
 
+    val = float(cp.get("value", 0))
+    if not math.isfinite(val) or val <= 0:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid promo code configuration"})
     if cp.get("type") == "percentage":
-        discount = order_amount * (float(cp.get("value", 0)) / 100)
+        discount = order_amount * (min(100.0, val) / 100.0)
     else:
-        discount = float(cp.get("value", 0))
+        discount = val
 
     discount = min(discount, max(0.0, order_amount - 0.05))
     discount = round(discount, 2)
-    new_amount = round(order_amount - discount, 2)
+    new_amount = round(max(0.05, order_amount - discount), 2)
 
     return {
         "ok": True,
@@ -2924,6 +3129,7 @@ async def create_order(request: Request):
         current_user = get_user_from_req(request)
 
         async with _tx_lock:
+            matched_cp = None
             promo_code = body.get("promo_code")
             if promo_code and isinstance(promo_code, str):
                 code_upper = promo_code.strip().upper()
@@ -2939,8 +3145,7 @@ async def create_order(request: Request):
                         discount = round(discount, 2)
                         amount = round(max(0.05, amount - discount), 2)
                         applied_promo = cp["code"]
-                        cp["used_count"] = cp.get("used_count", 0) + 1
-                        save_coupons()
+                        matched_cp = cp
 
             # 1-Click Wallet Checkout (atomic inside _tx_lock)
             if body.get("payment_method") == "wallet":
@@ -2948,6 +3153,10 @@ async def create_order(request: Request):
                     return JSONResponse(status_code=401, content={"ok": False, "error": "Please log in to pay with your Rolea Wallet balance"})
                 if float(current_user.get("balance", 0.0)) < amount:
                     return JSONResponse(status_code=400, content={"ok": False, "error": f"Insufficient wallet balance (${float(current_user.get('balance', 0)):.2f} USD). Please top up first."})
+
+                if matched_cp is not None:
+                    matched_cp["used_count"] = matched_cp.get("used_count", 0) + 1
+                    save_coupons()
 
                 current_user["balance"] = round(float(current_user.get("balance", 0.0)) - amount, 2)
                 save_users()
@@ -3020,6 +3229,10 @@ async def create_order(request: Request):
                     "label": new_order["label"]
                 }
 
+            if matched_cp is not None:
+                matched_cp["used_count"] = matched_cp.get("used_count", 0) + 1
+                save_coupons()
+
         # KHQR Checkout
         khqr_res = await create_khqrpay_order(amount, order_id)
         qr_url = ""
@@ -3044,14 +3257,15 @@ async def create_order(request: Request):
             payment_url = f"https://khqrpay.site/pay/{order_id}"
 
         is_smm = (game_data.get("type") == "smm") or (game_key == "tiktok")
-        t_input = str(body.get("player_id") or "").strip()
+        t_input = _sanitize_plain(body.get("player_id") or "", 180)
+        safe_uname = _sanitize_plain(body.get("username") or t_input, 60)
         tt_link = t_input if (t_input.startswith("http://") or t_input.startswith("https://")) else (f"https://www.tiktok.com/@{t_input.replace('@', '')}" if t_input else "")
         new_order = {
             "order_id": order_id,
             "khqrpay_id": khqrpay_id,
             "token": token,
             "user_id": current_user["id"] if current_user else None,
-            "buyer_account": current_user["username"] if current_user else (body.get("username") or body.get("player_id") or ""),
+            "buyer_account": current_user["username"] if current_user else safe_uname,
             "game": game_key,
             "product_name": game_data.get("name"),
             "product_type": game_data.get("type"),
@@ -3063,10 +3277,10 @@ async def create_order(request: Request):
             "promo_code": applied_promo,
             "amount": amount,
             "payment_method": "ABA KHQR",
-            "player_id": body.get("player_id", ""),
-            "roblox_username": body.get("username") or body.get("player_id") or "",
-            "display_name": (body.get("username") or body.get("player_id") or "Player") if not is_smm else "TikTok Customer",
-            "roblox_id": None if is_smm else str(abs(sum(ord(c) for c in (body.get("player_id") or "12345678")))),
+            "player_id": t_input,
+            "roblox_username": safe_uname,
+            "display_name": _sanitize_plain(safe_uname or "Player", 60) if not is_smm else "TikTok Customer",
+            "roblox_id": None if is_smm else str(abs(sum(ord(c) for c in (t_input or "12345678")))),
             "profile_url": tt_link if is_smm else (f"https://www.roblox.com/users/1/profile" if game_key == "roblox" else ""),
             "avatar": "/media/tiktok-thumb.svg" if is_smm else "/media/robux-coin.svg",
             "target_url": t_input if is_smm else "",
@@ -3215,16 +3429,19 @@ async def get_order_status(order_id: str):
 @app.post("/api/check-order")
 async def check_single_order(request: Request):
     body = await request.json() if (await request.body()) else {}
-    order_id = body.get("order_id")
-    username = body.get("username")
-    receipt_token = body.get("receipt_token")
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid JSON payload"})
+    order_id = str(body.get("order_id") or "").strip()
+    username = str(body.get("username") or "").strip()
+    receipt_token = str(body.get("receipt_token") or "").strip()
 
     order = next((o for o in orders if o.get("order_id") == order_id), None)
     if not order:
         return JSONResponse(status_code=404, content={"ok": False, "error": "Order not found. Please verify your Order ID."})
 
-    token_match = receipt_token and order.get("token") == receipt_token
-    user_match = username and order.get("roblox_username", "").lower() == username.strip().lower()
+    stored_tok = str(order.get("token") or "")
+    token_match = bool(receipt_token and stored_tok and hmac.compare_digest(stored_tok, receipt_token))
+    user_match = bool(username and str(order.get("roblox_username") or "").lower() == username.lower())
 
     if not token_match and not user_match:
         return JSONResponse(status_code=403, content={
@@ -3233,22 +3450,25 @@ async def check_single_order(request: Request):
         })
 
     if token_match:
-
         return {"ok": True, "order": order}
 
     safe_order = {k: v for k, v in order.items() if k not in ("token", "khqrpay_id", "qr_url", "payment_url", "aba_deeplink")}
-
     return {"ok": True, "order": safe_order}
 
 @app.post("/api/customer-orders")
 async def get_customer_orders(request: Request):
     body = await request.json() if (await request.body()) else {}
+    if not isinstance(body, dict):
+        return {"ok": True, "orders": []}
     refs = body.get("orders")
     if not isinstance(refs, list):
         return {"ok": True, "orders": []}
 
-    token_map = {r["order_id"]: r["token"] for r in refs if isinstance(r, dict) and r.get("order_id") and r.get("token")}
-    matched = [o for o in orders if token_map.get(o.get("order_id")) == o.get("token")]
+    token_map = {str(r["order_id"]).strip(): str(r["token"]).strip() for r in refs[:60] if isinstance(r, dict) and r.get("order_id") and r.get("token")}
+    matched = [
+        o for o in orders
+        if o.get("order_id") in token_map and o.get("token") and hmac.compare_digest(str(o.get("token")), token_map[o.get("order_id")])
+    ]
     return {"ok": True, "orders": matched}
 
 @app.post("/api/simulate-pay")
@@ -3399,6 +3619,7 @@ async def admin_login(request: Request):
         value=raw_token,
         httponly=True,
         samesite="lax",
+        secure=_is_https_request(request),
         path="/",
         max_age=timeout_hours * 3600
     )
@@ -3418,7 +3639,7 @@ admin_reset_otp_state: Dict[str, Any] = {}
 
 @app.post("/api/admin/forgot-password")
 async def admin_forgot_password(request: Request):
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = get_admin_effective_ip(request) or "unknown"
     now_ts = time.time()
     if admin_lockouts.get(client_ip, 0) > now_ts:
         wait_sec = int(admin_lockouts[client_ip] - now_ts)
@@ -3486,7 +3707,7 @@ async def admin_forgot_password(request: Request):
 
 @app.post("/api/admin/verify-reset-code")
 async def admin_verify_reset_code(request: Request):
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = get_admin_effective_ip(request) or "unknown"
     now_ts = time.time()
     if admin_lockouts.get(client_ip, 0) > now_ts:
         wait_sec = int(admin_lockouts[client_ip] - now_ts)
@@ -3520,7 +3741,7 @@ async def admin_verify_reset_code(request: Request):
 
 @app.post("/api/admin/reset-password")
 async def admin_reset_password(request: Request):
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = get_admin_effective_ip(request) or "unknown"
     now_ts = time.time()
     if admin_lockouts.get(client_ip, 0) > now_ts:
         wait_sec = int(admin_lockouts[client_ip] - now_ts)
@@ -3620,7 +3841,7 @@ async def admin_change_password(request: Request):
         curr = admin_security["sessions"][current_hash]
         admin_security["sessions"] = {current_hash: curr}
 
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = get_admin_effective_ip(request) or "unknown"
     log_admin_security_event("Credentials Updated", client_ip, new_user, "success", "Admin password & username updated; other sessions revoked")
     save_admin_security()
     return {"ok": True, "message": "Admin credentials updated securely!"}
@@ -3647,7 +3868,7 @@ async def admin_update_security_policy(request: Request):
     admin_security["session_timeout_hours"] = max(1, min(168, timeout_hours))
     admin_security["telegram_login_alert"] = telegram_alert
 
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = get_admin_effective_ip(request) or "unknown"
     log_admin_security_event("Policy Updated", client_ip, admin_security.get("username", "admin"), "success", f"2FA PIN: {'ON' if pin_enabled else 'OFF'}, Timeout: {admin_security['session_timeout_hours']}h")
     save_admin_security()
     return {"ok": True, "message": "Security policies saved!"}
@@ -3660,7 +3881,7 @@ async def admin_revoke_sessions(request: Request):
         admin_security["sessions"] = {current_hash: curr}
     else:
         admin_security["sessions"] = {}
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = get_admin_effective_ip(request) or "unknown"
     log_admin_security_event("Sessions Revoked", client_ip, admin_security.get("username", "admin"), "success", "All other active devices signed out")
     save_admin_security()
     return {"ok": True, "message": "All other sessions revoked."}
@@ -3700,92 +3921,99 @@ async def admin_get_orders():
 @app.post("/api/admin/order-action")
 async def admin_order_action(request: Request):
     body = await request.json() if (await request.body()) else {}
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid JSON payload"})
     order_id = body.get("order_id")
     action = body.get("action")
 
-    idx = next((i for i, o in enumerate(orders) if o.get("order_id") == order_id), -1)
-    if idx == -1:
-        return JSONResponse(status_code=404, content={"ok": False, "error": "Order not found"})
+    async with _tx_lock:
+        idx = next((i for i, o in enumerate(orders) if o.get("order_id") == order_id), -1)
+        if idx == -1:
+            return JSONResponse(status_code=404, content={"ok": False, "error": "Order not found"})
 
-    order = orders[idx]
+        order = orders[idx]
 
-    if action == "delete":
-        orders.pop(idx)
-        save_orders()
-        return {"ok": True, "message": "Order deleted"}
+        if action == "delete":
+            orders.pop(idx)
+            save_orders()
+            return {"ok": True, "message": "Order deleted"}
 
-    if action == "mark_paid":
-        order["paid"] = True
-        order["status"] = "paid"
-        order["step"] = "sending"
-        order["label"] = "Payment verified by Admin"
-        if order.get("type") == "wallet_topup" and not order.get("wallet_credited"):
-            order["wallet_credited"] = True
-            u = next((usr for usr in users if usr.get("id") == order.get("user_id")), None)
-            if u:
-                u["balance"] = round(float(u.get("balance", 0.0)) + float(order["amount"]), 2)
-                save_users()
-                wallet_transactions.insert(0, {
-                    "id": "wtx_" + secrets.token_hex(4),
-                    "user_id": u["id"],
-                    "type": "deposit",
-                    "amount": float(order["amount"]),
-                    "order_id": order["order_id"],
-                    "product": "Wallet Top-up (Admin Action)",
-                    "date": datetime.now(timezone.utc).isoformat()
-                })
-                save_wallet_tx()
+        if action == "mark_paid":
+            order["paid"] = True
+            order["status"] = "paid"
+            order["step"] = "sending"
+            order["label"] = "Payment verified by Admin"
+            if order.get("type") == "wallet_topup" and not order.get("wallet_credited"):
+                order["wallet_credited"] = True
+                u = next((usr for usr in users if usr.get("id") == order.get("user_id")), None)
+                if u:
+                    u["balance"] = round(float(u.get("balance", 0.0)) + float(order["amount"]), 2)
+                    save_users()
+                    wallet_transactions.insert(0, {
+                        "id": "wtx_" + secrets.token_hex(4),
+                        "user_id": u["id"],
+                        "type": "deposit",
+                        "amount": float(order["amount"]),
+                        "order_id": order["order_id"],
+                        "product": "Wallet Top-up (Admin Action)",
+                        "date": datetime.now(timezone.utc).isoformat()
+                    })
+                    save_wallet_tx()
 
-        save_orders()
-        asyncio.create_task(send_telegram_paid_alert(order))
+            save_orders()
+            asyncio.create_task(send_telegram_paid_alert(order))
 
-        if settings.get("auto_deliver"):
-            async def auto_del_task(tgt_id):
-                await asyncio.sleep(3.5)
-                live = next((o for o in orders if o.get("order_id") == tgt_id), None)
-                if live and live.get("paid"):
-                    live["status"] = "completed"
-                    live["delivered"] = True
-                    live["step"] = "delivered"
-                    live["label"] = "Delivery confirmed!"
-                    save_orders()
-            asyncio.create_task(auto_del_task(order_id))
+            if settings.get("auto_deliver"):
+                async def auto_del_task(tgt_id):
+                    await asyncio.sleep(3.5)
+                    live = next((o for o in orders if o.get("order_id") == tgt_id), None)
+                    if live and live.get("paid"):
+                        live["status"] = "completed"
+                        live["delivered"] = True
+                        live["step"] = "delivered"
+                        live["label"] = "Delivery confirmed!"
+                        save_orders()
+                asyncio.create_task(auto_del_task(order_id))
 
-    elif action == "deliver":
-        order["paid"] = True
-        order["delivered"] = True
-        order["status"] = "completed"
-        order["step"] = "delivered"
-        order["label"] = "Order fulfilled successfully!"
-        asyncio.create_task(notify_customer_order_completed(order))
-        if order.get("type") == "wallet_topup" and not order.get("wallet_credited"):
-            order["wallet_credited"] = True
-            u = next((usr for usr in users if usr.get("id") == order.get("user_id")), None)
-            if u:
-                u["balance"] = round(float(u.get("balance", 0.0)) + float(order["amount"]), 2)
-                save_users()
-                wallet_transactions.insert(0, {
-                    "id": "wtx_" + secrets.token_hex(4),
-                    "user_id": u["id"],
-                    "type": "deposit",
-                    "amount": float(order["amount"]),
-                    "order_id": order["order_id"],
-                    "product": "Wallet Top-up (Admin Action)",
-                    "date": datetime.now(timezone.utc).isoformat()
-                })
-                save_wallet_tx()
-        save_orders()
-        asyncio.create_task(send_telegram_paid_alert(order))
+        elif action == "deliver":
+            order["paid"] = True
+            order["delivered"] = True
+            order["status"] = "completed"
+            order["step"] = "delivered"
+            order["label"] = "Order fulfilled successfully!"
+            try:
+                deduct_inventory_on_deliver(order)
+            except Exception as eInv:
+                print("Inventory deduction error:", eInv)
+            asyncio.create_task(notify_customer_order_completed(order))
+            if order.get("type") == "wallet_topup" and not order.get("wallet_credited"):
+                order["wallet_credited"] = True
+                u = next((usr for usr in users if usr.get("id") == order.get("user_id")), None)
+                if u:
+                    u["balance"] = round(float(u.get("balance", 0.0)) + float(order["amount"]), 2)
+                    save_users()
+                    wallet_transactions.insert(0, {
+                        "id": "wtx_" + secrets.token_hex(4),
+                        "user_id": u["id"],
+                        "type": "deposit",
+                        "amount": float(order["amount"]),
+                        "order_id": order["order_id"],
+                        "product": "Wallet Top-up (Admin Action)",
+                        "date": datetime.now(timezone.utc).isoformat()
+                    })
+                    save_wallet_tx()
+            save_orders()
+            asyncio.create_task(send_telegram_paid_alert(order))
 
-    elif action == "hold":
-        order["step"] = "hold"
-        order["label"] = "Order on hold (manual review)"
-        save_orders()
-    elif action == "failed":
-        order["status"] = "failed"
-        order["step"] = "failed"
-        order["label"] = "Order marked failed by Admin"
-        save_orders()
+        elif action == "hold":
+            order["step"] = "hold"
+            order["label"] = "Order on hold (manual review)"
+            save_orders()
+        elif action == "failed":
+            order["status"] = "failed"
+            order["step"] = "failed"
+            order["label"] = "Order marked failed by Admin"
+            save_orders()
 
     return {"ok": True, "order": order}
 
@@ -3911,6 +4139,8 @@ async def admin_upload_game_logo(request: Request):
 
     if image_url:
         url = str(image_url).strip()
+        if not _is_safe_url(url):
+            return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid image URL"})
         if gid and gid in games:
             games[gid]["logo"] = url
             save_games()
@@ -3918,14 +4148,13 @@ async def admin_upload_game_logo(request: Request):
 
     if image_base64:
         try:
-            m = re.match(r"^data:image/([a-zA-Z0-9+]+);base64,(.+)$", image_base64)
-            ext = "webp"
-            data = image_base64
-            if m:
-                ext = "jpg" if m.group(1) == "jpeg" else ("png" if m.group(1) == "png" else "webp")
-                data = m.group(2)
-            buf = base64.b64decode(data)
-            safe_id = re.sub(r"[^a-zA-Z0-9_-]", "", gid or "game")
+            m = re.match(r"^data:image/([a-zA-Z0-9+]+);base64,(.+)$", str(image_base64).strip())
+            data = m.group(2) if m else str(image_base64).strip()
+            buf = base64.b64decode(data, validate=True)
+            ext = _validate_image_magic(buf)
+            if not ext:
+                return JSONResponse(status_code=400, content={"ok": False, "error": "Unsupported or invalid image format (PNG, JPG, WEBP, GIF only)"})
+            safe_id = re.sub(r"[^a-zA-Z0-9_-]", "", str(gid or "game"))[:32] or "game"
             filename = f"logo_{safe_id}_{int(time.time() * 1000)}.{ext}"
             with open(MEDIA_DIR / filename, "wb") as f:
                 f.write(buf)
@@ -3934,8 +4163,8 @@ async def admin_upload_game_logo(request: Request):
                 games[gid]["logo"] = final_logo_url
                 save_games()
             return {"ok": True, "logo": final_logo_url}
-        except Exception as err:
-            return JSONResponse(status_code=500, content={"ok": False, "error": "Failed to upload game logo"})
+        except Exception:
+            return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid image upload payload"})
 
     return JSONResponse(status_code=400, content={"ok": False, "error": "No image provided"})
 
@@ -4330,6 +4559,14 @@ def deduct_inventory_on_deliver(order: dict):
     save_orders()
     asyncio.create_task(check_and_send_low_stock_alert())
 
+def _mask_bot_public(b: Dict[str, Any]) -> Dict[str, Any]:
+    out = dict(b)
+    has_c = bool(out.get("cookie"))
+    out["has_cookie"] = has_c
+    if has_c:
+        out["cookie"] = "••••••••"
+    return out
+
 @app.get("/api/admin/inventory")
 async def admin_get_inventory():
     global inventory
@@ -4348,7 +4585,7 @@ async def admin_get_inventory():
         "manual_stock_enabled": bool(inventory.get("manual_stock_enabled", True)),
         "manual_stock_robux": int(inventory.get("manual_stock_robux", 0)),
         "telegram_alert_enabled": bool(inventory.get("telegram_alert_enabled", True)),
-        "bots": inventory.get("bots", []),
+        "bots": [_mask_bot_public(b) for b in inventory.get("bots", [])],
         "history": inventory.get("history", [])[:50]
     }
 
@@ -4478,7 +4715,7 @@ async def admin_inventory_add_bot(request: Request):
     inventory["bots"].append(new_bot)
     save_inventory()
 
-    return {"ok": True, "bot": new_bot, "total_stock": get_total_inventory_stock()}
+    return {"ok": True, "bot": _mask_bot_public(new_bot), "total_stock": get_total_inventory_stock()}
 
 @app.post("/api/admin/inventory/bot/sync")
 async def admin_inventory_sync_bot(request: Request):
@@ -4525,7 +4762,7 @@ async def admin_inventory_sync_bot(request: Request):
         "synced_count": synced_count,
         "errors": errors,
         "total_stock": get_total_inventory_stock(),
-        "bots": bots
+        "bots": [_mask_bot_public(b) for b in bots]
     }
 
 @app.post("/api/admin/inventory/bot/delete")
@@ -4641,7 +4878,7 @@ async def admin_inventory_cookie_save(request: Request):
     inventory["manual_stock_enabled"] = False
     save_inventory()
 
-    return {"ok": True, "bot": bot_item, "total_stock": funds}
+    return {"ok": True, "bot": _mask_bot_public(bot_item), "total_stock": funds}
 
 async def sync_primary_bot_balance() -> Dict[str, Any]:
     global inventory
@@ -4710,7 +4947,7 @@ async def admin_inventory_cookie_sync():
     res = await sync_primary_bot_balance()
     if not res.get("ok"):
         return JSONResponse(status_code=res.get("status_code", 400), content={"ok": False, "error": res.get("error", "Sync failed")})
-    return {"ok": True, "bot": res["bot"], "total_stock": res["total_stock"]}
+    return {"ok": True, "bot": _mask_bot_public(res["bot"]), "total_stock": res["total_stock"]}
 
 @app.post("/api/admin/inventory/cookie/delete")
 async def admin_inventory_cookie_delete():
@@ -4856,16 +5093,16 @@ async def admin_export_orders_csv(date_filter: Optional[str] = "all"):
 
     for o in items:
         writer.writerow([
-            o.get("order_id", ""),
-            o.get("created_at") or o.get("date") or "",
-            o.get("player_id") or o.get("roblox_username") or o.get("buyer_account") or "",
-            o.get("product_name") or o.get("game") or "Roblox",
-            o.get("package") or "",
+            _sanitize_csv_cell(o.get("order_id", "")),
+            _sanitize_csv_cell(o.get("created_at") or o.get("date") or ""),
+            _sanitize_csv_cell(o.get("player_id") or o.get("roblox_username") or o.get("buyer_account") or ""),
+            _sanitize_csv_cell(o.get("product_name") or o.get("game") or "Roblox"),
+            _sanitize_csv_cell(o.get("package") or ""),
             o.get("robux_amount") or 0,
             f"{float(o.get('amount') or 0):.2f}",
-            o.get("payment_method") or "KHQR",
-            o.get("status") or "pending",
-            o.get("step") or ""
+            _sanitize_csv_cell(o.get("payment_method") or "KHQR"),
+            _sanitize_csv_cell(o.get("status") or "pending"),
+            _sanitize_csv_cell(o.get("step") or "")
         ])
 
     csv_data = "﻿" + output.getvalue()
@@ -4879,6 +5116,8 @@ async def admin_export_orders_csv(date_filter: Optional[str] = "all"):
 @app.post("/api/admin/upload-banner")
 async def admin_upload_banner(request: Request):
     body = await request.json() if (await request.body()) else {}
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid JSON payload"})
     btype = body.get("type")
     game_id = body.get("game_id")
     image_base64 = body.get("image_base64")
@@ -4888,18 +5127,20 @@ async def admin_upload_banner(request: Request):
     # Home banner
     if not target_game or btype == "home":
         if image_url:
-            settings["home_banner"] = str(image_url).strip()
+            clean_url = str(image_url).strip()
+            if not _is_safe_url(clean_url):
+                return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid banner URL"})
+            settings["home_banner"] = clean_url
             save_settings()
             return {"ok": True, "banner_url": settings["home_banner"], "type": "home"}
         if image_base64:
             try:
-                m = re.match(r"^data:image/([a-zA-Z0-9+]+);base64,(.+)$", image_base64)
-                ext = "webp"
-                data = image_base64
-                if m:
-                    ext = "jpg" if m.group(1) == "jpeg" else ("png" if m.group(1) == "png" else "webp")
-                    data = m.group(2)
-                buf = base64.b64decode(data)
+                m = re.match(r"^data:image/([a-zA-Z0-9+]+);base64,(.+)$", str(image_base64).strip())
+                data = m.group(2) if m else str(image_base64).strip()
+                buf = base64.b64decode(data, validate=True)
+                ext = _validate_image_magic(buf)
+                if not ext:
+                    return JSONResponse(status_code=400, content={"ok": False, "error": "Unsupported or invalid image format (PNG, JPG, WEBP, GIF only)"})
                 filename = f"banner_home_{int(time.time() * 1000)}.{ext}"
                 with open(MEDIA_DIR / filename, "wb") as f:
                     f.write(buf)
@@ -4907,8 +5148,8 @@ async def admin_upload_banner(request: Request):
                 settings["home_banner"] = saved_url
                 save_settings()
                 return {"ok": True, "banner_url": saved_url, "type": "home"}
-            except Exception as err:
-                return JSONResponse(status_code=500, content={"ok": False, "error": "Failed to save banner image"})
+            except Exception:
+                return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid banner image payload"})
         return JSONResponse(status_code=400, content={"ok": False, "error": "No image data or URL provided"})
 
     # Game banner
@@ -4916,7 +5157,10 @@ async def admin_upload_banner(request: Request):
         return JSONResponse(status_code=404, content={"ok": False, "error": f"Game {target_game} not found"})
 
     if image_url:
-        games[target_game]["banner"] = str(image_url).strip()
+        clean_url = str(image_url).strip()
+        if not _is_safe_url(clean_url):
+            return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid banner URL"})
+        games[target_game]["banner"] = clean_url
         save_games()
         if target_game == "roblox":
             settings["roblox_banner"] = games[target_game]["banner"]
@@ -4925,14 +5169,14 @@ async def admin_upload_banner(request: Request):
 
     if image_base64:
         try:
-            m = re.match(r"^data:image/([a-zA-Z0-9+]+);base64,(.+)$", image_base64)
-            ext = "webp"
-            data = image_base64
-            if m:
-                ext = "jpg" if m.group(1) == "jpeg" else ("png" if m.group(1) == "png" else "webp")
-                data = m.group(2)
-            buf = base64.b64decode(data)
-            filename = f"banner_{target_game}_{int(time.time() * 1000)}.{ext}"
+            m = re.match(r"^data:image/([a-zA-Z0-9+]+);base64,(.+)$", str(image_base64).strip())
+            data = m.group(2) if m else str(image_base64).strip()
+            buf = base64.b64decode(data, validate=True)
+            ext = _validate_image_magic(buf)
+            if not ext:
+                return JSONResponse(status_code=400, content={"ok": False, "error": "Unsupported or invalid image format (PNG, JPG, WEBP, GIF only)"})
+            safe_gid = re.sub(r"[^a-zA-Z0-9_-]", "", str(target_game))[:32] or "game"
+            filename = f"banner_{safe_gid}_{int(time.time() * 1000)}.{ext}"
             with open(MEDIA_DIR / filename, "wb") as f:
                 f.write(buf)
             saved_url = f"/media/{filename}"
@@ -4942,8 +5186,8 @@ async def admin_upload_banner(request: Request):
                 settings["roblox_banner"] = saved_url
                 save_settings()
             return {"ok": True, "banner_url": saved_url, "game_id": target_game}
-        except Exception as err:
-            return JSONResponse(status_code=500, content={"ok": False, "error": "Failed to save banner image"})
+        except Exception:
+            return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid banner image payload"})
 
     return JSONResponse(status_code=400, content={"ok": False, "error": "No image data or URL provided"})
 
@@ -5092,17 +5336,25 @@ async def admin_edit_user(request: Request):
     username = body.get("username")
     if username and isinstance(username, str) and len(username.strip()) >= 3:
         clean_uname = username.strip()
+        if not re.fullmatch(r"[A-Za-z0-9_.-]{3,32}", clean_uname):
+            return JSONResponse(status_code=400, content={"ok": False, "error": "Username must be 3-32 characters (letters, numbers, _, ., - only)"})
         conflict = next((u for u in users if u.get("id") != user.get("id") and u.get("username", "").lower() == clean_uname.lower()), None)
         if conflict:
             return JSONResponse(status_code=400, content={"ok": False, "error": "Username already taken by another account"})
         user["username"] = clean_uname
 
     if "email" in body:
-        user["email"] = (body.get("email") or "").strip().lower()
+        clean_em = str(body.get("email") or "").strip().lower()
+        if clean_em and not _is_valid_email(clean_em):
+            return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid email address"})
+        user["email"] = clean_em
 
     password = body.get("password")
     if password and isinstance(password, str) and len(password.strip()) >= 6:
         user["password_hash"] = hash_password(password.strip())
+        user.pop("password_plain", None)
+        for tok in [t for t, s in sessions.items() if s.get("userId") == user.get("id")]:
+            sessions.pop(tok, None)
 
     save_users()
     return {

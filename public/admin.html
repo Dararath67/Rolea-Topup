@@ -1967,7 +1967,7 @@
               </div>
               <div class="form-group-modern" style="margin:0">
                 <label>KHQRPay Secret Key (Bearer Token)</label>
-                <input type="password" id="set-khqrpay-key" value="sk_52b3f4ed679f5de854a6dfae6a500a368a6e11e77670c8e7" required>
+                <input type="password" id="set-khqrpay-key" value="" placeholder="Configured via .env or Store Settings">
               </div>
             </div>
             <p style="font-size:12px;color:#64748b;margin:10px 0 0 0;">
@@ -1990,7 +1990,7 @@
             <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:16px;">
               <div class="form-group-modern" style="margin:0">
                 <label>Telegram Bot Token</label>
-                <input type="text" id="set-telegram-bot-token" value="8603328924:AAEkH7DeU2Yp7FaBhuBvEzYiGBAhzWlGOgE" required>
+                <input type="password" id="set-telegram-bot-token" value="" placeholder="Configured via .env or Store Settings">
               </div>
               <div class="form-group-modern" style="margin:0">
                 <label>Telegram Chat ID (Recipient)</label>
@@ -3139,6 +3139,22 @@ function playPaidOrderSound() {
   } catch (e) {}
 }
 
+function escHtml(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+function escJsArg(v) {
+  return escHtml(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r|\n/g, ' '));
+}
+function safeHref(v) {
+  const s = String(v == null ? '' : v).trim();
+  return (s.startsWith('https://') || s.startsWith('http://') || (s.startsWith('/') && !s.startsWith('//'))) ? s : '#';
+}
+
 function toast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -3660,8 +3676,8 @@ async function loadData() {
         document.getElementById('set-khqr-acc').value = st.khqr_account || 'bakong@rolea';
         document.getElementById('set-auto-deliver').checked = !!st.auto_deliver;
         if (document.getElementById('set-khqrpay-url')) document.getElementById('set-khqrpay-url').value = st.khqrpay_base_url || 'https://khqrpay.site';
-        if (document.getElementById('set-khqrpay-key')) document.getElementById('set-khqrpay-key').value = st.khqrpay_api_key || 'sk_52b3f4ed679f5de854a6dfae6a500a368a6e11e77670c8e7';
-        if (document.getElementById('set-telegram-bot-token')) document.getElementById('set-telegram-bot-token').value = st.telegram_bot_token || '8603328924:AAEkH7DeU2Yp7FaBhuBvEzYiGBAhzWlGOgE';
+        if (document.getElementById('set-khqrpay-key')) document.getElementById('set-khqrpay-key').value = st.khqrpay_api_key || '';
+        if (document.getElementById('set-telegram-bot-token')) document.getElementById('set-telegram-bot-token').value = st.telegram_bot_token || '';
         if (document.getElementById('set-telegram-chat-id')) document.getElementById('set-telegram-chat-id').value = st.telegram_chat_id || '8710759437';
         if (document.getElementById('set-smtp-host')) document.getElementById('set-smtp-host').value = st.smtp_host || 'smtp.gmail.com';
         if (document.getElementById('set-smtp-port')) document.getElementById('set-smtp-port').value = st.smtp_port || 587;
@@ -3937,30 +3953,34 @@ function renderOrders() {
       const payStatus = o.paid ? 'paid' : (o.status === 'expired' ? 'expired' : 'pending');
       const delStatus = o.delivered ? 'delivered' : (isUnclaimedSpin ? 'wait' : (o.step || 'wait'));
 
+      const safeAvatar = safeHref(buyerAvatar);
+      const safeLink = safeHref(profileLink);
+      const buyerLabel = isUnclaimedSpin ? 'Unclaimed Spin Prize' : (isTikTok ? (o.display_name || o.roblox_username || 'TikTok Customer') : (o.display_name || o.roblox_username || 'Player'));
+
       tr.innerHTML = `
-        <td><span class="order-id-badge" onclick="copyText('${o.order_id}')" title="Click to copy">${o.order_id}</span></td>
+        <td><span class="order-id-badge" onclick="copyText('${escJsArg(o.order_id)}')" title="Click to copy">${escHtml(o.order_id)}</span></td>
         <td>
           <div class="buyer-cell">
-            <img src="${buyerAvatar}" onerror="this.src='/media/robux-coin.svg'" style="object-fit:cover">
+            <img src="${escHtml(safeAvatar)}" onerror="this.src='/media/robux-coin.svg'" style="object-fit:cover">
             <div>
-              <b>${isUnclaimedSpin ? 'Unclaimed Spin Prize' : (isTikTok ? (o.display_name || o.roblox_username || 'TikTok Customer') : (o.display_name || o.roblox_username || 'Player'))}</b>
-              <a href="${profileLink}" ${profileLink === '#' ? '' : 'target="_blank" rel="noopener"'}>${profileText}</a>
+              <b>${escHtml(buyerLabel)}</b>
+              <a href="${escHtml(safeLink)}" ${safeLink === '#' ? '' : 'target="_blank" rel="noopener"'}>${escHtml(profileText)}</a>
             </div>
           </div>
         </td>
-        <td><b>${o.package || 'Robux'}</b></td>
+        <td><b>${escHtml(o.package || 'Robux')}</b></td>
         <td><b style="color:#2563eb;font-size:14px;font-family:'Plus Jakarta Sans','Inter',sans-serif">$${Number(o.amount || 0).toFixed(2)}</b></td>
-        <td><span class="chip ${payStatus}">${payStatus}</span></td>
-        <td><span class="chip ${delStatus}">${isUnclaimedSpin ? 'unclaimed' : delStatus}</span></td>
+        <td><span class="chip ${escHtml(payStatus)}">${escHtml(payStatus)}</span></td>
+        <td><span class="chip ${escHtml(delStatus)}">${isUnclaimedSpin ? 'unclaimed' : escHtml(delStatus)}</span></td>
         <td style="font-size:12px;color:#64748b">${new Date(o.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
         <td>
           <div style="display:flex;gap:4px">
-            ${!o.paid ? `<button class="btn-top primary" style="padding:4px 8px;font-size:11px" onclick="orderAction('${o.order_id}', 'mark_paid')">Pay</button>` : ''}
-            ${(!o.delivered && !isUnclaimedSpin) ? `<button class="btn-top" style="padding:4px 8px;font-size:11px" onclick="orderAction('${o.order_id}', 'deliver')">Send</button>` : ''}
-            <button class="btn-top" style="padding:4px 8px;font-size:11px" onclick="orderAction('${o.order_id}', 'hold')">Hold</button>
-            <button class="btn-top" style="padding:4px 7px;font-size:11px;background:#f0fdf4;color:#15803d;border-color:#bbf7d0" title="View & Print Official Receipt" onclick="openInvoiceModal('${o.order_id}')">Receipt</button>
-            <button class="btn-top" style="padding:4px 7px;font-size:11px;background:#fef2f2;color:#b91c1c;border-color:#fecaca" title="Blacklist User" onclick="quickBlacklist('${o.roblox_username || o.player_id}')">Block</button>
-            <button class="btn-top" style="padding:4px 8px;font-size:11px;color:#ef4444" onclick="orderAction('${o.order_id}', 'delete')">Delete</button>
+            ${!o.paid ? `<button class="btn-top primary" style="padding:4px 8px;font-size:11px" onclick="orderAction('${escJsArg(o.order_id)}', 'mark_paid')">Pay</button>` : ''}
+            ${(!o.delivered && !isUnclaimedSpin) ? `<button class="btn-top" style="padding:4px 8px;font-size:11px" onclick="orderAction('${escJsArg(o.order_id)}', 'deliver')">Send</button>` : ''}
+            <button class="btn-top" style="padding:4px 8px;font-size:11px" onclick="orderAction('${escJsArg(o.order_id)}', 'hold')">Hold</button>
+            <button class="btn-top" style="padding:4px 7px;font-size:11px;background:#f0fdf4;color:#15803d;border-color:#bbf7d0" title="View & Print Official Receipt" onclick="openInvoiceModal('${escJsArg(o.order_id)}')">Receipt</button>
+            <button class="btn-top" style="padding:4px 7px;font-size:11px;background:#fef2f2;color:#b91c1c;border-color:#fecaca" title="Blacklist User" onclick="quickBlacklist('${escJsArg(o.roblox_username || o.player_id)}')">Block</button>
+            <button class="btn-top" style="padding:4px 8px;font-size:11px;color:#ef4444" onclick="orderAction('${escJsArg(o.order_id)}', 'delete')">Delete</button>
           </div>
         </td>
       `;
@@ -3983,9 +4003,9 @@ function renderOrders() {
       }
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td><span class="order-id-badge">${o.order_id}</span></td>
-        <td>${displayU}</td>
-        <td>${o.package}</td>
+        <td><span class="order-id-badge">${escHtml(o.order_id)}</span></td>
+        <td>${escHtml(displayU)}</td>
+        <td>${escHtml(o.package)}</td>
         <td><b style="color:#2563eb">$${Number(o.amount || 0).toFixed(2)}</b></td>
         <td><span class="chip ${o.paid ? 'paid' : 'pending'}">${o.paid ? 'Paid' : 'Pending'}</span></td>
         <td><span class="chip ${o.delivered ? 'delivered' : 'wait'}">${o.delivered ? 'Delivered' : 'Pending'}</span></td>
@@ -4032,7 +4052,7 @@ document.getElementById('store-settings-form').addEventListener('submit', async 
   const khqr_account = document.getElementById('set-khqr-acc').value.trim();
   const auto_deliver = document.getElementById('set-auto-deliver').checked;
   const khqrpay_base_url = document.getElementById('set-khqrpay-url') ? document.getElementById('set-khqrpay-url').value.trim() : 'https://khqrpay.site';
-  const khqrpay_api_key = document.getElementById('set-khqrpay-key') ? document.getElementById('set-khqrpay-key').value.trim() : 'sk_52b3f4ed679f5de854a6dfae6a500a368a6e11e77670c8e7';
+  const khqrpay_api_key = document.getElementById('set-khqrpay-key') ? document.getElementById('set-khqrpay-key').value.trim() : '';
   const telegram_bot_token = document.getElementById('set-telegram-bot-token') ? document.getElementById('set-telegram-bot-token').value.trim() : '';
   const telegram_chat_id = document.getElementById('set-telegram-chat-id') ? document.getElementById('set-telegram-chat-id').value.trim() : '';
   const smtp_host = document.getElementById('set-smtp-host') ? document.getElementById('set-smtp-host').value.trim() : 'smtp.gmail.com';
@@ -4499,20 +4519,20 @@ function renderAdminUsers(users) {
   }
   tbody.innerHTML = allUsers.map(u => `
     <tr>
-      <td><b style="font-size:14px;color:#0f172a">${u.username}</b></td>
-      <td style="color:#64748b">${u.email || '—'}</td>
+      <td><b style="font-size:14px;color:#0f172a">${escHtml(u.username)}</b></td>
+      <td style="color:#64748b">${escHtml(u.email || '—')}</td>
       <td><span style="font-weight:800;font-size:15px;color:#059669">$${Number(u.balance || 0).toFixed(2)} USD</span></td>
-      <td><b>${u.total_orders || 0}</b> orders</td>
+      <td><b>${Number(u.total_orders || 0)}</b> orders</td>
       <td style="font-size:13px;color:#64748b">${new Date(u.created_at || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
       <td style="text-align:right">
         <div style="display:flex;gap:10px;justify-content:flex-end;align-items:center;flex-wrap:nowrap">
-          <button class="btn-top" type="button" style="font-size:13px;padding:8px 16px;font-weight:700;border-radius:10px;white-space:nowrap;min-height:36px;cursor:pointer" onclick="openEditUserModal('${u.id}', '${u.username}', '${u.email || ''}')">
+          <button class="btn-top" type="button" style="font-size:13px;padding:8px 16px;font-weight:700;border-radius:10px;white-space:nowrap;min-height:36px;cursor:pointer" onclick="openEditUserModal('${escJsArg(u.id)}', '${escJsArg(u.username)}', '${escJsArg(u.email || '')}')">
             Edit & Password
           </button>
-          <button class="btn-top primary" type="button" style="font-size:13px;padding:8px 16px;font-weight:700;border-radius:10px;white-space:nowrap;min-height:36px;cursor:pointer" onclick="openAdjustBalanceModal('${u.id}', '${u.username}')">
+          <button class="btn-top primary" type="button" style="font-size:13px;padding:8px 16px;font-weight:700;border-radius:10px;white-space:nowrap;min-height:36px;cursor:pointer" onclick="openAdjustBalanceModal('${escJsArg(u.id)}', '${escJsArg(u.username)}')">
             Add / Deduct Balance
           </button>
-          <button class="btn-top" type="button" style="font-size:13px;padding:8px 16px;font-weight:700;border-radius:10px;white-space:nowrap;min-height:36px;cursor:pointer;color:#ef4444;border-color:#fca5a5" onclick="deleteUser('${u.id}', '${u.username}')">
+          <button class="btn-top" type="button" style="font-size:13px;padding:8px 16px;font-weight:700;border-radius:10px;white-space:nowrap;min-height:36px;cursor:pointer;color:#ef4444;border-color:#fca5a5" onclick="deleteUser('${escJsArg(u.id)}', '${escJsArg(u.username)}')">
             Delete
           </button>
         </div>
