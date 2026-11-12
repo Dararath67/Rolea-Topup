@@ -669,7 +669,9 @@ async function buyAndSpin(method) {
         saveSpinOrderLocally(j.order_id, j.receipt_token, Number(j.slice?.robux || 0));
       }
       animateWheelToSlice(j.slice_index, j.slice, j.order_id, j.receipt_token);
-      if (window.RoleaAuth && typeof window.RoleaAuth.refreshUser === 'function') {
+      if (window.RoleaAuth && typeof window.RoleaAuth.checkCurrentUser === 'function') {
+        window.RoleaAuth.checkCurrentUser();
+      } else if (window.RoleaAuth && typeof window.RoleaAuth.refreshUser === 'function') {
         window.RoleaAuth.refreshUser();
       }
     } else {

@@ -1048,6 +1048,7 @@
     getToken,
     getAuthHeaders,
     checkCurrentUser,
+    refreshUser: checkCurrentUser,
     openAuthModal,
     openWalletModal,
     loginWithGoogle,
