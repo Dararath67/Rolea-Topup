@@ -1652,6 +1652,8 @@ def _get_rate_tier(path: str) -> tuple[str, int, int]:
         return ("pay_create", 15, 60)
     if path in ("/api/check-id", "/api/promo/apply", "/api/check-order", "/api/reviews/submit"):
         return ("lookup", 30, 60)
+    if path in ("/api/settings", "/api/games", "/api/packages") or path.startswith("/api/game/"):
+        return ("static", 300, 60)
     if path.startswith("/api/"):
         return ("api_general", 120, 60)
     return ("static", 300, 60)

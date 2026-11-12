@@ -975,6 +975,8 @@ $("pay").onclick = async () => {
     }));
     if (!ok && window.turnstile && window._roleaOrderTsId !== undefined) {
       try { window.turnstile.reset(window._roleaOrderTsId); window._roleaOrderTsToken = ""; } catch (_) {}
+    } else if (!ok && j && typeof j.error === "string" && j.error.includes("Turnstile")) {
+      initTurnstileOrder();
     }
   } catch (e) {
     ok = false;
@@ -1145,9 +1147,9 @@ $("qc").onclick = () => {
   ready();
 };
 
-(async function initTurnstileOrder() {
+async function initTurnstileOrder() {
   try {
-    const r = await fetch('/api/settings');
+    const r = await fetch('/api/settings', { cache: 'no-store' });
     const j = await r.json();
     const sk = j && j.turnstile_site_key;
     if (!sk) return;
@@ -1155,19 +1157,37 @@ $("qc").onclick = () => {
     if (!box) return;
     box.style.display = 'block';
     window.onloadTurnstileOrder = function () {
-      if (!window.turnstile) return;
+      if (!window.turnstile || window._roleaOrderTsId !== undefined) return;
+      box.innerHTML = '';
       window._roleaOrderTsId = window.turnstile.render('#ts-order-box', {
         sitekey: sk,
+        theme: 'light',
         callback: function (tok) { window._roleaOrderTsToken = tok; },
-        'expired-callback': function () { window._roleaOrderTsToken = ''; }
+        'expired-callback': function () { window._roleaOrderTsToken = ''; },
+        'error-callback': function () {
+          window._roleaOrderTsToken = '';
+          box.innerHTML = '<div style="font-size:12px;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;padding:8px 10px;border-radius:8px">Cloudflare Turnstile error or blocked. Please refresh or disable ad-blocker.</div>';
+        }
       });
     };
-    const sc = document.createElement('script');
-    sc.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onloadTurnstileOrder';
-    sc.async = true; sc.defer = true;
-    document.head.appendChild(sc);
+    if (window.turnstile) {
+      window.onloadTurnstileOrder();
+      return;
+    }
+    if (!document.getElementById('cf-turnstile-order-js')) {
+      const sc = document.createElement('script');
+      sc.id = 'cf-turnstile-order-js';
+      sc.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onloadTurnstileOrder';
+      sc.async = true; sc.defer = true;
+      sc.onerror = function () {
+        box.innerHTML = '<div style="font-size:12px;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;padding:8px 10px;border-radius:8px">Could not load Cloudflare Turnstile. Check your connection or ad-blocker.</div>';
+      };
+      document.head.appendChild(sc);
+    }
   } catch (_) {}
-})();
+}
+initTurnstileOrder();
+window.addEventListener('pageshow', function (ev) { if (ev.persisted || window._roleaOrderTsId === undefined) initTurnstileOrder(); });
 </script>
 <script src="/auth_wallet.js?v=20261110_v4"></script>
   <script src="/google_chooser.js?v=20261110_v2"></script>

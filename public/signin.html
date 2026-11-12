@@ -702,6 +702,7 @@
             </div>
           </div>
 
+          <div id="ts-fp-box" style="display:none;margin-bottom:12px"></div>
           <div id="fp-status" style="display:none;margin-bottom:12px;padding:10px 12px;border-radius:10px;font-size:12.5px;font-weight:700"></div>
 
           <button type="submit" class="btn-submit-gradient" id="fp-submit-btn">
@@ -843,6 +844,8 @@
         } else {
           if (window.turnstile && window._roleaTsWidgetId !== undefined) {
             try { window.turnstile.reset(window._roleaTsWidgetId); window._roleaTurnstileToken = ''; } catch (_) {}
+          } else if (data && typeof data.error === 'string' && data.error.includes('Turnstile')) {
+            initTurnstileAuth();
           }
           errGen.textContent = data.error || 'Authentication failed. Please check credentials.';
           errGen.style.display = 'block';
@@ -863,29 +866,63 @@
     }
 
     // Auto-check Turnstile config (only loads widget if site_key + secret_key configured)
-    (async function initTurnstileAuth() {
+    function _renderTurnstileBox(boxId, widgetProp, tokenProp) {
+      const sk = window._roleaTurnstileSiteKey;
+      const box = document.getElementById(boxId);
+      if (!sk || !box) return;
+      box.style.display = 'block';
+      if (!window.turnstile) return;
+      if (window[widgetProp] !== undefined) return;
+      box.innerHTML = '';
+      window[widgetProp] = window.turnstile.render('#' + boxId, {
+        sitekey: sk,
+        theme: 'light',
+        callback: function (tok) { window[tokenProp] = tok; },
+        'expired-callback': function () { window[tokenProp] = ''; },
+        'error-callback': function () {
+          window[tokenProp] = '';
+          box.innerHTML = '<div style="font-size:12px;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;padding:8px 10px;border-radius:8px">Cloudflare Turnstile blocked or domain mismatch. Please refresh or disable ad-blocker.</div>';
+        }
+      });
+    }
+
+    async function initTurnstileAuth() {
       try {
-        const r = await fetch('/api/settings');
+        const r = await fetch('/api/settings', { cache: 'no-store' });
         const j = await r.json();
         const sk = j && j.turnstile_site_key;
         if (!sk) return;
+        window._roleaTurnstileSiteKey = sk;
         const box = document.getElementById('ts-auth-box');
-        if (!box) return;
-        box.style.display = 'block';
+        if (box) box.style.display = 'block';
+        const fpBox = document.getElementById('ts-fp-box');
+        if (fpBox && document.getElementById('forgot-form').style.display !== 'none' && fpStage === 1) {
+          fpBox.style.display = 'block';
+        }
         window.onloadTurnstileCallback = function () {
-          if (!window.turnstile) return;
-          window._roleaTsWidgetId = window.turnstile.render('#ts-auth-box', {
-            sitekey: sk,
-            callback: function (tok) { window._roleaTurnstileToken = tok; },
-            'expired-callback': function () { window._roleaTurnstileToken = ''; }
-          });
+          _renderTurnstileBox('ts-auth-box', '_roleaTsWidgetId', '_roleaTurnstileToken');
+          if (document.getElementById('forgot-form').style.display !== 'none' && fpStage === 1) {
+            _renderTurnstileBox('ts-fp-box', '_roleaFpTsId', '_roleaFpTsToken');
+          }
         };
-        const sc = document.createElement('script');
-        sc.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onloadTurnstileCallback';
-        sc.async = true; sc.defer = true;
-        document.head.appendChild(sc);
+        if (window.turnstile) {
+          window.onloadTurnstileCallback();
+          return;
+        }
+        if (!document.getElementById('cf-turnstile-api-js')) {
+          const sc = document.createElement('script');
+          sc.id = 'cf-turnstile-api-js';
+          sc.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onloadTurnstileCallback';
+          sc.async = true; sc.defer = true;
+          sc.onerror = function () {
+            if (box) box.innerHTML = '<div style="font-size:12px;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;padding:8px 10px;border-radius:8px">Could not load Cloudflare Turnstile. Check your connection or ad-blocker.</div>';
+          };
+          document.head.appendChild(sc);
+        }
       } catch (_) {}
-    })();
+    }
+    initTurnstileAuth();
+    window.addEventListener('pageshow', function (ev) { if (ev.persisted || window._roleaTsWidgetId === undefined) initTurnstileAuth(); });
 
     // Auto-check if already logged in -> go to account
     (async function checkAuth() {
@@ -928,6 +965,8 @@
       document.getElementById('form-sub').textContent = 'Enter your registered email or username to receive a 6-digit Password Reset Code.';
       const existingUser = document.getElementById('input-username').value.trim();
       if (existingUser) document.getElementById('fp-identifier').value = existingUser;
+      _renderTurnstileBox('ts-fp-box', '_roleaFpTsId', '_roleaFpTsToken');
+      if (!window._roleaTurnstileSiteKey) initTurnstileAuth();
     }
 
     function closeForgotPasswordMode() {
@@ -949,14 +988,17 @@
 
       try {
         if (fpStage === 1) {
+          const cf_turnstile_token = window._roleaFpTsToken || window._roleaTurnstileToken || '';
           const res = await fetch('/api/auth/forgot-password', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ identifier })
+            body: JSON.stringify({ identifier, cf_turnstile_token })
           });
           const j = await res.json();
           if (res.ok && j.ok) {
             fpStage = 2;
+            const fpTsBox = document.getElementById('ts-fp-box');
+            if (fpTsBox) fpTsBox.style.display = 'none';
             document.getElementById('fp-identifier').readOnly = true;
             document.getElementById('fp-step2').style.display = 'block';
             document.getElementById('fp-code').required = true;
@@ -967,6 +1009,11 @@
             statusBox.style.color = '#1e40af';
             statusBox.textContent = j.message || 'Verification code sent!';
           } else {
+            if (window.turnstile && window._roleaFpTsId !== undefined) {
+              try { window.turnstile.reset(window._roleaFpTsId); window._roleaFpTsToken = ''; } catch (_) {}
+            } else if (j && typeof j.error === 'string' && j.error.includes('Turnstile')) {
+              initTurnstileAuth();
+            }
             statusBox.style.display = 'block';
             statusBox.style.background = '#fee2e2';
             statusBox.style.color = '#b91c1c';
