@@ -551,10 +551,18 @@
         renderNavbar();
         if (typeof showToast === 'function') showToast(`Signed in as ${currentUser.username}!`);
       } else {
-        alert(j.error || 'Google login failed');
+        RoleaDialog.alert({
+          title: 'Google Sign-In Failed',
+          message: j.error || 'Google login failed.',
+          type: 'error'
+        });
       }
     } catch (err) {
-      alert('Network error connecting to Google Auth.');
+      RoleaDialog.alert({
+        title: 'Connection Error',
+        message: 'Network error connecting to Google Auth. Please try again.',
+        type: 'error'
+      });
     }
   }
 
@@ -670,7 +678,11 @@
       amt = parseFloat(document.getElementById('wallet-custom-amt').value);
     }
     if (!amt || isNaN(amt) || amt < 0.5) {
-      alert('Please enter an amount of at least $0.50 USD');
+      RoleaDialog.alert({
+        title: 'Minimum Amount Required',
+        message: 'Please enter an amount of at least $0.50 USD.',
+        type: 'warning'
+      });
       return;
     }
 
@@ -702,17 +714,30 @@
             if (stData.ok && (stData.paid || stData.status === 'completed')) {
               clearInterval(walletPollingInterval);
               await checkCurrentUser();
-              alert(`Payment Confirmed! $${Number(amt).toFixed(2)} USD added to your wallet!`);
               closeModals();
+              await RoleaDialog.alert({
+                title: 'Payment Confirmed!',
+                message: `$${Number(amt).toFixed(2)} USD has been added to your wallet!`,
+                type: 'success',
+                confirmText: 'Done'
+              });
             }
           } catch (e) {}
         }, 2500);
 
       } else {
-        alert(j.error || 'Failed to create deposit QR');
+        RoleaDialog.alert({
+          title: 'Deposit Failed',
+          message: j.error || 'Failed to create deposit QR.',
+          type: 'error'
+        });
       }
     } catch (e) {
-      alert('Network error creating deposit');
+      RoleaDialog.alert({
+        title: 'Connection Error',
+        message: 'Network error creating deposit. Please try again.',
+        type: 'error'
+      });
     }
   }
 
@@ -751,6 +776,227 @@
       document.querySelectorAll('.user-menu-popover').forEach(p => p.classList.remove('active'));
     }
   });
+
+  // Sleek Custom Dialog System (replaces native browser alert/confirm/prompt)
+  const RoleaDialog = (() => {
+    const STYLE_ID = 'rolea-dialog-styles';
+    const BACKDROP_ID = 'rolea-dialog-backdrop';
+
+    function ensureStyles() {
+      if (document.getElementById(STYLE_ID)) return;
+      const st = document.createElement('style');
+      st.id = STYLE_ID;
+      st.textContent = `
+        #${BACKDROP_ID} {
+          position: fixed; inset: 0; z-index: 999999;
+          display: flex; align-items: center; justify-content: center;
+          padding: 16px;
+          background: rgba(15, 23, 42, 0.56);
+          backdrop-filter: blur(6px);
+          -webkit-backdrop-filter: blur(6px);
+          opacity: 0;
+          transition: opacity 0.2s ease;
+          font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        #${BACKDROP_ID}.open { opacity: 1; }
+        #${BACKDROP_ID} .rd-card {
+          width: 100%; max-width: 390px;
+          background: #ffffff;
+          border: 1px solid rgba(226, 232, 240, 0.9);
+          border-radius: 22px;
+          padding: 28px 24px 22px;
+          box-shadow: 0 24px 54px -12px rgba(15, 23, 42, 0.28), 0 0 0 1px rgba(15, 23, 42, 0.04);
+          text-align: center;
+          transform: scale(0.92) translateY(10px);
+          opacity: 0;
+          transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease;
+        }
+        #${BACKDROP_ID}.open .rd-card {
+          transform: scale(1) translateY(0);
+          opacity: 1;
+        }
+        #${BACKDROP_ID} .rd-icon {
+          width: 56px; height: 56px; border-radius: 18px;
+          margin: 0 auto 16px;
+          display: flex; align-items: center; justify-content: center;
+        }
+        #${BACKDROP_ID} .rd-icon.success { background: #ecfdf5; color: #10b981; box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.2); }
+        #${BACKDROP_ID} .rd-icon.error   { background: #fef2f2; color: #ef4444; box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.18); }
+        #${BACKDROP_ID} .rd-icon.warning { background: #fffbeb; color: #f59e0b; box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.2); }
+        #${BACKDROP_ID} .rd-icon.info    { background: #eff6ff; color: #2563eb; box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.18); }
+        #${BACKDROP_ID} .rd-title {
+          margin: 0 0 8px; font-size: 18px; font-weight: 800;
+          color: #0f172a; letter-spacing: -0.02em; line-height: 1.3;
+        }
+        #${BACKDROP_ID} .rd-msg {
+          margin: 0 0 22px; font-size: 14px; font-weight: 500;
+          color: #475569; line-height: 1.55; white-space: pre-line; word-break: break-word;
+        }
+        #${BACKDROP_ID} .rd-input {
+          width: 100%; box-sizing: border-box;
+          margin: -8px 0 18px; padding: 11px 14px;
+          border-radius: 12px; border: 1.5px solid #cbd5e1;
+          font-size: 14px; color: #0f172a; outline: none;
+          transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        #${BACKDROP_ID} .rd-input:focus {
+          border-color: #2563eb;
+          box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+        #${BACKDROP_ID} .rd-actions {
+          display: flex; gap: 10px; justify-content: center;
+        }
+        #${BACKDROP_ID} .rd-btn {
+          flex: 1; padding: 12px 18px; border-radius: 12px;
+          font-size: 14px; font-weight: 700; cursor: pointer;
+          border: none; transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+        }
+        #${BACKDROP_ID} .rd-btn:active { transform: scale(0.98); }
+        #${BACKDROP_ID} .rd-btn-cancel {
+          background: #f1f5f9; color: #475569;
+        }
+        #${BACKDROP_ID} .rd-btn-cancel:hover { background: #e2e8f0; color: #0f172a; }
+        #${BACKDROP_ID} .rd-btn-primary {
+          background: linear-gradient(135deg, #2563eb, #1d4ed8);
+          color: #ffffff;
+          box-shadow: 0 8px 20px -6px rgba(37, 99, 235, 0.45);
+        }
+        #${BACKDROP_ID} .rd-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 10px 24px -6px rgba(37, 99, 235, 0.55); }
+        #${BACKDROP_ID} .rd-btn-primary.success {
+          background: linear-gradient(135deg, #10b981, #059669);
+          box-shadow: 0 8px 20px -6px rgba(16, 185, 129, 0.45);
+        }
+        #${BACKDROP_ID} .rd-btn-primary.success:hover { box-shadow: 0 10px 24px -6px rgba(16, 185, 129, 0.55); }
+        #${BACKDROP_ID} .rd-btn-primary.error {
+          background: linear-gradient(135deg, #ef4444, #dc2626);
+          box-shadow: 0 8px 20px -6px rgba(239, 68, 68, 0.45);
+        }
+      `;
+      document.head.appendChild(st);
+    }
+
+    const ICONS = {
+      success: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+      error: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+      warning: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+      info: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+    };
+
+    function open(opts) {
+      ensureStyles();
+      const prev = document.getElementById(BACKDROP_ID);
+      if (prev) prev.remove();
+
+      const {
+        mode = 'alert',
+        title = 'Notice',
+        message = '',
+        type = 'info',
+        confirmText = 'OK',
+        cancelText = 'Cancel',
+        placeholder = '',
+        defaultValue = ''
+      } = (typeof opts === 'string' ? { message: opts } : (opts || {}));
+
+      return new Promise((resolve) => {
+        const backdrop = document.createElement('div');
+        backdrop.id = BACKDROP_ID;
+
+        const card = document.createElement('div');
+        card.className = 'rd-card';
+        card.setAttribute('role', 'dialog');
+        card.setAttribute('aria-modal', 'true');
+
+        const iconEl = document.createElement('div');
+        iconEl.className = `rd-icon ${ICONS[type] ? type : 'info'}`;
+        iconEl.innerHTML = ICONS[type] || ICONS.info;
+
+        const titleEl = document.createElement('h3');
+        titleEl.className = 'rd-title';
+        titleEl.textContent = title;
+
+        const msgEl = document.createElement('p');
+        msgEl.className = 'rd-msg';
+        msgEl.textContent = message;
+
+        card.appendChild(iconEl);
+        card.appendChild(titleEl);
+        if (message) card.appendChild(msgEl);
+
+        let inputEl = null;
+        if (mode === 'prompt') {
+          inputEl = document.createElement('input');
+          inputEl.className = 'rd-input';
+          inputEl.type = 'text';
+          inputEl.placeholder = placeholder;
+          inputEl.value = defaultValue;
+          card.appendChild(inputEl);
+        }
+
+        const actions = document.createElement('div');
+        actions.className = 'rd-actions';
+
+        function close(val) {
+          document.removeEventListener('keydown', onKey);
+          backdrop.classList.remove('open');
+          setTimeout(() => {
+            backdrop.remove();
+            resolve(val);
+          }, 180);
+        }
+
+        if (mode === 'confirm' || mode === 'prompt') {
+          const cancelBtn = document.createElement('button');
+          cancelBtn.type = 'button';
+          cancelBtn.className = 'rd-btn rd-btn-cancel';
+          cancelBtn.textContent = cancelText;
+          cancelBtn.onclick = () => close(mode === 'prompt' ? null : false);
+          actions.appendChild(cancelBtn);
+        }
+
+        const okBtn = document.createElement('button');
+        okBtn.type = 'button';
+        okBtn.className = `rd-btn rd-btn-primary ${type === 'success' || type === 'error' ? type : ''}`;
+        okBtn.textContent = confirmText;
+        okBtn.onclick = () => close(mode === 'prompt' ? inputEl.value : true);
+        actions.appendChild(okBtn);
+
+        card.appendChild(actions);
+        backdrop.appendChild(card);
+        document.body.appendChild(backdrop);
+
+        backdrop.addEventListener('click', (e) => {
+          if (e.target === backdrop) {
+            close(mode === 'confirm' ? false : (mode === 'prompt' ? null : true));
+          }
+        });
+
+        function onKey(e) {
+          if (e.key === 'Escape') {
+            close(mode === 'confirm' ? false : (mode === 'prompt' ? null : true));
+          } else if (e.key === 'Enter') {
+            e.preventDefault();
+            close(mode === 'prompt' ? inputEl.value : true);
+          }
+        }
+        document.addEventListener('keydown', onKey);
+
+        requestAnimationFrame(() => {
+          backdrop.classList.add('open');
+          if (inputEl) inputEl.focus();
+          else okBtn.focus();
+        });
+      });
+    }
+
+    return {
+      alert: (opts) => open(typeof opts === 'string' ? { message: opts, mode: 'alert' } : { ...opts, mode: 'alert' }),
+      confirm: (opts) => open(typeof opts === 'string' ? { message: opts, mode: 'confirm' } : { ...opts, mode: 'confirm' }),
+      prompt: (opts) => open(typeof opts === 'string' ? { message: opts, mode: 'prompt' } : { ...opts, mode: 'prompt' })
+    };
+  })();
+
+  window.RoleaDialog = RoleaDialog;
 
   // Export API
   window.RoleaAuth = {

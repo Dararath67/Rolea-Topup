@@ -85,7 +85,7 @@
       }
     } catch (err) {
       console.error('Error fetching Google userinfo:', err);
-      alert('Failed to retrieve Google profile. Please try again.');
+      showChooserAlert('Google Profile Error', 'Failed to retrieve Google profile. Please try again.');
     }
   }
 
@@ -118,11 +118,40 @@
         const redirect = urlParams.get('redirect') || '/my-account';
         window.location.replace(redirect);
       } else {
-        alert(data.error || 'Google sign-in failed');
+        showChooserAlert('Google Sign-In Failed', data.error || 'Google sign-in failed.');
       }
     } catch (err) {
-      alert('Network error connecting to Rolea server.');
+      showChooserAlert('Connection Error', 'Network error connecting to Rolea server.');
     }
+  }
+
+  function showChooserAlert(title, message) {
+    if (window.RoleaDialog && typeof window.RoleaDialog.alert === 'function') {
+      return window.RoleaDialog.alert({ title, message, type: 'error' });
+    }
+    const existing = document.getElementById('rolea-chooser-alert-backdrop');
+    if (existing) existing.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'rolea-chooser-alert-backdrop';
+    wrap.style.cssText = 'position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,0.56);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);font-family:"Plus Jakarta Sans","Inter",-apple-system,sans-serif;';
+    wrap.innerHTML = `
+      <div style="width:100%;max-width:380px;background:#fff;border-radius:22px;padding:28px 24px 22px;box-shadow:0 24px 54px -12px rgba(15,23,42,0.28);text-align:center;">
+        <div style="width:56px;height:56px;border-radius:18px;margin:0 auto 16px;background:#fef2f2;color:#ef4444;display:flex;align-items:center;justify-content:center;">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        </div>
+        <h3 style="margin:0 0 8px;font-size:18px;font-weight:800;color:#0f172a;"></h3>
+        <p style="margin:0 0 22px;font-size:14px;font-weight:500;color:#475569;line-height:1.55;"></p>
+        <button type="button" style="width:100%;padding:12px 18px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;border:none;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;box-shadow:0 8px 20px -6px rgba(239,68,68,0.45);">OK</button>
+      </div>
+    `;
+    wrap.querySelector('h3').textContent = title;
+    wrap.querySelector('p').textContent = message;
+    const btn = wrap.querySelector('button');
+    const close = () => wrap.remove();
+    btn.onclick = close;
+    wrap.onclick = (e) => { if (e.target === wrap) close(); };
+    document.body.appendChild(wrap);
+    btn.focus();
   }
 
   // Show Guidance if Google Cloud Console requires origin whitelist

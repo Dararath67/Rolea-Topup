@@ -987,7 +987,14 @@ $("pay").onclick = async () => {
     payPending = false;
     $("pay").textContent = "Paid!";
     if (window.RoleaAuth) window.RoleaAuth.checkCurrentUser();
-    alert(`Payment Successful with Rolea Wallet!\nRemaining Balance: $${Number(j.remaining_balance).toFixed(2)} USD\nRedirecting to your receipt...`);
+    if (window.RoleaDialog) {
+      await window.RoleaDialog.alert({
+        title: "Payment Successful!",
+        message: `Paid with Rolea Wallet.\nRemaining Balance: $${Number(j.remaining_balance).toFixed(2)} USD`,
+        type: "success",
+        confirmText: "View Receipt"
+      });
+    }
     window.location.href = `/order/success/${j.order_id}`;
     return;
   }

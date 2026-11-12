@@ -3291,6 +3291,107 @@ function toast(msg) {
   setTimeout(() => { t.style.display = 'none'; }, 2600);
 }
 
+const adminDialog = (() => {
+  const STYLE_ID = 'admin-dialog-styles';
+  const BACKDROP_ID = 'admin-dialog-backdrop';
+  function ensureStyles() {
+    if (document.getElementById(STYLE_ID)) return;
+    const st = document.createElement('style');
+    st.id = STYLE_ID;
+    st.textContent = `
+      #${BACKDROP_ID}{position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.56);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);opacity:0;transition:opacity .18s ease}
+      #${BACKDROP_ID}.open{opacity:1}
+      #${BACKDROP_ID} .ad-card{width:100%;max-width:400px;background:#fff;border:1px solid #e2e8f0;border-radius:20px;padding:26px 24px 20px;box-shadow:0 24px 54px -12px rgba(15,23,42,.28);text-align:center;transform:scale(.93) translateY(8px);opacity:0;transition:transform .24s cubic-bezier(.16,1,.3,1),opacity .2s ease}
+      #${BACKDROP_ID}.open .ad-card{transform:scale(1) translateY(0);opacity:1}
+      #${BACKDROP_ID} .ad-icon{width:52px;height:52px;border-radius:16px;margin:0 auto 14px;display:flex;align-items:center;justify-content:center}
+      #${BACKDROP_ID} .ad-icon.danger{background:#fef2f2;color:#ef4444}
+      #${BACKDROP_ID} .ad-icon.warning{background:#fffbeb;color:#f59e0b}
+      #${BACKDROP_ID} .ad-icon.info{background:#eff6ff;color:#2563eb}
+      #${BACKDROP_ID} .ad-title{margin:0 0 8px;font-size:17px;font-weight:800;color:#0f172a}
+      #${BACKDROP_ID} .ad-msg{margin:0 0 20px;font-size:13.5px;font-weight:500;color:#475569;line-height:1.55;white-space:pre-line;word-break:break-word}
+      #${BACKDROP_ID} .ad-input{width:100%;box-sizing:border-box;margin:-6px 0 18px;padding:10px 13px;border-radius:11px;border:1.5px solid #cbd5e1;font-size:14px;color:#0f172a;outline:none}
+      #${BACKDROP_ID} .ad-input:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.15)}
+      #${BACKDROP_ID} .ad-actions{display:flex;gap:10px;justify-content:center}
+      #${BACKDROP_ID} .ad-btn{flex:1;padding:11px 16px;border-radius:11px;font-size:13.5px;font-weight:700;cursor:pointer;border:none}
+      #${BACKDROP_ID} .ad-cancel{background:#f1f5f9;color:#475569}
+      #${BACKDROP_ID} .ad-cancel:hover{background:#e2e8f0;color:#0f172a}
+      #${BACKDROP_ID} .ad-ok{background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;box-shadow:0 8px 18px -6px rgba(37,99,235,.45)}
+      #${BACKDROP_ID} .ad-ok.danger{background:linear-gradient(135deg,#ef4444,#dc2626);box-shadow:0 8px 18px -6px rgba(239,68,68,.45)}
+    `;
+    document.head.appendChild(st);
+  }
+  const ICONS = {
+    danger: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    warning: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+    info: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+  };
+  function open({ mode = 'confirm', title = 'Confirm Action', message = '', type = 'warning', confirmText = 'Confirm', cancelText = 'Cancel', placeholder = '' }) {
+    ensureStyles();
+    const prev = document.getElementById(BACKDROP_ID);
+    if (prev) prev.remove();
+    return new Promise((resolve) => {
+      const bd = document.createElement('div');
+      bd.id = BACKDROP_ID;
+      const card = document.createElement('div');
+      card.className = 'ad-card';
+      const icon = document.createElement('div');
+      icon.className = `ad-icon ${ICONS[type] ? type : 'info'}`;
+      icon.innerHTML = ICONS[type] || ICONS.info;
+      const h = document.createElement('h3');
+      h.className = 'ad-title';
+      h.textContent = title;
+      const p = document.createElement('p');
+      p.className = 'ad-msg';
+      p.textContent = message;
+      card.append(icon, h, p);
+      let inp = null;
+      if (mode === 'prompt') {
+        inp = document.createElement('input');
+        inp.className = 'ad-input';
+        inp.type = 'password';
+        inp.placeholder = placeholder;
+        card.appendChild(inp);
+      }
+      const act = document.createElement('div');
+      act.className = 'ad-actions';
+      const close = (val) => {
+        document.removeEventListener('keydown', onKey);
+        bd.classList.remove('open');
+        setTimeout(() => { bd.remove(); resolve(val); }, 160);
+      };
+      if (mode !== 'alert') {
+        const c = document.createElement('button');
+        c.type = 'button';
+        c.className = 'ad-btn ad-cancel';
+        c.textContent = cancelText;
+        c.onclick = () => close(mode === 'prompt' ? null : false);
+        act.appendChild(c);
+      }
+      const ok = document.createElement('button');
+      ok.type = 'button';
+      ok.className = `ad-btn ad-ok ${type === 'danger' ? 'danger' : ''}`;
+      ok.textContent = confirmText;
+      ok.onclick = () => close(mode === 'prompt' ? inp.value : true);
+      act.appendChild(ok);
+      card.appendChild(act);
+      bd.appendChild(card);
+      document.body.appendChild(bd);
+      bd.onclick = (e) => { if (e.target === bd) close(mode === 'confirm' ? false : (mode === 'prompt' ? null : true)); };
+      function onKey(e) {
+        if (e.key === 'Escape') close(mode === 'confirm' ? false : (mode === 'prompt' ? null : true));
+        else if (e.key === 'Enter') { e.preventDefault(); close(mode === 'prompt' ? inp.value : true); }
+      }
+      document.addEventListener('keydown', onKey);
+      requestAnimationFrame(() => { bd.classList.add('open'); (inp || ok).focus(); });
+    });
+  }
+  return {
+    alert: (title, message, type = 'warning') => open({ mode: 'alert', title, message, type, confirmText: 'OK' }),
+    confirm: (title, message, type = 'danger', confirmText = 'Confirm') => open({ mode: 'confirm', title, message, type, confirmText }),
+    prompt: (title, message, placeholder = '') => open({ mode: 'prompt', title, message, type: 'danger', confirmText: 'Submit', placeholder })
+  };
+})();
+
 function switchTab(tabId, updateUrl = true) {
   if (tabId === 'tiktok') {
     currentGame = 'tiktok';
@@ -3575,12 +3676,12 @@ function openGameModal() {
 async function deleteCurrentGame() {
   const gameKeys = Object.keys(allGames);
   if (gameKeys.length <= 1) {
-    alert('Cannot delete the only remaining game.');
+    await adminDialog.alert('Cannot Delete Game', 'Cannot delete the only remaining game.', 'warning');
     return;
   }
   const g = allGames[currentGame];
   const gName = g ? g.name : currentGame;
-  if (!confirm(`Are you sure you want to delete "${gName}"?\nAll packages belonging to this game will also be removed!`)) {
+  if (!(await adminDialog.confirm('Delete Game?', `Are you sure you want to delete "${gName}"?\nAll packages belonging to this game will also be removed!`, 'danger', 'Delete'))) {
     return;
   }
 
@@ -3974,7 +4075,7 @@ async function togglePackage(id) {
 }
 
 async function deletePackage(id) {
-  if (!confirm('Are you sure you want to delete this package?')) return;
+  if (!(await adminDialog.confirm('Delete Package?', 'Are you sure you want to delete this package?', 'danger', 'Delete'))) return;
   try {
     const res = await fetch('/api/admin/packages/delete', {
       method: 'POST',
@@ -4642,7 +4743,7 @@ async function togglePromo(id) {
 }
 
 async function deletePromo(id) {
-  if (!confirm('Are you sure you want to delete this promo code?')) return;
+  if (!(await adminDialog.confirm('Delete Promo Code?', 'Are you sure you want to delete this promo code?', 'danger', 'Delete'))) return;
   try {
     const res = await fetch('/api/admin/promos/delete', {
       method: 'POST',
@@ -4735,7 +4836,7 @@ async function submitEditUserForm(e) {
 }
 
 async function deleteUser(userId, username) {
-  if (!confirm(`Are you sure you want to permanently delete user "${username}"?`)) return;
+  if (!(await adminDialog.confirm('Delete User?', `Are you sure you want to permanently delete user "${username}"?`, 'danger', 'Delete User'))) return;
   try {
     const res = await fetch('/api/admin/users/delete', {
       method: 'POST',
@@ -5136,7 +5237,7 @@ async function syncCookieBalance(silent = false) {
 }
 
 async function deleteCookie() {
-  if (!confirm('Are you sure you want to disconnect this Roblox Cookie?')) return;
+  if (!(await adminDialog.confirm('Disconnect Cookie?', 'Are you sure you want to disconnect this Roblox Cookie?', 'danger', 'Disconnect'))) return;
   try {
     const res = await fetch('/api/admin/inventory/cookie/delete', {
       method: 'POST',
@@ -5431,7 +5532,7 @@ async function permBanWafIp(ip, reason) {
 
 async function toggleWalletFreeze(userId, username, currentlyFrozen) {
   const actionLabel = currentlyFrozen ? 'Unfreeze' : 'Freeze';
-  if (!confirm(`${actionLabel} wallet for ${username}?`)) return;
+  if (!(await adminDialog.confirm(`${actionLabel} Wallet?`, `${actionLabel} wallet for ${username}?`, 'warning', actionLabel))) return;
   try {
     const res = await fetch('/api/admin/users/toggle-wallet-freeze', {
       method: 'POST',
@@ -5470,7 +5571,7 @@ async function handleAddBlacklist(e) {
 }
 
 async function removeBlacklist(target, type) {
-  if (!confirm(`Are you sure you want to unblock "${target}"?`)) return;
+  if (!(await adminDialog.confirm('Unblock Target?', `Are you sure you want to unblock "${target}"?`, 'warning', 'Unblock'))) return;
   try {
     const res = await fetch('/api/admin/blacklist/remove', {
       method: 'POST',
@@ -5726,7 +5827,7 @@ async function verifyEnableAdminTotp() {
 }
 
 async function disableAdminTotp() {
-  const inp = prompt('Enter your Admin Password or current 6-digit TOTP code to disable Authenticator 2FA:');
+  const inp = await adminDialog.prompt('Disable Authenticator 2FA', 'Enter your Admin Password or current 6-digit TOTP code to disable Authenticator 2FA:', 'Password or 6-digit code');
   if (!inp) return;
   const payload = /^\d{6}$/.test(inp.trim()) ? { code: inp.trim() } : { current_password: inp };
   try {
@@ -5933,7 +6034,7 @@ async function runSpinSimulation() {
 }
 
 async function resetSpinStats() {
-  if (!confirm('Reset all Spin Robux stats and history?')) return;
+  if (!(await adminDialog.confirm('Reset Spin Stats?', 'Reset all Spin Robux stats and history?', 'danger', 'Reset Stats'))) return;
   try {
     const res = await fetch('/api/admin/spin/reset-stats', { method: 'POST' });
     if (res.ok) { toast('Spin stats reset!'); loadAdminSpinData(); }
