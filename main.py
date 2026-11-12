@@ -1570,11 +1570,155 @@ def _check_unpaid_order_anti_bypass(client_ip: str, game_key: str, pkg_id: Any, 
 
     return True, ""
 
+_ALLOWED_HTTP_METHODS = {"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
+_HOST_HEADER_RE = re.compile(r"^[A-Za-z0-9.\-:\[\]]{1,253}$")
+_HACKER_UA_RE = re.compile(
+    r"(?:sqlmap|nikto|nmap|masscan|nuclei|wpscan|dirbuster|gobuster|ffuf|feroxbuster|"
+    r"wfuzz|dirsearch|acunetix|nessus|openvas|havij|commix|hydra|medusa|patator|"
+    r"zgrab|w3af|skipfish|arachni|netsparker|invicti|dalfox|xsser|appscan|joomscan|"
+    r"droopescan|whatweb|zaproxy|owasp\s*zap|burpcollaborator|interactsh|pangolin|jsql)",
+    re.IGNORECASE,
+)
+_HACKER_PROBE_EXACT = {
+    "/.htaccess", "/.htpasswd", "/xmlrpc.php", "/wp-login.php", "/wp-cron.php",
+    "/readme.html", "/license.txt", "/composer.json", "/composer.lock",
+    "/package.json", "/package-lock.json", "/server-status", "/server-info",
+    "/eval-stdin.php", "/shell.php", "/c99.php", "/r57.php", "/phpinfo.php",
+    "/info.php", "/test.php", "/config.php", "/backup.zip", "/backup.tar.gz", "/dump.sql",
+}
+_HACKER_PROBE_PREFIXES = (
+    "/wp-admin", "/wp-content", "/wp-includes", "/phpmyadmin", "/pma", "/adminer",
+    "/cgi-bin", "/boaform", "/actuator", "/swagger", "/api-docs", "/graphql",
+    "/telescope", "/autodiscover", "/ecp", "/owa", "/vendor/", "/phpunit",
+    "/console", "/.git", "/.svn", "/.hg", "/.aws", "/.ssh", "/.vscode", "/.idea",
+)
+_WAF_PATTERNS = [
+    ("sqli", re.compile(
+        r"(?:\bunion\s+(?:all\s+)?select\b|\bselect\b.{1,40}\bfrom\s+information_schema\b|"
+        r"\b(?:sleep|benchmark|pg_sleep)\s*\(\s*\d|\bwaitfor\s+delay\b|"
+        r"\b(?:extractvalue|updatexml)\s*\(|(?:['\";]\s*(?:or|and)\s+['\"]?\d+['\"]?\s*=\s*['\"]?\d+))",
+        re.IGNORECASE | re.DOTALL,
+    )),
+    ("xss", re.compile(
+        r"(?:<\s*script\b|javascript\s*:\s*|<\s*(?:iframe|svg|object|embed)\b[^>]*\bon\w+\s*=|"
+        r"\bon(?:error|load|mouseover|focus|click)\s*=\s*['\"]?(?:alert|prompt|confirm|fetch|eval|document\.))",
+        re.IGNORECASE | re.DOTALL,
+    )),
+    ("rce_lfi", re.compile(
+        r"(?:;\s*(?:cat|ls|id|whoami|uname|wget|curl|nc|bash|sh|python|perl|php)\b|`[^`]{2,}`|"
+        r"\$\([^)]{2,}\)|/etc/passwd|/etc/shadow|/proc/self/environ|cmd\.exe|powershell(?:\.exe)?\s+-)",
+        re.IGNORECASE,
+    )),
+    ("ssti_ssrf", re.compile(
+        r"(?:\{\{.*?(?:__class__|__mro__|__subclasses__|config\.items|cycler|joiner).*?\}\}|"
+        r"\$\{(?:jndi|env|sys|java)\s*:|169\.254\.169\.254|metadata\.google\.internal|"
+        r"oastify\.com|burpcollaborator\.net|interact\.sh)",
+        re.IGNORECASE | re.DOTALL,
+    )),
+    ("proto_pollution", re.compile(
+        r"(?:__proto__|constructor\s*\[?\s*['\"]?prototype)",
+        re.IGNORECASE,
+    )),
+]
+_WAF_SKIP_SECRET_KEYS = {"password", "old_password", "new_password", "confirm_password", "pin", "token", "receipt_token", "credential"}
+_scanner_strikes: Dict[str, List[float]] = {}
+_scanner_bans: Dict[str, float] = {}
+_scanner_log_cooldown: Dict[str, float] = {}
+
+def _is_hacker_probe_path(norm_path: str) -> bool:
+    if norm_path in _HACKER_PROBE_EXACT:
+        return True
+    return any(norm_path == p.rstrip("/") or norm_path.startswith(p if p.endswith("/") else p + "/") for p in _HACKER_PROBE_PREFIXES)
+
+def _detect_web_attack_payload(raw_text: str) -> Optional[str]:
+    if not raw_text:
+        return None
+    sample = str(raw_text)[:8192]
+    # Decode URL-encoded attack vectors up to 2 levels for inspection
+    decoded = unquote(sample)
+    if "%" in decoded:
+        decoded = unquote(decoded)
+    for text_variant in (sample, decoded):
+        for category, pattern in _WAF_PATTERNS:
+            if pattern.search(text_variant):
+                return category
+    return None
+
+def _scan_payload_tree_waf(obj: Any, parent_key: str = "") -> Optional[str]:
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            k_low = str(k).lower().strip()
+            if k_low in ("__proto__", "prototype"):
+                return "proto_pollution"
+            if k_low in _WAF_SKIP_SECRET_KEYS:
+                continue
+            hit = _scan_payload_tree_waf(v, k_low)
+            if hit:
+                return hit
+    elif isinstance(obj, list):
+        for item in obj[:100]:
+            hit = _scan_payload_tree_waf(item, parent_key)
+            if hit:
+                return hit
+    elif isinstance(obj, str):
+        return _detect_web_attack_payload(obj)
+    return None
+
+def _is_scanner_temp_banned(ip: str) -> tuple[bool, int]:
+    if not ip or ip in ("127.0.0.1", "::1", "unknown"):
+        return False, 0
+    now_ts = time.time()
+    ban_until = _scanner_bans.get(ip, 0)
+    if ban_until > now_ts:
+        return True, max(1, int(ban_until - now_ts))
+    if ban_until:
+        _scanner_bans.pop(ip, None)
+    return False, 0
+
+def _record_hacker_strike(ip: str, reason: str, detail: str = ""):
+    if not ip or ip == "unknown":
+        return
+    now_ts = time.time()
+    is_loopback = ip in ("127.0.0.1", "::1")
+    if not is_loopback:
+        strikes = [t for t in _scanner_strikes.get(ip, []) if now_ts - t < 600]
+        strikes.append(now_ts)
+        _scanner_strikes[ip] = strikes[-20:]
+        if len(_scanner_strikes) > 5000:
+            _scanner_strikes.clear()
+        if len(strikes) >= 3:
+            _scanner_bans[ip] = now_ts + 900  # 15-minute automatic temp ban
+            if len(_scanner_bans) > 5000:
+                _scanner_bans.clear()
+
+    if now_ts - _scanner_log_cooldown.get(ip, 0) > 60:
+        _scanner_log_cooldown[ip] = now_ts
+        if len(_scanner_log_cooldown) > 5000:
+            _scanner_log_cooldown.clear()
+        try:
+            log_admin_security_event("Blocked Hacker/WAF", ip, "-", "locked", f"{reason}: {detail}"[:140])
+            if (blacklist.get("rules") or {}).get("auto_flag_suspicious", True):
+                logs = blacklist.setdefault("logs", [])
+                logs.insert(0, {
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "ip": ip,
+                    "player_id": "-",
+                    "game": "waf",
+                    "reason": f"{reason}: {detail}"[:140]
+                })
+                if len(logs) > 200:
+                    blacklist["logs"] = logs[:200]
+                save_blacklist()
+        except Exception:
+            pass
+
 class _BodyTooLarge(Exception):
     pass
 
 class MaxBodySizeMiddleware:
-    """Pure ASGI body-size limiter that enforces limits even on Transfer-Encoding: chunked requests."""
+    """Pure ASGI body-size limiter & JSON/form WAF scanner (handles chunked bodies safely)."""
+    WAF_INSPECT_LIMIT = 256 * 1024
+
     def __init__(self, app):
         self.app = app
 
@@ -1583,17 +1727,103 @@ class MaxBodySizeMiddleware:
             return await self.app(scope, receive, send)
 
         norm_path, _ = _normalize_request_path(scope.get("path", "/"))
+        method = str(scope.get("method") or "GET").upper()
         is_upload = norm_path in ("/api/admin/upload-banner", "/api/admin/games/upload-logo")
         max_bytes = MAX_UPLOAD_BODY_BYTES if is_upload else MAX_JSON_BODY_BYTES
 
+        content_type = ""
         for k, v in scope.get("headers", []):
-            if k.lower() == b"content-length":
+            kl = k.lower()
+            if kl == b"content-length":
                 try:
                     cl_val = int(v.decode("latin-1").strip())
                 except ValueError:
                     return await self._send_json(send, 400, {"ok": False, "error": "Invalid Content-Length"})
                 if cl_val < 0 or cl_val > max_bytes:
                     return await self._send_json(send, 413, {"ok": False, "error": "Payload too large"})
+            elif kl == b"content-type":
+                content_type = v.decode("latin-1", errors="ignore").lower()
+
+        # Inspect small non-admin JSON/form payloads for SQLi/XSS/RCE/SSTI/ProtoPollution before FastAPI runs
+        should_waf_body = (
+            method in ("POST", "PUT", "PATCH")
+            and not is_upload
+            and not norm_path.startswith("/api/admin")
+            and ("json" in content_type or "x-www-form-urlencoded" in content_type or not content_type)
+        )
+        if should_waf_body:
+            buffered = []
+            buf_size = 0
+            eof_reached = False
+            while True:
+                msg = await receive()
+                if msg.get("type") != "http.request":
+                    buffered.append(msg)
+                    if msg.get("type") == "http.disconnect":
+                        eof_reached = True
+                    break
+                chunk = msg.get("body", b"")
+                buf_size += len(chunk)
+                if buf_size > max_bytes:
+                    return await self._send_json(send, 413, {"ok": False, "error": "Payload too large"})
+                buffered.append(msg)
+                if not msg.get("more_body", False):
+                    eof_reached = True
+                    break
+                if buf_size > self.WAF_INSPECT_LIMIT:
+                    break
+
+            if eof_reached:
+                raw_bytes = b"".join(m.get("body", b"") for m in buffered if m.get("type") == "http.request")
+                if raw_bytes:
+                    raw_text = raw_bytes.decode("utf-8", errors="ignore")
+                    hit = None
+                    if "json" in content_type or raw_text.lstrip().startswith(("{", "[")):
+                        try:
+                            parsed = json.loads(raw_text)
+                            hit = _scan_payload_tree_waf(parsed)
+                        except Exception:
+                            hit = _detect_web_attack_payload(raw_text)
+                    else:
+                        hit = _detect_web_attack_payload(raw_text)
+                    if hit:
+                        from starlette.requests import Request as _StarletteReq
+                        eff_ip = get_admin_effective_ip(_StarletteReq(scope)) or "unknown"
+                        _record_hacker_strike(eff_ip, f"WAF Body ({hit})", norm_path)
+                        return await self._send_json(send, 403, {"ok": False, "error": "Malicious payload blocked by WAF"})
+
+            replay_queue = list(buffered)
+            stream_bytes = buf_size
+            too_large = False
+            sent_413 = False
+
+            async def buffered_receive():
+                nonlocal stream_bytes, too_large
+                if replay_queue:
+                    return replay_queue.pop(0)
+                msg = await receive()
+                if msg.get("type") == "http.request":
+                    stream_bytes += len(msg.get("body", b""))
+                    if stream_bytes > max_bytes:
+                        too_large = True
+                        raise _BodyTooLarge()
+                return msg
+
+            async def buffered_send(msg):
+                nonlocal sent_413
+                if too_large:
+                    if not sent_413 and msg.get("type") == "http.response.start":
+                        sent_413 = True
+                        await self._send_json(send, 413, {"ok": False, "error": "Payload too large"})
+                    return
+                await send(msg)
+
+            try:
+                await self.app(scope, buffered_receive, buffered_send)
+            except _BodyTooLarge:
+                if not sent_413:
+                    await self._send_json(send, 413, {"ok": False, "error": "Payload too large"})
+            return
 
         total_bytes = 0
         too_large = False
@@ -1764,17 +1994,51 @@ def _is_allowed_origin(raw_url: str, request: Request) -> bool:
 
 @app.middleware("http")
 async def security_and_no_cache_middleware(request: Request, call_next):
+    if request.method.upper() not in _ALLOWED_HTTP_METHODS:
+        return JSONResponse(status_code=405, content={"ok": False, "error": "Method not allowed"})
+
+    # 0. Host header injection check
+    host_hdr = (request.headers.get("host") or "").strip()
+    xf_host_hdr = (request.headers.get("x-forwarded-host") or "").split(",")[0].strip()
+    if (host_hdr and not _HOST_HEADER_RE.match(host_hdr)) or (xf_host_hdr and not _HOST_HEADER_RE.match(xf_host_hdr)):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid Host header"})
+
     path = request.url.path
     raw_qs = request.url.query or ""
     norm_path, suspicious_path = _normalize_request_path(path)
+    eff_ip = get_admin_effective_ip(request) or "unknown"
+
+    # 0b. Temporary auto-ban check for repeat attack/scanner IPs
+    banned, ban_left = _is_scanner_temp_banned(eff_ip)
+    if banned:
+        return JSONResponse(
+            status_code=403,
+            headers={"Retry-After": str(ban_left)},
+            content={"ok": False, "error": f"IP temporarily blocked due to automated attack/scanning activity ({ban_left}s)."}
+        )
+
+    # 0c. Automated hacker tool / vulnerability scanner User-Agent guard
+    ua_hdr = str(request.headers.get("user-agent") or "")
+    ua_match = _HACKER_UA_RE.search(ua_hdr)
+    if ua_match:
+        _record_hacker_strike(eff_ip, f"Blocked Hacker Tool UA ({ua_match.group(0)})", norm_path)
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Automated security scanners are blocked."})
 
     # 1. Path normalization, traversal, backslash, encoding evasion & null-byte guard
     if suspicious_path or ".." in raw_qs or "\x00" in raw_qs or "%00" in raw_qs.lower():
+        _record_hacker_strike(eff_ip, "Path Traversal / Null-Byte Evasion", path[:80])
         return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid request path"})
 
-    # 1b. Block probing of sensitive files / dotfiles / raw backups
-    if _is_sensitive_probe_path(norm_path):
+    # 1b. Block probing of sensitive files / dotfiles & common hacker exploit honeypot paths
+    if _is_sensitive_probe_path(norm_path) or _is_hacker_probe_path(norm_path):
+        _record_hacker_strike(eff_ip, "Sensitive/Exploit Path Probe", norm_path[:80])
         return JSONResponse(status_code=403, content={"ok": False, "error": "Access denied"})
+
+    # 1c. WAF signature check on URL path, query string, and spoofable headers
+    waf_qs = _detect_web_attack_payload(raw_qs) or _detect_web_attack_payload(path) or _detect_web_attack_payload(request.headers.get("referer") or "")
+    if waf_qs:
+        _record_hacker_strike(eff_ip, f"WAF Signature ({waf_qs})", norm_path[:80])
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Attack signature blocked by WAF"})
 
     # 2. Request payload size guard (Anti-Payload Flood)
     cl_hdr = request.headers.get("content-length")
@@ -1789,7 +2053,6 @@ async def security_and_no_cache_middleware(request: Request, call_next):
             return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid Content-Length"})
 
     # 3. Anti-DDoS sliding-window rate limiter per client IP (using canonicalized path)
-    eff_ip = get_admin_effective_ip(request) or "unknown"
     ok_rate, retry_after = _check_rate_limit(eff_ip, norm_path)
     if not ok_rate:
         return JSONResponse(
@@ -1862,6 +2125,10 @@ async def security_and_no_cache_middleware(request: Request, call_next):
         response.headers["Expires"] = "0"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
+    response.headers["X-DNS-Prefetch-Control"] = "off"
+    response.headers["Content-Security-Policy"] = "frame-ancestors 'self'; object-src 'none'; base-uri 'self'"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
     response.headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
