@@ -1696,7 +1696,6 @@ def _build_tg_cust_home(chat_id: str) -> tuple[str, Dict[str, Any]]:
     
     text = (
         f"👋 <b>សួស្តី{greet_name}! សូមស្វាគមន៍មកកាន់ {store_name} Bot</b>\n\n"
-        f"🤖 ខ្ញុំជា Bot ស្វ័យប្រវត្តិសម្រាប់ជួយលោកអ្នកក្នុងការតាមដាន Order និងគ្រប់គ្រង Wallet ដោយផ្ទាល់នៅលើ Telegram មិនបាច់ចាំវាយអក្សរឡើយ។\n\n"
         f"👇 <b>សូមចុចលើប៊ូតុងខាងក្រោមដើម្បីជ្រើសរើស៖</b>"
     )
     markup = {
