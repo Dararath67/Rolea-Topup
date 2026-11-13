@@ -3006,6 +3006,8 @@ def _is_https_request(request: Request) -> bool:
     return xfp == "https" or request.url.scheme == "https"
 
 def _get_rate_tier(path: str, is_authed_admin: bool = False) -> tuple[str, int, int]:
+    if path in ("/api/webhook/khqrpay", "/api/khqrpay/callback", "/api/telegram/webhook"):
+        return ("webhook", 1200, 60)
     if path in (
         "/api/auth/forgot-password", "/api/auth/verify-reset-code", "/api/auth/reset-password",
         "/api/admin/forgot-password", "/api/admin/verify-reset-code", "/api/admin/reset-password"
@@ -3054,21 +3056,30 @@ def verify_khqr_bank_payment(live: Optional[Dict[str, Any]], expected_amount: fl
         return False, st or "pending"
 
     if expected_order_id:
-        live_oid = str(live.get("order_id") or "").strip()
-        if live_oid and live_oid != str(expected_order_id).strip():
+        live_oid = str(live.get("order_id") or "").strip().upper().lstrip("#")
+        exp_oid = str(expected_order_id).strip().upper().lstrip("#")
+        if live_oid and exp_oid and live_oid != exp_oid:
             return False, "order_id_mismatch"
 
     raw_amt = live.get("amount")
+    curr = str(live.get("currency") or "USD").upper().strip()
     if raw_amt is not None:
         try:
             paid_amt = float(raw_amt)
         except (ValueError, TypeError):
             return False, "invalid_amount"
-        if not math.isfinite(paid_amt) or paid_amt < round(float(expected_amount) - 0.01, 2):
-            return False, "amount_mismatch"
+        if not math.isfinite(paid_amt):
+            return False, "invalid_amount"
+        if curr == "KHR":
+            # 1 USD ≈ 4000-4150 KHR (Bakong cross-currency payments)
+            exp_khr = float(expected_amount) * 4000.0 - 150.0
+            if paid_amt < exp_khr:
+                return False, "amount_mismatch"
+        else:
+            if paid_amt < round(float(expected_amount) - 0.01, 2):
+                return False, "amount_mismatch"
 
-    curr = str(live.get("currency") or "USD").upper().strip()
-    if curr not in ("USD", ""):
+    if curr not in ("USD", "KHR", ""):
         return False, "currency_mismatch"
 
     return True, "paid"
@@ -5375,10 +5386,14 @@ async def create_order(request: Request):
 
                 orders.insert(0, new_order)
                 if len(orders) > 500: orders[:] = orders[:500]
+                if auto_del:
+                    try:
+                        deduct_inventory_on_deliver(new_order)
+                    except Exception as eInv:
+                        print("Inventory deduction error:", eInv)
+                    asyncio.create_task(notify_customer_order_completed(new_order))
                 save_orders()
                 asyncio.create_task(send_telegram_paid_alert(new_order))
-                if auto_del:
-                    asyncio.create_task(notify_customer_order_completed(new_order))
 
                 return {
                     "ok": True,
@@ -5506,10 +5521,10 @@ async def get_order_status(order_id: str):
     if order.get("khqrpay_id") and not order.get("paid") and order.get("status") not in ("completed", "expired", "failed", "refunded"):
         live = await check_khqrpay_status(order["khqrpay_id"])
         if live:
-            verified_paid, v_st = verify_khqr_bank_payment(live, float(order.get("amount", 0)), expected_order_id=order_id)
+            verified_paid, v_st = verify_khqr_bank_payment(live, float(order.get("amount", 0)), expected_order_id=order.get("order_id"))
             if verified_paid:
                 async with _tx_lock:
-                    kid = str(order["khqrpay_id"])
+                    kid = str(order.get("khqrpay_id") or order.get("order_id"))
                     if not order.get("paid") and kid not in _credited_khqr_ids:
                         _credited_khqr_ids.add(kid)
                         order["paid"] = True
@@ -5543,6 +5558,11 @@ async def get_order_status(order_id: str):
                                 order["delivered"] = True
                                 order["status"] = "completed"
                                 order["label"] = "Payment confirmed & items delivered"
+                                try:
+                                    deduct_inventory_on_deliver(order)
+                                except Exception as eInv:
+                                    print("Inventory deduction error:", eInv)
+                                asyncio.create_task(notify_customer_order_completed(order))
                             else:
                                 order["delivered"] = False
                                 order["status"] = "paid"
@@ -5600,6 +5620,76 @@ async def get_order_status(order_id: str):
         "server_now": datetime.now(timezone.utc).isoformat(),
         "label": order.get("label")
     }
+
+@app.post("/api/webhook/khqrpay")
+@app.post("/api/khqrpay/callback")
+async def khqrpay_webhook(request: Request):
+    """Instant IPN / Webhook processor for KHQRPay live transactions."""
+    try:
+        body = await request.json() if (await request.body()) else {}
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid payload"})
+
+    payment_data = body.get("payment") if isinstance(body.get("payment"), dict) else body
+    target_oid = str(payment_data.get("order_id") or body.get("order_id") or "").strip().upper().lstrip("#")
+    if not target_oid:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Missing order_id"})
+
+    async with _tx_lock:
+        order = next((o for o in orders if str(o.get("order_id", "")).strip().upper() in (target_oid, f"ORD-{target_oid}", target_oid.replace("ORD-", ""))), None)
+        if not order:
+            refreshed = load_json(DB_PATH, orders)
+            if isinstance(refreshed, list):
+                orders[:] = refreshed
+                order = next((o for o in orders if str(o.get("order_id", "")).strip().upper() in (target_oid, f"ORD-{target_oid}", target_oid.replace("ORD-", ""))), None)
+
+        if not order:
+            return JSONResponse(status_code=404, content={"ok": False, "error": "Order not found"})
+
+        verified_paid, v_st = verify_khqr_bank_payment(payment_data, float(order.get("amount", 0)), expected_order_id=order.get("order_id"))
+        if verified_paid and not order.get("paid"):
+            order["paid"] = True
+            if order.get("type") == "wallet_topup":
+                order["status"] = "completed"
+                order["step"] = "delivered"
+                order["delivered"] = True
+                if not order.get("wallet_credited"):
+                    order["wallet_credited"] = True
+                    u = next((usr for usr in users if usr.get("id") == order.get("user_id")), None)
+                    if u:
+                        u["balance"] = round(float(u.get("balance", 0.0)) + float(order["amount"]), 2)
+                        save_users()
+                        asyncio.create_task(notify_customer_wallet_deposit(u, float(order["amount"])))
+                        wallet_transactions.insert(0, {
+                            "id": "wtx_" + secrets.token_hex(4),
+                            "user_id": u["id"],
+                            "type": "deposit",
+                            "amount": float(order["amount"]),
+                            "order_id": order["order_id"],
+                            "product": "Wallet Top-up",
+                            "date": datetime.now(timezone.utc).isoformat()
+                        })
+                        save_wallet_tx()
+            else:
+                auto_del = bool(settings.get("auto_deliver", False))
+                order["status"] = "completed" if auto_del else "paid"
+                order["step"] = "delivered" if auto_del else "sending"
+                order["delivered"] = auto_del
+                order["label"] = "Payment confirmed & items delivered" if auto_del else "Payment confirmed. Waiting for Admin to deliver Robux…"
+                if auto_del:
+                    try:
+                        deduct_inventory_on_deliver(order)
+                    except Exception as eInv:
+                        print("Inventory deduction error:", eInv)
+                    asyncio.create_task(notify_customer_order_completed(order))
+                asyncio.create_task(send_telegram_paid_alert(order))
+
+            save_orders()
+            return {"ok": True, "message": "Payment verified and order updated"}
+
+    return {"ok": True, "message": f"Processed with status: {v_st}"}
 
 @app.post("/api/check-order")
 async def check_single_order(request: Request):
