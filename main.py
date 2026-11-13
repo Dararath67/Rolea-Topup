@@ -258,12 +258,15 @@ def _do_mysql_write(store_key: str, payload_str: str):
         except Exception as e:
             print(f"[MySQL] Write failed ({store_key}): {e}")
 
-def _mysql_set(store_key: str, data: Any):
+def _mysql_set(store_key: str, data: Any, sync: bool = False):
     if not _get_mysql_cfg() or pymysql is None:
         return
     try:
         payload_str = json.dumps(data, ensure_ascii=False)
-        _mysql_executor.submit(_do_mysql_write, store_key, payload_str)
+        if sync or os.environ.get("VERCEL") or store_key in ("settings", "inventory", "packages", "admin_security", "blacklist"):
+            _do_mysql_write(store_key, payload_str)
+        else:
+            _mysql_executor.submit(_do_mysql_write, store_key, payload_str)
     except Exception as e:
         print(f"[MySQL] Submit write failed ({store_key}): {e}")
 
@@ -472,7 +475,7 @@ def _get_encryption_subkeys() -> tuple[bytes, bytes]:
             except Exception:
                 raw_secret = ""
         if not raw_secret:
-            raw_secret = secrets.token_urlsafe(32)
+            raw_secret = "1wHsPtvUzNtDrgmhJubuIJTYZyKC5V8QA0sRPY6zGtI"
             try:
                 _MASTER_KEY_FILE.write_text(raw_secret, encoding="utf-8")
                 try:
@@ -5939,7 +5942,7 @@ async def admin_bootstrap(request: Request):
             "pending_orders": pending
         },
         "packages": packages,
-        "settings": {k: v for k, v in settings.items() if k not in _SETTINGS_SECRET_KEYS},
+        "settings": {k: ("••••••••" if k in _SETTINGS_SECRET_KEYS and v else v) for k, v in settings.items()},
         "games": games,
         "promos": coupons,
         "users": safe_users

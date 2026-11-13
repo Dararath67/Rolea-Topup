@@ -4033,16 +4033,48 @@ async function loadData() {
         document.getElementById('set-khqr-acc').value = st.khqr_account || 'bakong@rolea';
         document.getElementById('set-auto-deliver').checked = !!st.auto_deliver;
         if (document.getElementById('set-khqrpay-url')) document.getElementById('set-khqrpay-url').value = st.khqrpay_base_url || 'https://khqrpay.site';
-        if (document.getElementById('set-khqrpay-key')) document.getElementById('set-khqrpay-key').value = st.khqrpay_api_key || '';
-        if (document.getElementById('set-telegram-bot-token')) document.getElementById('set-telegram-bot-token').value = st.telegram_bot_token || '';
+        if (document.getElementById('set-khqrpay-key')) {
+          const el = document.getElementById('set-khqrpay-key');
+          if (st.khqrpay_api_key === '••••••••') {
+            el.placeholder = '•••••••• (KHQRPay Key is Saved & Active)';
+            el.value = '';
+          } else {
+            el.value = st.khqrpay_api_key || '';
+          }
+        }
+        if (document.getElementById('set-telegram-bot-token')) {
+          const el = document.getElementById('set-telegram-bot-token');
+          if (st.telegram_bot_token === '••••••••') {
+            el.placeholder = '•••••••• (Bot Token is Saved & Active)';
+            el.value = '';
+          } else {
+            el.value = st.telegram_bot_token || '';
+          }
+        }
         if (document.getElementById('set-telegram-chat-id')) document.getElementById('set-telegram-chat-id').value = st.telegram_chat_id || '-5315869838';
         if (document.getElementById('set-smtp-host')) document.getElementById('set-smtp-host').value = st.smtp_host || 'smtp.gmail.com';
         if (document.getElementById('set-smtp-port')) document.getElementById('set-smtp-port').value = st.smtp_port || 587;
         if (document.getElementById('set-smtp-email')) document.getElementById('set-smtp-email').value = st.smtp_email || '';
-        if (document.getElementById('set-smtp-password')) document.getElementById('set-smtp-password').value = st.smtp_password || '';
+        if (document.getElementById('set-smtp-password')) {
+          const el = document.getElementById('set-smtp-password');
+          if (st.smtp_password === '••••••••') {
+            el.placeholder = '•••••••• (Gmail App Password is Saved & Active)';
+            el.value = '';
+          } else {
+            el.value = st.smtp_password || '';
+          }
+        }
         if (document.getElementById('set-admin-recovery-email')) document.getElementById('set-admin-recovery-email').value = st.admin_recovery_email || '';
         if (document.getElementById('set-turnstile-site')) document.getElementById('set-turnstile-site').value = st.turnstile_site_key || '';
-        if (document.getElementById('set-turnstile-secret')) document.getElementById('set-turnstile-secret').value = st.turnstile_secret_key || '';
+        if (document.getElementById('set-turnstile-secret')) {
+          const el = document.getElementById('set-turnstile-secret');
+          if (st.turnstile_secret_key === '••••••••') {
+            el.placeholder = '•••••••• (Turnstile Secret is Saved & Active)';
+            el.value = '';
+          } else {
+            el.value = st.turnstile_secret_key || '';
+          }
+        }
         if (document.getElementById('input-home-banner-url')) document.getElementById('input-home-banner-url').value = st.home_banner || '/media/banner1.webp';
         if (document.getElementById('preview-home-banner')) document.getElementById('preview-home-banner').src = st.home_banner || '/media/banner1.webp';
         renderBannerTab();
