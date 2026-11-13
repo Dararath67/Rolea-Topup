@@ -45,7 +45,7 @@ let settings = {
   roblox_banner: "/media/roblox-banner.webp",
   auto_deliver: true,
   telegram_bot_token: (process.env.TELEGRAM_BOT_TOKEN || ""),
-  telegram_chat_id: "8710759437"
+  telegram_chat_id: "-5315869838"
 };
 let users = [];
 let coupons = [];
@@ -124,7 +124,7 @@ async function sendTelegramPaidAlert(order) {
   saveOrders();
 
   const token = settings.telegram_bot_token || (process.env.TELEGRAM_BOT_TOKEN || '');
-  const chatId = settings.telegram_chat_id || '8710759437';
+  const chatId = settings.telegram_chat_id || '-5315869838';
   if (!token || !chatId) return;
 
   const g = games[order.game] || {};
@@ -208,9 +208,12 @@ async function handleTelegramCallbackQuery(query, token) {
   const queryId = query.id;
   const data = query.data || '';
   const fromId = String(query.from && query.from.id);
-  const targetChatId = String(settings.telegram_chat_id || '8710759437');
+  const fromUname = String(query.from && query.from.username || '').toLowerCase();
+  const msgChatId = String(query.message && query.message.chat && query.message.chat.id || '');
+  const targetChatId = String(settings.telegram_chat_id || '-5315869838');
+  const isAdmin = (fromId === '8710759437' || fromId === targetChatId || msgChatId === targetChatId || msgChatId === '-5315869838' || fromUname === 'rothzz3');
 
-  if (fromId !== targetChatId) {
+  if (!isAdmin) {
     await answerCallbackQuery(token, queryId, 'Unauthorized: Admin action only.');
     return;
   }
@@ -1616,7 +1619,7 @@ app.post('/api/admin/settings', (req, res) => {
 
 app.post('/api/admin/telegram/test', async (req, res) => {
   const token = settings.telegram_bot_token || (process.env.TELEGRAM_BOT_TOKEN || '');
-  const chatId = settings.telegram_chat_id || '8710759437';
+  const chatId = settings.telegram_chat_id || '-5315869838';
   try {
     const url = `https://api.telegram.org/bot${token}/sendMessage`;
     const resp = await fetch(url, {

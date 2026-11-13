@@ -133,7 +133,7 @@ settings: Dict[str, Any] = {
     "roblox_banner": "/media/roblox-banner.webp",
     "auto_deliver": True,
     "telegram_bot_token": os.environ.get("TELEGRAM_BOT_TOKEN", ""),
-    "telegram_chat_id": "8710759437",
+    "telegram_chat_id": "-5315869838",
     "smtp_host": "smtp.gmail.com",
     "smtp_port": 587,
     "smtp_email": "",
@@ -1155,7 +1155,7 @@ async def send_telegram_paid_alert(order: Dict[str, Any]):
         return
 
     token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
-    chat_id = settings.get("telegram_chat_id") or "8710759437"
+    chat_id = settings.get("telegram_chat_id") or "-5315869838"
     if not token or not chat_id:
         return
 
@@ -1381,10 +1381,26 @@ async def send_telegram_direct_message(token: str, chat_id: Union[int, str], tex
     return False
 
 
+def is_telegram_admin(user_id: Union[str, int], username: str = "", chat_id: Union[str, int] = "") -> bool:
+    uid_str = str(user_id or "").strip()
+    cid_str = str(chat_id or "").strip()
+    target_chat_id = str(settings.get("telegram_chat_id") or "-5315869838").strip()
+    admin_handle = str(settings.get("telegram_handle") or "Rothzz3").lstrip("@").lower()
+    uname = str(username or "").lstrip("@").lower()
+
+    if uid_str and uid_str in ("8710759437", target_chat_id):
+        return True
+    if cid_str and cid_str in (target_chat_id, "-5315869838"):
+        return True
+    if uname and uname == admin_handle:
+        return True
+    return False
+
+
 async def send_telegram_admin_alert(text: str, reply_markup: Optional[Dict] = None) -> bool:
     """Send an HTML alert message to the configured admin Telegram chat."""
     token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
-    chat_id = settings.get("telegram_chat_id") or os.environ.get("TELEGRAM_CHAT_ID", "") or "8710759437"
+    chat_id = settings.get("telegram_chat_id") or os.environ.get("TELEGRAM_CHAT_ID", "") or "-5315869838"
     if not token or not chat_id or not text:
         print(f"[Telegram] Skipped admin alert (token_present={bool(token)}, chat_id={chat_id!r})")
         return False
@@ -1585,7 +1601,7 @@ def build_daily_sales_report(target_date_str: Optional[str] = None) -> str:
 
 async def send_telegram_data_backup(admin_chat_id: Optional[str] = None) -> bool:
     token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
-    target_chat = admin_chat_id or settings.get("telegram_chat_id") or "8710759437"
+    target_chat = admin_chat_id or settings.get("telegram_chat_id") or "-5315869838"
     if not token or not target_chat:
         return False
     
@@ -2354,14 +2370,17 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
 async def handle_telegram_callback_query(query: Dict[str, Any], token: str):
     query_id = query.get("id")
     data = query.get("data", "")
-    from_id = str(query.get("from", {}).get("id"))
-    target_chat_id = str(settings.get("telegram_chat_id") or "8710759437")
+    from_user = query.get("from") or {}
+    from_id = str(from_user.get("id") or "")
+    from_uname = str(from_user.get("username") or "")
+    msg = query.get("message") or {}
+    msg_chat_id = str(msg.get("chat", {}).get("id") or "")
 
     if data.startswith("cust:"):
         await handle_telegram_customer_callback(query, token, data)
         return
 
-    if from_id != target_chat_id:
+    if not is_telegram_admin(from_id, from_uname, msg_chat_id):
         await answer_callback_query(token, query_id, "Unauthorized: Admin action only.")
         return
 
@@ -2411,16 +2430,16 @@ async def handle_telegram_callback_query(query: Dict[str, Any], token: str):
             await answer_callback_query(token, query_id, f"✅ Order #{order_id} បានបាញ់រួចរាល់!")
 
             updated_text = (
-                f"✅ <b>[ការកុម្ម៉ង់បានបាញ់រួចរាល់ / COMPLETED]</b>\n"
-                f"🏪 <b>ហាង៖</b> {html.escape(str(settings.get('store_name', 'Rolea Topup')), quote=False)}\n"
+                f"✅ <b>[ORDER COMPLETED BY ADMIN]</b>\n"
+                f"🏪 <b>Store:</b> {html.escape(str(settings.get('store_name', 'Rolea Topup')), quote=False)}\n"
                 f"🆔 <b>Order ID:</b> <code>{html.escape(str(order.get('order_id') or ''), quote=False)}</code>\n"
-                f"🎮 <b>ហ្គេម៖</b> {game_name}\n"
-                f"👤 <b>ឈ្មោះក្នុងហ្គេម (ចុច Copy)៖</b> <code>{html.escape(raw_cust_acc, quote=False)}</code>\n"
-                f"📦 <b>កញ្ចប់៖</b> {pkg_name}\n"
-                f"💵 <b>តម្លៃ៖</b> ${amount} USD\n"
-                f"🎉 <b>ស្ថានភាព៖</b> បាញ់ជូនជោគជ័យ (COMPLETED)\n"
-                f"👮 <b>រៀបចំដោយ Admin៖</b> {admin_name}\n"
-                f"🕒 <b>ពេលវេលា៖</b> {now_ict}"
+                f"🎮 <b>Game:</b> {game_name}\n"
+                f"👤 <b>Account (ចុច Copy):</b> <code>{html.escape(raw_cust_acc, quote=False)}</code>\n"
+                f"📦 <b>Package:</b> {pkg_name}\n"
+                f"💵 <b>Amount:</b> ${amount} USD\n"
+                f"🎉 <b>Status:</b> COMPLETED &amp; DELIVERED\n"
+                f"👮 <b>Action By:</b> {admin_name}\n"
+                f"🕒 <b>Action Time:</b> {now_ict}"
             )
             if query.get("message"):
                 msg = query["message"]
@@ -2485,7 +2504,7 @@ async def telegram_polling_loop():
         try:
             token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
             if token:
-                target_chat_id = str(settings.get("telegram_chat_id") or "8710759437")
+                target_chat_id = str(settings.get("telegram_chat_id") or "-5315869838")
 
                 # Automatic Daily Sales Report at 23:00 (11:00 PM ICT)
                 now_ict = datetime.now(timezone(timedelta(hours=7)))
@@ -2513,15 +2532,18 @@ async def telegram_polling_loop():
                             msg = update["message"]
                             chat_id = str(msg.get("chat", {}).get("id"))
                             text = (msg.get("text") or "").strip()
-                            target_chat_id = str(settings.get("telegram_chat_id") or "8710759437")
+                            from_user = msg.get("from") or {}
+                            from_id = str(from_user.get("id") or "")
+                            from_uname = str(from_user.get("username") or "")
+
                             if text == "/admin" or text.startswith("/admin ") or text.startswith("/admin@"):
-                                if chat_id != target_chat_id:
+                                if not is_telegram_admin(from_id, from_uname, chat_id):
                                     asyncio.create_task(send_telegram_direct_message(token, chat_id, "⛔ Unauthorized: Admin only."))
                                 else:
                                     _tg_admin_state.pop(chat_id, None)
                                     adm_text, adm_markup = _build_tg_admin_home()
                                     asyncio.create_task(send_telegram_direct_message(token, chat_id, adm_text, adm_markup))
-                            elif chat_id == target_chat_id and chat_id in _tg_admin_state and text and not text.startswith("/"):
+                            elif is_telegram_admin(from_id, from_uname, chat_id) and chat_id in _tg_admin_state and text and not text.startswith("/"):
                                 st_info = _tg_admin_state.pop(chat_id, {})
                                 mode = st_info.get("mode")
                                 if mode == "find":
@@ -6400,7 +6422,7 @@ async def admin_telegram_broadcast(request: Request):
         return JSONResponse(status_code=400, content={"ok": False, "error": "Message content cannot be empty"})
         
     token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
-    admin_chat = settings.get("telegram_chat_id") or "8710759437"
+    admin_chat = settings.get("telegram_chat_id") or "-5315869838"
     
     if not token:
         return JSONResponse(status_code=400, content={"ok": False, "error": "Telegram Bot Token is not configured"})
@@ -6451,7 +6473,7 @@ async def admin_telegram_broadcast(request: Request):
 @app.post("/api/admin/telegram/test")
 async def admin_telegram_test():
     token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
-    chat_id = settings.get("telegram_chat_id") or "8710759437"
+    chat_id = settings.get("telegram_chat_id") or "-5315869838"
     now_ict = datetime.now(timezone(timedelta(hours=7))).strftime("%m/%d/%Y, %I:%M:%S %p")
     try:
         url = f"https://api.telegram.org/bot{token}/sendMessage"
@@ -6549,7 +6571,7 @@ async def check_and_send_low_stock_alert():
     save_inventory()
 
     token = settings.get("telegram_bot_token")
-    chat_id = settings.get("telegram_chat_id") or "8710759437"
+    chat_id = settings.get("telegram_chat_id") or "-5315869838"
     if token and chat_id:
         store_name = html.escape(str(settings.get("store_name", "Rolea Topup")), quote=False)
         msg = (

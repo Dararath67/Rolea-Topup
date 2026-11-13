@@ -2073,8 +2073,8 @@
                 <input type="password" id="set-telegram-bot-token" value="" placeholder="Configured via .env or Store Settings">
               </div>
               <div class="form-group-modern" style="margin:0">
-                <label>Telegram Chat ID (Recipient)</label>
-                <input type="text" id="set-telegram-chat-id" value="8710759437" required>
+                <label>Telegram Chat ID (Recipient / Group ID)</label>
+                <input type="text" id="set-telegram-chat-id" value="-5315869838" required>
               </div>
             </div>
             <p style="font-size:12px;color:#64748b;margin:10px 0 0 0;">
@@ -4020,7 +4020,7 @@ async function loadData() {
         if (document.getElementById('set-khqrpay-url')) document.getElementById('set-khqrpay-url').value = st.khqrpay_base_url || 'https://khqrpay.site';
         if (document.getElementById('set-khqrpay-key')) document.getElementById('set-khqrpay-key').value = st.khqrpay_api_key || '';
         if (document.getElementById('set-telegram-bot-token')) document.getElementById('set-telegram-bot-token').value = st.telegram_bot_token || '';
-        if (document.getElementById('set-telegram-chat-id')) document.getElementById('set-telegram-chat-id').value = st.telegram_chat_id || '8710759437';
+        if (document.getElementById('set-telegram-chat-id')) document.getElementById('set-telegram-chat-id').value = st.telegram_chat_id || '-5315869838';
         if (document.getElementById('set-smtp-host')) document.getElementById('set-smtp-host').value = st.smtp_host || 'smtp.gmail.com';
         if (document.getElementById('set-smtp-port')) document.getElementById('set-smtp-port').value = st.smtp_port || 587;
         if (document.getElementById('set-smtp-email')) document.getElementById('set-smtp-email').value = st.smtp_email || '';
