@@ -3950,15 +3950,27 @@ async function pollLiveOrders() {
 
 async function loadData() {
   try {
-    const [resOrders, resStats, resPackages, resSettings, resGames, resPromos, resUsers] = await Promise.all([
-      fetch('/api/admin/orders').then(r => r.json()),
-      fetch('/api/admin/stats').then(r => r.json()),
-      fetch('/api/admin/packages').then(r => r.json()),
-      fetch('/api/admin/settings').then(r => r.json()),
-      fetch('/api/admin/games').then(r => r.json()),
-      fetch('/api/admin/promos').then(r => r.json()).catch(() => ({ ok: false })),
-      fetch('/api/admin/users').then(r => r.json()).catch(() => ({ ok: false }))
-    ]);
+    let resOrders, resStats, resPackages, resSettings, resGames, resPromos, resUsers;
+    const bRes = await fetch('/api/admin/bootstrap').then(r => r.json()).catch(() => null);
+    if (bRes && bRes.ok) {
+      resOrders = { ok: true, orders: bRes.orders };
+      resStats = { ok: true, stats: bRes.stats };
+      resPackages = { ok: true, packages: bRes.packages };
+      resSettings = { ok: true, settings: bRes.settings };
+      resGames = { ok: true, games: bRes.games };
+      resPromos = { ok: true, promos: bRes.promos };
+      resUsers = { ok: true, users: bRes.users };
+    } else {
+      [resOrders, resStats, resPackages, resSettings, resGames, resPromos, resUsers] = await Promise.all([
+        fetch('/api/admin/orders').then(r => r.json()),
+        fetch('/api/admin/stats').then(r => r.json()),
+        fetch('/api/admin/packages').then(r => r.json()),
+        fetch('/api/admin/settings').then(r => r.json()),
+        fetch('/api/admin/games').then(r => r.json()),
+        fetch('/api/admin/promos').then(r => r.json()).catch(() => ({ ok: false })),
+        fetch('/api/admin/users').then(r => r.json()).catch(() => ({ ok: false }))
+      ]);
+    }
 
     if (resGames.ok) {
       allGames = resGames.games || {};
@@ -6131,7 +6143,7 @@ function hideAdminLoader() {
 
 // Initial load & Polling (lightweight 6s orders poll, 45s full background sync)
 Promise.allSettled([loadData(), loadSecurityData()]).finally(hideAdminLoader);
-setTimeout(hideAdminLoader, 10000);
+setTimeout(hideAdminLoader, 3500);
 restoreActiveTab();
 setInterval(pollLiveOrders, 6000);
 setInterval(() => {

@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import concurrent.futures
 import hashlib
 import hmac
 import html
@@ -238,7 +239,9 @@ def _mysql_get(store_key: str) -> Optional[Any]:
             print(f"[MySQL] Read failed ({store_key}): {e}")
     return None
 
-def _mysql_set(store_key: str, data: Any):
+_mysql_executor = concurrent.futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix="mysql_sync")
+
+def _do_mysql_write(store_key: str, payload_str: str):
     if not _get_mysql_cfg() or pymysql is None:
         return
     with _mysql_lock:
@@ -246,7 +249,6 @@ def _mysql_set(store_key: str, data: Any):
             conn = _mysql_connect()
             if not conn:
                 return
-            payload_str = json.dumps(data, ensure_ascii=False)
             with conn.cursor() as cur:
                 cur.execute(
                     "INSERT INTO rolea_store (store_key, payload) VALUES (%s, %s) "
@@ -255,6 +257,15 @@ def _mysql_set(store_key: str, data: Any):
                 )
         except Exception as e:
             print(f"[MySQL] Write failed ({store_key}): {e}")
+
+def _mysql_set(store_key: str, data: Any):
+    if not _get_mysql_cfg() or pymysql is None:
+        return
+    try:
+        payload_str = json.dumps(data, ensure_ascii=False)
+        _mysql_executor.submit(_do_mysql_write, store_key, payload_str)
+    except Exception as e:
+        print(f"[MySQL] Submit write failed ({store_key}): {e}")
 
 
 # ==========================================
@@ -5854,11 +5865,57 @@ async def admin_stats():
         }
     }
 
+@app.get("/api/admin/bootstrap")
+async def admin_bootstrap(request: Request):
+    if not verify_admin_session(request):
+        return JSONResponse(status_code=401, content={"ok": False, "error": "Unauthorized"})
+
+    product_orders = [
+        {k: v for k, v in o.items() if k != "qr_url"}
+        for o in orders 
+        if o.get("type") != "wallet_topup" 
+        and o.get("product_type") != "wallet" 
+        and not str(o.get("order_id", "")).startswith("WLT")
+    ]
+    revenue = sum(float(o.get("amount", 0)) for o in product_orders if o.get("paid"))
+    robux_del = sum(float(o.get("robux_amount", 0)) for o in product_orders if o.get("delivered"))
+    pending = len([o for o in product_orders if not o.get("paid") and o.get("status") not in ["failed", "expired"]])
+
+    safe_users = [
+        {
+            "id": u.get("id"),
+            "username": u.get("username"),
+            "email": u.get("email"),
+            "balance": u.get("balance", 0.0),
+            "created_at": u.get("created_at"),
+            "wallet_frozen": bool(u.get("wallet_frozen", False)),
+            "telegram_chat_id": u.get("telegram_chat_id")
+        }
+        for u in users
+    ]
+
+    return {
+        "ok": True,
+        "orders": product_orders,
+        "stats": {
+            "revenue": round(revenue, 2),
+            "total_orders": len(product_orders),
+            "robux_delivered": robux_del,
+            "pending_orders": pending
+        },
+        "packages": packages,
+        "settings": {k: v for k, v in settings.items() if k not in _SETTINGS_SECRET_KEYS},
+        "games": games,
+        "promos": coupons,
+        "users": safe_users
+    }
+
 @app.get("/api/admin/orders")
 async def admin_get_orders():
-    # Only show product orders that need fulfillment, NOT wallet deposits
+    # Only show product orders that need fulfillment, NOT wallet deposits (strip large qr_url)
     product_orders = [
-        o for o in orders 
+        {k: v for k, v in o.items() if k != "qr_url"}
+        for o in orders 
         if o.get("type") != "wallet_topup" 
         and o.get("product_type") != "wallet" 
         and not str(o.get("order_id", "")).startswith("WLT")
@@ -6920,7 +6977,7 @@ async def robux_balance_auto_sync_loop():
                 await sync_primary_bot_balance()
         except Exception as e:
             print(f"[Robux AutoSync] Error: {e}")
-        await asyncio.sleep(15)
+        await asyncio.sleep(90)
 
 @app.post("/api/admin/inventory/cookie/sync")
 async def admin_inventory_cookie_sync():
