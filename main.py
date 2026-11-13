@@ -2262,6 +2262,13 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, text, markup)
 
+    elif sub == "mute_stock_alert":
+        inventory["telegram_alert_enabled"] = False
+        save_inventory()
+        await answer_callback_query(token, query_id, "🔕 បានបិទ Low Stock Alert ជោគជ័យ!")
+        if msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, "🔕 <b>ការដាស់តឿនស្តុក Robux (Low Stock Alert) ត្រូវបានបិទដំណើរការ (Muted) រួចរាល់។</b>\nលោកអ្នកអាចបើកវាឡើងវិញតាម Admin Panel បានគ្រប់ពេល។", {"inline_keyboard": [[{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]})
+
     elif sub in ("promos", "ptog"):
         page = 0
         if sub == "ptog" and len(parts) >= 3:
@@ -6518,33 +6525,49 @@ async def check_and_send_low_stock_alert():
     if not inventory.get("telegram_alert_enabled", True):
         return
     current_stock = get_total_inventory_stock()
-    threshold = int(inventory.get("low_stock_threshold", 5000))
-    if current_stock <= threshold:
-        # Rate limit alert to once every 15 minutes
-        last_alert = inventory.get("last_alert_sent_at")
-        now_ts = time.time()
-        if last_alert and (now_ts - last_alert) < 900:
-            return
-        inventory["last_alert_sent_at"] = now_ts
-        save_inventory()
+    threshold = int(inventory.get("low_stock_threshold", 500))
 
-        token = settings.get("telegram_bot_token")
-        chat_id = settings.get("telegram_chat_id")
-        if token and chat_id:
-            msg = (
-                f"🚨 <b>[ROLEA TOPUP — LOW STOCK ALERT]</b>\n\n"
-                f"⚠️ <b>Robux Inventory is Running Low!</b>\n"
-                f"• Current Stock: <b>{current_stock:,} Robux</b>\n"
-                f"• Alert Threshold: <b>{threshold:,} Robux</b>\n\n"
-                f"👉 Please replenish your Roblox Group Funds or add more Payout Bots promptly!\n"
-                f"🔗 <a href='http://localhost:3000/admin'>Open Admin Inventory</a>"
-            )
-            url = f"https://api.telegram.org/bot{token}/sendMessage"
-            try:
-                async with httpx.AsyncClient(timeout=8.0) as client:
-                    await client.post(url, json={"chat_id": chat_id, "text": msg, "parse_mode": "HTML"})
-            except Exception as e:
-                print("Low stock alert error:", e)
+    # If stock is refilled back above threshold, reset dispatched flag
+    if current_stock > threshold:
+        if inventory.get("low_stock_alert_dispatched"):
+            inventory["low_stock_alert_dispatched"] = False
+            save_inventory()
+        return
+
+    # Anti-spam guard: Do NOT send again if already alerted for this low stock event
+    if inventory.get("low_stock_alert_dispatched"):
+        return
+
+    # Strict cooldown of at least 6 hours (21600 seconds)
+    last_alert = float(inventory.get("last_alert_sent_at") or 0)
+    now_ts = time.time()
+    if (now_ts - last_alert) < 21600:
+        return
+
+    inventory["low_stock_alert_dispatched"] = True
+    inventory["last_alert_sent_at"] = now_ts
+    save_inventory()
+
+    token = settings.get("telegram_bot_token")
+    chat_id = settings.get("telegram_chat_id") or "8710759437"
+    if token and chat_id:
+        store_name = html.escape(str(settings.get("store_name", "Rolea Topup")), quote=False)
+        msg = (
+            f"🚨 <b>[{store_name} — ការដាស់តឿនស្តុក ROBUX]</b>\n\n"
+            f"⚠️ <b>ស្តុក Robux ក្នុង Bot ជិតអស់ហើយ!</b>\n"
+            f"• ស្តុកជាក់ស្តែងបច្ចុប្បន្ន៖ <code>{current_stock:,} R$</code>\n"
+            f"• កម្រិតកំណត់ដាស់តឿន៖ <code>{threshold:,} R$</code>\n\n"
+            f"👉 សូមបញ្ចូល Group Funds ឬដាក់ Cookie បន្ថែមដើម្បីកុំឱ្យដាច់ស្តុកពេលភ្ញៀវកុម្ម៉ង់!\n"
+            f"<i>(សារនេះត្រូវបានផ្ញើតែម្តងគត់ គ្មានការ Spam ឡើយ)</i>"
+        )
+        markup = {
+            "inline_keyboard": [
+                [{"text": "🤖 ឆែកស្តុកក្នុង Bot ឥឡូវនេះ", "callback_data": "adm:bot"}],
+                [{"text": "🔕 បិទការដាស់តឿននេះ (Mute Alert)", "callback_data": "adm:mute_stock_alert"}],
+                [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]
+            ]
+        }
+        await send_telegram_direct_message(token, chat_id, msg, markup)
 
 def deduct_inventory_on_deliver(order: dict):
     global inventory
