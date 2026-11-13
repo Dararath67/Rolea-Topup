@@ -1855,7 +1855,16 @@ async def handle_telegram_customer_callback(query: Dict[str, Any], token: str, d
 _tg_admin_state: Dict[str, Dict[str, Any]] = {}
 
 def _build_tg_admin_home() -> tuple[str, Dict[str, Any]]:
-    pending_cnt = sum(1 for o in orders if o.get("status") in ("pending", "sending", "paid"))
+    pending_cnt = sum(
+        1 for o in orders 
+        if o.get("paid") 
+        and not o.get("delivered") 
+        and o.get("status") not in ("completed", "refunded", "expired")
+        and o.get("type") != "wallet_topup" 
+        and o.get("product_type") != "wallet" 
+        and not str(o.get("order_id", "")).startswith("WLT")
+        and not (o.get("package_id") == "spin_reward" and not o.get("claim_submitted"))
+    )
     total_users = len(users)
     total_wallet = sum(float(u.get("balance") or 0.0) for u in users)
     store_name = html.escape(str(settings.get("store_name", "Rolea Topup")), quote=False)
@@ -2109,10 +2118,19 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
 
     elif sub == "pending":
         page = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
-        active_orders = [o for o in orders if o.get("status") in ("pending", "sending", "paid")]
+        active_orders = [
+            o for o in orders 
+            if o.get("paid") 
+            and not o.get("delivered") 
+            and o.get("status") not in ("completed", "refunded", "expired")
+            and o.get("type") != "wallet_topup" 
+            and o.get("product_type") != "wallet" 
+            and not str(o.get("order_id", "")).startswith("WLT")
+            and not (o.get("package_id") == "spin_reward" and not o.get("claim_submitted"))
+        ]
         total = len(active_orders)
         if total == 0:
-            text = "📦 <b>បញ្ជី Order កំពុងរង់ចាំ</b>\n\n✅ គ្មាន Order ណាកំពុងរង់ចាំនៅពេលនេះទេ!"
+            text = "📦 <b>បញ្ជី Order កំពុងរង់ចាំ (PAID ONLY)</b>\n\n✅ គ្មាន Order បានបង់ប្រាក់ណាកំពុងរង់ចាំនៅពេលនេះទេ!"
             rows = [
                 [{"text": "🔄 Refresh", "callback_data": "adm:pending:0"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]
             ]
@@ -2123,8 +2141,8 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
             slice_orders = active_orders[page * per_page : (page + 1) * per_page]
 
             lines = [
-                f"📦 <b>បញ្ជី Order សកម្ម / កំពុងរង់ចាំ</b>\n"
-                f"ទំព័រ {page + 1}/{max_page + 1} · សរុប: {total} Order\n"
+                f"📦 <b>បញ្ជី Order បានបង់ប្រាក់ / កំពុងរង់ចាំបាញ់</b>\n"
+                f"ទំព័រ {page + 1}/{max_page + 1} · សរុប: {total} Order (បង់ប្រាក់រួច)\n"
             ]
             rows = []
             for idx, o in enumerate(slice_orders, start=page * per_page + 1):
@@ -2132,8 +2150,7 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
                 raw_c = str(o.get("roblox_username") or o.get("buyer_account") or "Customer")
                 cust = html.escape(raw_c, quote=False)
                 amt = float(o.get("amount") or 0)
-                st = str(o.get("status") or "pending").upper()
-                lines.append(f"{idx}. <code>{html.escape(oid, quote=False)}</code> — <code>{cust}</code> (${amt:.2f}) [{st}]")
+                lines.append(f"{idx}. <code>{html.escape(oid, quote=False)}</code> — <code>{cust}</code> (${amt:.2f}) [🟢 PAID]")
                 rows.append([
                     {"text": f"✅ {idx}. បាញ់រួច ({oid[:8]})", "callback_data": f"complete:{oid}"},
                     {"text": f"❌ បដិសេធ ({oid[:8]})", "callback_data": f"reject:{oid}"}
@@ -2577,16 +2594,19 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                     pkg = html.escape(str(ord_obj.get("package") or "—"), quote=False)
                     amt = float(ord_obj.get("amount") or 0)
                     st = str(ord_obj.get("status") or "pending").upper()
+                    is_paid = bool(ord_obj.get("paid"))
+                    paid_badge = "🟢 បានបង់ប្រាក់រួច (PAID)" if is_paid else "⏳ មិនទាន់បង់ប្រាក់ (UNPAID)"
                     o_txt = (
                          f"🔎 <b>ព័ត៌មានលម្អិតអំពីការកុម្ម៉ង់ (Order Details)</b>\n\n"
                          f"🆔 <b>Order ID (ចុច Copy)៖</b> <code>{html.escape(oid, quote=False)}</code>\n"
                          f"👤 <b>ឈ្មោះក្នុងហ្គេម (ចុច Copy)៖</b> <code>{html.escape(raw_cust, quote=False)}</code>\n"
                          f"📦 <b>កញ្ចប់៖</b> {pkg}\n"
                          f"💵 <b>តម្លៃ៖</b> ${amt:.2f} USD\n"
+                         f"💳 <b>ការទូទាត់៖</b> {paid_badge}\n"
                          f"📌 <b>ស្ថានភាព៖</b> {st}"
                     )
                     o_rows = []
-                    if ord_obj.get("status") in ("pending", "sending", "paid"):
+                    if is_paid and ord_obj.get("status") not in ("completed", "refunded"):
                         o_rows.append([{"text": "✅ បាញ់រួចរាល់ (Complete)", "callback_data": f"complete:{oid}"}, {"text": "❌ បដិសេធ & សងប្រាក់ (Reject)", "callback_data": f"reject:{oid}"}])
                     o_rows.append([{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}])
                     asyncio.create_task(send_telegram_direct_message(token, chat_id, o_txt, {"inline_keyboard": o_rows}))
