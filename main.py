@@ -1433,25 +1433,6 @@ async def send_telegram_direct_message(token: str, chat_id: Union[int, str], tex
     return False
 
 
-_tg_user_timestamps: Dict[str, List[float]] = {}
-_TG_MAX_UPDATES_PER_5S = 6
-
-def _check_telegram_rate_limit(from_id: str) -> bool:
-    """Sliding-window rate limiter preventing Telegram spam/flood attacks."""
-    if not from_id:
-        return True
-    # Primary admin is exempt from rate limits
-    if from_id == "8710759437":
-        return True
-    now = time.time()
-    hist = _tg_user_timestamps.setdefault(from_id, [])
-    hist[:] = [t for t in hist if now - t < 5.0]
-    if len(hist) >= _TG_MAX_UPDATES_PER_5S:
-        return False
-    hist.append(now)
-    return True
-
-
 def is_telegram_admin(user_id: Union[str, int, None] = None, username: str = "", chat_id: Union[str, int, None] = None) -> bool:
     """Strictly authenticates whether a Telegram sender is an authorized store administrator.
     Security: Admin authentication is tied exclusively to immutable numeric Telegram User IDs.
@@ -1482,6 +1463,27 @@ def is_telegram_admin(user_id: Union[str, int, None] = None, username: str = "",
     if uname and (uname == admin_handle or uname in ("rothzz3", "dararath_admin")) and uid_str.isdigit() and int(uid_str) > 0:
         return True
     return False
+
+
+_tg_user_timestamps: Dict[str, List[float]] = {}
+_TG_MAX_UPDATES_PER_5S = 6
+
+def _check_telegram_rate_limit(from_id: str, username: str = "") -> bool:
+    """Sliding-window rate limiter preventing Telegram spam/flood attacks.
+    Admin accounts have ABSOLUTELY NO RATE LIMIT (100% unlimited).
+    """
+    if not from_id:
+        return True
+    # Admin is completely exempt from rate limiting (no limit for admin)
+    if is_telegram_admin(from_id, username):
+        return True
+    now = time.time()
+    hist = _tg_user_timestamps.setdefault(from_id, [])
+    hist[:] = [t for t in hist if now - t < 5.0]
+    if len(hist) >= _TG_MAX_UPDATES_PER_5S:
+        return False
+    hist.append(now)
+    return True
 
 
 async def send_telegram_admin_alert(text: str, reply_markup: Optional[Dict] = None) -> bool:
@@ -2725,10 +2727,11 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
     if not update or not isinstance(update, dict):
         return
 
-    # Anti-Flood / Rate Limiting per Telegram User ID
+    # Anti-Flood / Rate Limiting per Telegram User ID (Admin has NO LIMIT)
     from_u = (update.get("message") or update.get("callback_query", {})).get("from", {})
     sender_id = str(from_u.get("id") or "")
-    if sender_id and not _check_telegram_rate_limit(sender_id):
+    sender_uname = str(from_u.get("username") or "")
+    if sender_id and not _check_telegram_rate_limit(sender_id, sender_uname):
         if "callback_query" in update:
             cb_id = update["callback_query"].get("id")
             if cb_id:
