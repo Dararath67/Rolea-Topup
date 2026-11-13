@@ -5492,7 +5492,14 @@ async def create_order(request: Request):
 
 @app.get("/api/order-status/{order_id}")
 async def get_order_status(order_id: str):
-    order = next((o for o in orders if o.get("order_id") == order_id), None)
+    clean_id = str(order_id or "").strip().upper().lstrip("#")
+    order = next((o for o in orders if str(o.get("order_id", "")).strip().upper() in (clean_id, f"ORD-{clean_id}", clean_id.replace("ORD-", ""))), None)
+    if not order:
+        # Hot-reload from database/file to ensure real-time sync across all processes/workers
+        refreshed = load_json(DB_PATH, orders)
+        if isinstance(refreshed, list):
+            orders[:] = refreshed
+            order = next((o for o in orders if str(o.get("order_id", "")).strip().upper() in (clean_id, f"ORD-{clean_id}", clean_id.replace("ORD-", ""))), None)
     if not order:
         return JSONResponse(status_code=404, content={"ok": False, "error": "Order not found"})
 
@@ -5603,7 +5610,13 @@ async def check_single_order(request: Request):
     username = str(body.get("username") or "").strip()
     receipt_token = str(body.get("receipt_token") or "").strip()
 
-    order = next((o for o in orders if o.get("order_id") == order_id), None)
+    clean_id = str(order_id or "").strip().upper().lstrip("#")
+    order = next((o for o in orders if str(o.get("order_id", "")).strip().upper() in (clean_id, f"ORD-{clean_id}", clean_id.replace("ORD-", ""))), None)
+    if not order:
+        refreshed = load_json(DB_PATH, orders)
+        if isinstance(refreshed, list):
+            orders[:] = refreshed
+            order = next((o for o in orders if str(o.get("order_id", "")).strip().upper() in (clean_id, f"ORD-{clean_id}", clean_id.replace("ORD-", ""))), None)
     if not order:
         return JSONResponse(status_code=404, content={"ok": False, "error": "Order not found. Please verify your Order ID."})
 
@@ -6203,6 +6216,10 @@ async def admin_bootstrap(request: Request):
 
 @app.get("/api/admin/orders")
 async def admin_get_orders():
+    global orders
+    refreshed = load_json(DB_PATH, orders)
+    if isinstance(refreshed, list):
+        orders[:] = refreshed
     # Only show product orders that need fulfillment, NOT wallet deposits (strip large qr_url)
     product_orders = [
         {k: v for k, v in o.items() if k != "qr_url"}
