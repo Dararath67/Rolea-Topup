@@ -1174,8 +1174,8 @@ async def send_telegram_paid_alert(order: Dict[str, Any]):
     if order.get("type") == "wallet_topup" or order.get("product_type") == "wallet" or str(order.get("order_id", "")).startswith("WLT"):
         return
 
-    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
-    chat_id = settings.get("telegram_chat_id") or "-5315869838"
+    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "") or "8603328924:AAEkH7DeU2Yp7FaBhuBvEzYiGBAhzWlGOgE"
+    chat_id = settings.get("telegram_chat_id") or os.environ.get("TELEGRAM_CHAT_ID", "") or "-5315869838"
     if not token or not chat_id:
         return
 
@@ -1415,7 +1415,7 @@ def is_telegram_admin(user_id: Union[str, int], username: str = "", chat_id: Uni
 
 async def send_telegram_admin_alert(text: str, reply_markup: Optional[Dict] = None) -> bool:
     """Send an HTML alert message to the configured admin Telegram chat."""
-    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "") or "8603328924:AAEkH7DeU2Yp7FaBhuBvEzYiGBAhzWlGOgE"
     chat_id = settings.get("telegram_chat_id") or os.environ.get("TELEGRAM_CHAT_ID", "") or "-5315869838"
     if not token or not chat_id or not text:
         print(f"[Telegram] Skipped admin alert (token_present={bool(token)}, chat_id={chat_id!r})")
@@ -2506,14 +2506,159 @@ telegram_offset = 0
 _last_daily_report_date = ""
 _last_daily_backup_date = ""
 
+async def process_telegram_update(update: Dict[str, Any], token: str):
+    if not update or not isinstance(update, dict):
+        return
+    if "callback_query" in update:
+        asyncio.create_task(handle_telegram_callback_query(update["callback_query"], token))
+    elif "message" in update:
+        msg = update["message"]
+        chat_id = str(msg.get("chat", {}).get("id"))
+        text = (msg.get("text") or "").strip()
+        from_user = msg.get("from") or {}
+        from_id = str(from_user.get("id") or "")
+        from_uname = str(from_user.get("username") or "")
+
+        if text == "/admin" or text.startswith("/admin ") or text.startswith("/admin@"):
+            if not is_telegram_admin(from_id, from_uname, chat_id):
+                asyncio.create_task(send_telegram_direct_message(token, chat_id, "⛔ Unauthorized: Admin only."))
+            else:
+                _tg_admin_state.pop(chat_id, None)
+                adm_text, adm_markup = _build_tg_admin_home()
+                asyncio.create_task(send_telegram_direct_message(token, chat_id, adm_text, adm_markup))
+        elif is_telegram_admin(from_id, from_uname, chat_id) and chat_id in _tg_admin_state and text and not text.startswith("/"):
+            st_info = _tg_admin_state.pop(chat_id, {})
+            mode = st_info.get("mode")
+            if mode == "find":
+                q_low = text.strip().lower()
+                found = next((usr for usr in users if str(usr.get("id", "")).lower() == q_low or str(usr.get("username", "")).lower() == q_low or str(usr.get("email", "")).lower() == q_low), None)
+                if not found:
+                    found = next((usr for usr in users if q_low in str(usr.get("id", "")).lower() or q_low in str(usr.get("username", "")).lower()), None)
+                if found:
+                    card = _build_tg_user_card(str(found.get("id")), 0)
+                    if card:
+                        asyncio.create_task(send_telegram_direct_message(token, chat_id, card[0], card[1]))
+                else:
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ រកមិនឃើញអតិថិជនណាត្រូវនឹង <code>{html.escape(text, quote=False)}</code> ទេ។", {"inline_keyboard": [[{"text": "🔍 សាកល្បងម្តងទៀត", "callback_data": "adm:find"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
+            elif mode in ("cadd", "csub"):
+                uid = st_info.get("user_id", "")
+                ret_p = int(st_info.get("page") or 0)
+                try:
+                    amt_val = float(text.replace("$", "").strip())
+                    if amt_val <= 0 or not math.isfinite(amt_val):
+                        raise ValueError()
+                except ValueError:
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ ចំនួនទឹកប្រាក់មិនត្រឹមត្រូវ។ សូមបញ្ចូលលេខវិជ្ជមាន (ឧ. <code>10</code>)។", {"inline_keyboard": [[{"text": "⬅️ ត្រឡប់ទៅកាន់ User", "callback_data": f"adm:u:{uid}:{ret_p}"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
+                    return
+                delta = amt_val if mode == "cadd" else -amt_val
+                async with _tx_lock:
+                    ok, note, _ = _apply_tg_wallet_adjust(uid, delta, "Admin")
+                if ok:
+                    card = _build_tg_user_card(uid, ret_p)
+                    if card:
+                        asyncio.create_task(send_telegram_direct_message(token, chat_id, f"✅ <b>{html.escape(note, quote=False)}</b>\n\n{card[0]}", card[1]))
+                else:
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ {html.escape(note, quote=False)}"))
+            elif mode == "find_ord":
+                q_ord = text.strip().lstrip("#").upper()
+                ord_obj = next((o for o in orders if str(o.get("order_id", "")).upper() in (q_ord, f"ORD-{q_ord}")), None)
+                if not ord_obj:
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ រកមិនឃើញ Order <code>{html.escape(text, quote=False)}</code> ទេ។", {"inline_keyboard": [[{"text": "🔎 សាកល្បងម្តងទៀត", "callback_data": "adm:find_ord"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
+                else:
+                    oid = str(ord_obj.get("order_id") or "")
+                    raw_cust = str(ord_obj.get("roblox_username") or ord_obj.get("buyer_account") or "Customer")
+                    cust = html.escape(raw_cust, quote=False)
+                    pkg = html.escape(str(ord_obj.get("package") or "—"), quote=False)
+                    amt = float(ord_obj.get("amount") or 0)
+                    st = str(ord_obj.get("status") or "pending").upper()
+                    o_txt = (
+                         f"🔎 <b>ព័ត៌មានលម្អិតអំពីការកុម្ម៉ង់ (Order Details)</b>\n\n"
+                         f"🆔 <b>Order ID (ចុច Copy)៖</b> <code>{html.escape(oid, quote=False)}</code>\n"
+                         f"👤 <b>ឈ្មោះក្នុងហ្គេម (ចុច Copy)៖</b> <code>{html.escape(raw_cust, quote=False)}</code>\n"
+                         f"📦 <b>កញ្ចប់៖</b> {pkg}\n"
+                         f"💵 <b>តម្លៃ៖</b> ${amt:.2f} USD\n"
+                         f"📌 <b>ស្ថានភាព៖</b> {st}"
+                    )
+                    o_rows = []
+                    if ord_obj.get("status") in ("pending", "sending", "paid"):
+                        o_rows.append([{"text": "✅ បាញ់រួចរាល់ (Complete)", "callback_data": f"complete:{oid}"}, {"text": "❌ បដិសេធ & សងប្រាក់ (Reject)", "callback_data": f"reject:{oid}"}])
+                    o_rows.append([{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}])
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, o_txt, {"inline_keyboard": o_rows}))
+            elif mode == "promo_new":
+                parts_p = text.strip().split()
+                if len(parts_p) < 2:
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ ទម្រង់មិនត្រឹមត្រូវ: <code>CODE 10%</code> ឬ <code>CODE $5</code>", {"inline_keyboard": [[{"text": "🎟️ Promo Codes", "callback_data": "adm:promos:0"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
+                else:
+                    p_code = parts_p[0].upper()
+                    raw_v = parts_p[1]
+                    p_type = "fixed" if "$" in raw_v else "percentage"
+                    try:
+                        p_val = float(raw_v.replace("$", "").replace("%", ""))
+                        if p_val <= 0:
+                            raise ValueError()
+                        if any(c.get("code", "").upper() == p_code for c in coupons):
+                            asyncio.create_task(send_telegram_direct_message(token, chat_id, f"⚠️ កូដ Promo <code>{html.escape(p_code, quote=False)}</code> មានរួចហើយ។", {"inline_keyboard": [[{"text": "🎟️ Promo Codes", "callback_data": "adm:promos:0"}]]}))
+                        else:
+                            coupons.insert(0, {"id": "cpn_" + secrets.token_hex(4), "code": p_code, "type": p_type, "value": p_val, "min_spend": 0.0, "max_uses": 0, "used_count": 0, "enabled": True, "description": f"{p_val}{'$' if p_type == 'fixed' else '%'} Discount"})
+                            save_coupons()
+                            asyncio.create_task(send_telegram_direct_message(token, chat_id, f"✅ បានបង្កើតកូដ Promo <code>{html.escape(p_code, quote=False)}</code> ({html.escape(raw_v, quote=False)}) ជោគជ័យ!", {"inline_keyboard": [[{"text": "🎟️ មើល Promo Codes", "callback_data": "adm:promos:0"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
+                    except ValueError:
+                        asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ ចំនួនទឹកប្រាក់បញ្ចុះមិនត្រឹមត្រូវ។", {"inline_keyboard": [[{"text": "🎟️ Promo Codes", "callback_data": "adm:promos:0"}]]}))
+            elif mode in ("blk_u", "blk_ip"):
+                target_v = text.strip()
+                key = "blocked_users" if mode == "blk_u" else "blocked_ips"
+                lst = blacklist.setdefault(key, [])
+                if target_v and target_v not in lst:
+                    lst.append(target_v)
+                    save_blacklist()
+                asyncio.create_task(send_telegram_direct_message(token, chat_id, f"🚫 បាន Blacklist <code>{html.escape(target_v, quote=False)}</code> ជោគជ័យ!", {"inline_keyboard": [[{"text": "🚫 មឺនុយ Blacklist", "callback_data": "adm:blk"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
+            elif mode == "bcast":
+                targets = set()
+                for u_it in users:
+                    if u_it.get("telegram_chat_id"):
+                        targets.add(str(u_it["telegram_chat_id"]).strip())
+                for o_it in orders:
+                    if o_it.get("customer_telegram_chat_id"):
+                        targets.add(str(o_it["customer_telegram_chat_id"]).strip())
+                targets.discard(target_chat_id)
+                async def _do_bcast(tg_list, msg_body):
+                    sent_cnt = 0
+                    for tc in tg_list:
+                        if await send_telegram_direct_message(token, tc, msg_body):
+                            sent_cnt += 1
+                    await send_telegram_direct_message(token, chat_id, f"✅ Broadcast sent to <b>{sent_cnt}</b> customer(s)!", {"inline_keyboard": [[{"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]})
+                b_msg = f"📢 <b>{html.escape(str(settings.get('store_name', 'Rolea Topup')), quote=False)}</b>\n\n{html.escape(text.strip(), quote=False)}"
+                asyncio.create_task(_do_bcast(targets, b_msg))
+        elif text.startswith("/start"):
+            parts = text.split(maxsplit=1)
+            param = parts[1].strip() if len(parts) > 1 else ""
+            if param:
+                target_order = next((o for o in orders if o.get("order_id") == param or o.get("order_id") == f"ORD-{param}"), None)
+                if target_order:
+                    target_order["customer_telegram_chat_id"] = chat_id
+                    save_orders()
+                    if target_order.get("user_id"):
+                        u = next((usr for usr in users if usr.get("id") == target_order.get("user_id")), None)
+                        if u:
+                            u["telegram_chat_id"] = chat_id
+                            save_users()
+                    c_txt, c_markup = _build_tg_order_track_card(target_order)
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, f"✅ <b>បានភ្ជាប់ការជូនដំណឹងសម្រាប់ Order នេះជោគជ័យ!</b>\n\n{c_txt}", c_markup))
+                else:
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ រកមិនឃើញ Order <code>#{param}</code> ទេ។ សូមចុចប៊ូតុងខាងក្រោមដើម្បីជ្រើសរើស៖", {"inline_keyboard": [[{"text": "🔎 តាមដាន Order (Track Order)", "callback_data": "cust:track"}], [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]]}))
+            else:
+                c_txt, c_markup = _build_tg_cust_home(chat_id)
+                asyncio.create_task(send_telegram_direct_message(token, chat_id, c_txt, c_markup))
+
+
 async def telegram_polling_loop():
     global telegram_offset, _last_daily_report_date, _last_daily_backup_date
     while True:
-        sleep_sec = 0.05
+        sleep_sec = 0.5
         try:
-            token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+            token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "") or "8603328924:AAEkH7DeU2Yp7FaBhuBvEzYiGBAhzWlGOgE"
             if token:
-                target_chat_id = str(settings.get("telegram_chat_id") or "-5315869838")
+                target_chat_id = str(settings.get("telegram_chat_id") or os.environ.get("TELEGRAM_CHAT_ID", "") or "-5315869838")
 
                 # Automatic Daily Sales Report at 23:00 (11:00 PM ICT)
                 now_ict = datetime.now(timezone(timedelta(hours=7)))
@@ -2531,197 +2676,19 @@ async def telegram_polling_loop():
                 url = f"https://api.telegram.org/bot{token}/getUpdates?offset={telegram_offset}&timeout=20"
                 client = _get_tg_client()
                 resp = await client.get(url, timeout=25.0)
-                j = resp.json()
-                if j and j.get("ok") and isinstance(j.get("result"), list):
-                    for update in j["result"]:
-                        telegram_offset = update["update_id"] + 1
-                        if "callback_query" in update:
-                            asyncio.create_task(handle_telegram_callback_query(update["callback_query"], token))
-                        elif "message" in update:
-                            msg = update["message"]
-                            chat_id = str(msg.get("chat", {}).get("id"))
-                            text = (msg.get("text") or "").strip()
-                            from_user = msg.get("from") or {}
-                            from_id = str(from_user.get("id") or "")
-                            from_uname = str(from_user.get("username") or "")
-
-                            if text == "/admin" or text.startswith("/admin ") or text.startswith("/admin@"):
-                                if not is_telegram_admin(from_id, from_uname, chat_id):
-                                    asyncio.create_task(send_telegram_direct_message(token, chat_id, "⛔ Unauthorized: Admin only."))
-                                else:
-                                    _tg_admin_state.pop(chat_id, None)
-                                    adm_text, adm_markup = _build_tg_admin_home()
-                                    asyncio.create_task(send_telegram_direct_message(token, chat_id, adm_text, adm_markup))
-                            elif is_telegram_admin(from_id, from_uname, chat_id) and chat_id in _tg_admin_state and text and not text.startswith("/"):
-                                st_info = _tg_admin_state.pop(chat_id, {})
-                                mode = st_info.get("mode")
-                                if mode == "find":
-                                    q_low = text.strip().lower()
-                                    found = next((usr for usr in users if str(usr.get("id", "")).lower() == q_low or str(usr.get("username", "")).lower() == q_low or str(usr.get("email", "")).lower() == q_low), None)
-                                    if not found:
-                                        found = next((usr for usr in users if q_low in str(usr.get("id", "")).lower() or q_low in str(usr.get("username", "")).lower()), None)
-                                    if found:
-                                        card = _build_tg_user_card(str(found.get("id")), 0)
-                                        if card:
-                                            asyncio.create_task(send_telegram_direct_message(token, chat_id, card[0], card[1]))
-                                    else:
-                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ រកមិនឃើញអតិថិជនណាត្រូវនឹង <code>{html.escape(text, quote=False)}</code> ទេ។", {"inline_keyboard": [[{"text": "🔍 សាកល្បងម្តងទៀត", "callback_data": "adm:find"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
-                                elif mode in ("cadd", "csub"):
-                                    uid = st_info.get("user_id", "")
-                                    ret_p = int(st_info.get("page") or 0)
-                                    try:
-                                        amt_val = float(text.replace("$", "").strip())
-                                        if amt_val <= 0 or not math.isfinite(amt_val):
-                                            raise ValueError()
-                                    except ValueError:
-                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ ចំនួនទឹកប្រាក់មិនត្រឹមត្រូវ។ សូមបញ្ចូលលេខវិជ្ជមាន (ឧ. <code>10</code>)។", {"inline_keyboard": [[{"text": "⬅️ ត្រឡប់ទៅកាន់ User", "callback_data": f"adm:u:{uid}:{ret_p}"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
-                                        continue
-                                    delta = amt_val if mode == "cadd" else -amt_val
-                                    async with _tx_lock:
-                                        ok, note, _ = _apply_tg_wallet_adjust(uid, delta, "Admin")
-                                    if ok:
-                                        card = _build_tg_user_card(uid, ret_p)
-                                        if card:
-                                            asyncio.create_task(send_telegram_direct_message(token, chat_id, f"✅ <b>{html.escape(note, quote=False)}</b>\n\n{card[0]}", card[1]))
-                                    else:
-                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ {html.escape(note, quote=False)}"))
-                                elif mode == "find_ord":
-                                    q_ord = text.strip().lstrip("#").upper()
-                                    ord_obj = next((o for o in orders if str(o.get("order_id", "")).upper() in (q_ord, f"ORD-{q_ord}")), None)
-                                    if not ord_obj:
-                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ រកមិនឃើញ Order <code>{html.escape(text, quote=False)}</code> ទេ។", {"inline_keyboard": [[{"text": "🔎 សាកល្បងម្តងទៀត", "callback_data": "adm:find_ord"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
-                                    else:
-                                        oid = str(ord_obj.get("order_id") or "")
-                                        raw_cust = str(ord_obj.get("roblox_username") or ord_obj.get("buyer_account") or "Customer")
-                                        cust = html.escape(raw_cust, quote=False)
-                                        pkg = html.escape(str(ord_obj.get("package") or "—"), quote=False)
-                                        amt = float(ord_obj.get("amount") or 0)
-                                        st = str(ord_obj.get("status") or "pending").upper()
-                                        o_txt = (
-                                             f"🔎 <b>ព័ត៌មានលម្អិតអំពីការកុម្ម៉ង់ (Order Details)</b>\n\n"
-                                             f"🆔 <b>Order ID (ចុច Copy)៖</b> <code>{html.escape(oid, quote=False)}</code>\n"
-                                             f"👤 <b>ឈ្មោះក្នុងហ្គេម (ចុច Copy)៖</b> <code>{html.escape(raw_cust, quote=False)}</code>\n"
-                                             f"📦 <b>កញ្ចប់៖</b> {pkg}\n"
-                                             f"💵 <b>តម្លៃ៖</b> ${amt:.2f} USD\n"
-                                             f"📌 <b>ស្ថានភាព៖</b> {st}"
-                                        )
-                                        o_rows = []
-                                        if ord_obj.get("status") in ("pending", "sending", "paid"):
-                                            o_rows.append([{"text": "✅ បាញ់រួចរាល់ (Complete)", "callback_data": f"complete:{oid}"}, {"text": "❌ បដិសេធ & សងប្រាក់ (Reject)", "callback_data": f"reject:{oid}"}])
-                                        o_rows.append([{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}])
-                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, o_txt, {"inline_keyboard": o_rows}))
-                                elif mode == "promo_new":
-                                    parts_p = text.strip().split()
-                                    if len(parts_p) < 2:
-                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ ទម្រង់មិនត្រឹមត្រូវ: <code>CODE 10%</code> ឬ <code>CODE $5</code>", {"inline_keyboard": [[{"text": "🎟️ Promo Codes", "callback_data": "adm:promos:0"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
-                                    else:
-                                        p_code = parts_p[0].upper()
-                                        raw_v = parts_p[1]
-                                        p_type = "fixed" if "$" in raw_v else "percentage"
-                                        try:
-                                            p_val = float(raw_v.replace("$", "").replace("%", ""))
-                                            if p_val <= 0:
-                                                raise ValueError()
-                                            if any(c.get("code", "").upper() == p_code for c in coupons):
-                                                asyncio.create_task(send_telegram_direct_message(token, chat_id, f"⚠️ កូដ Promo <code>{html.escape(p_code, quote=False)}</code> មានរួចហើយ។", {"inline_keyboard": [[{"text": "🎟️ Promo Codes", "callback_data": "adm:promos:0"}]]}))
-                                            else:
-                                                coupons.insert(0, {"id": "cpn_" + secrets.token_hex(4), "code": p_code, "type": p_type, "value": p_val, "min_spend": 0.0, "max_uses": 0, "used_count": 0, "enabled": True, "description": f"{p_val}{'$' if p_type == 'fixed' else '%'} Discount"})
-                                                save_coupons()
-                                                asyncio.create_task(send_telegram_direct_message(token, chat_id, f"✅ បានបង្កើតកូដ Promo <code>{html.escape(p_code, quote=False)}</code> ({html.escape(raw_v, quote=False)}) ជោគជ័យ!", {"inline_keyboard": [[{"text": "🎟️ មើល Promo Codes", "callback_data": "adm:promos:0"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
-                                        except ValueError:
-                                            asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ ចំនួនទឹកប្រាក់បញ្ចុះមិនត្រឹមត្រូវ។", {"inline_keyboard": [[{"text": "🎟️ Promo Codes", "callback_data": "adm:promos:0"}]]}))
-                                elif mode in ("blk_u", "blk_ip"):
-                                    target_v = text.strip()
-                                    key = "blocked_users" if mode == "blk_u" else "blocked_ips"
-                                    lst = blacklist.setdefault(key, [])
-                                    if target_v and target_v not in lst:
-                                        lst.append(target_v)
-                                        save_blacklist()
-                                    asyncio.create_task(send_telegram_direct_message(token, chat_id, f"🚫 បាន Blacklist <code>{html.escape(target_v, quote=False)}</code> ជោគជ័យ!", {"inline_keyboard": [[{"text": "🚫 មឺនុយ Blacklist", "callback_data": "adm:blk"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
-                                elif mode == "bcast":
-                                    targets = set()
-                                    for u_it in users:
-                                        if u_it.get("telegram_chat_id"):
-                                            targets.add(str(u_it["telegram_chat_id"]).strip())
-                                    for o_it in orders:
-                                        if o_it.get("customer_telegram_chat_id"):
-                                            targets.add(str(o_it["customer_telegram_chat_id"]).strip())
-                                    targets.discard(target_chat_id)
-                                    async def _do_bcast(tg_list, msg_body):
-                                        sent_cnt = 0
-                                        for tc in tg_list:
-                                            if await send_telegram_direct_message(token, tc, msg_body):
-                                                sent_cnt += 1
-                                        await send_telegram_direct_message(token, chat_id, f"✅ Broadcast sent to <b>{sent_cnt}</b> customer(s)!", {"inline_keyboard": [[{"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]})
-                                    b_msg = f"📢 <b>{html.escape(str(settings.get('store_name', 'Rolea Topup')), quote=False)}</b>\n\n{html.escape(text.strip(), quote=False)}"
-                                    asyncio.create_task(_do_bcast(targets, b_msg))
-                            elif text.startswith("/start"):
-                                parts = text.split(maxsplit=1)
-                                param = parts[1].strip() if len(parts) > 1 else ""
-                                if param:
-                                    target_order = next((o for o in orders if o.get("order_id") == param or o.get("order_id") == f"ORD-{param}"), None)
-                                    if target_order:
-                                        target_order["customer_telegram_chat_id"] = chat_id
-                                        save_orders()
-                                        if target_order.get("user_id"):
-                                            u = next((usr for usr in users if usr.get("id") == target_order.get("user_id")), None)
-                                            if u:
-                                                u["telegram_chat_id"] = chat_id
-                                                save_users()
-                                        c_txt, c_markup = _build_tg_order_track_card(target_order)
-                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, f"✅ <b>បានភ្ជាប់ការជូនដំណឹងសម្រាប់ Order នេះជោគជ័យ!</b>\n\n{c_txt}", c_markup))
-                                    else:
-                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ រកមិនឃើញ Order <code>#{param}</code> ទេ។ សូមចុចប៊ូតុងខាងក្រោមដើម្បីជ្រើសរើស៖", {"inline_keyboard": [[{"text": "🔎 តាមដាន Order (Track Order)", "callback_data": "cust:track"}], [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]]}))
-                                else:
-                                    c_txt, c_markup = _build_tg_cust_home(chat_id)
-                                    asyncio.create_task(send_telegram_direct_message(token, chat_id, c_txt, c_markup))
-
-                            elif text.startswith("/track"):
-                                parts = text.split(maxsplit=1)
-                                param = parts[1].strip() if len(parts) > 1 else ""
-                                if param:
-                                    target_order = next((o for o in orders if o.get("order_id") == param or o.get("order_id") == f"ORD-{param}"), None)
-                                    if target_order:
-                                        target_order["customer_telegram_chat_id"] = chat_id
-                                        save_orders()
-                                        c_txt, c_markup = _build_tg_order_track_card(target_order)
-                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, c_txt, c_markup))
-                                    else:
-                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ រកមិនឃើញ Order <code>#{param}</code> ទេ។", {"inline_keyboard": [[{"text": "🔎 តាមដាន Order (Track Order)", "callback_data": "cust:track"}], [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]]}))
-                                else:
-                                    c_txt, c_markup = _build_tg_cust_home(chat_id)
-                                    asyncio.create_task(send_telegram_direct_message(token, chat_id, "👇 សូមចុចប៊ូតុង <b>'🔎 តាមដាន Order (Track Order)'</b> ខាងក្រោមដើម្បីឆែកមើលស្ថានភាព Order របស់អ្នក៖", c_markup))
-
-                            elif chat_id in _tg_cust_state and not text.startswith("/"):
-                                c_info = _tg_cust_state.pop(chat_id, {})
-                                c_mode = c_info.get("mode")
-                                if c_mode == "track":
-                                    q_ord = text.strip().lstrip("#").upper()
-                                    target_order = next((o for o in orders if str(o.get("order_id", "")).upper() in (q_ord, f"ORD-{q_ord}")), None)
-                                    if target_order:
-                                        target_order["customer_telegram_chat_id"] = chat_id
-                                        save_orders()
-                                        c_txt, c_markup = _build_tg_order_track_card(target_order)
-                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, c_txt, c_markup))
-                                    else:
-                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ រកមិនឃើញ Order <code>{html.escape(text, quote=False)}</code> ទេ។ សូមពិនិត្យលេខ Order សារជាថ្មី។", {"inline_keyboard": [[{"text": "🔎 តាមដាន Order (Track Order)", "callback_data": "cust:track"}], [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]]}))
-                                elif c_mode == "link_uid":
-                                    q_val = text.strip().lower()
-                                    u_match = next((u for u in users if str(u.get("id", "")).lower() == q_val or str(u.get("username", "")).lower() == q_val), None)
-                                    if u_match:
-                                        u_match["telegram_chat_id"] = chat_id
-                                        save_users()
-                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, f"✅ <b>បានភ្ជាប់ Telegram ជាមួយគណនី {html.escape(str(u_match.get('username') or 'User'), quote=False)} ជោគជ័យ!</b>\nឥឡូវនេះលោកអ្នកអាចឆែកសមតុល្យ Wallet និងទទួលការជូនដំណឹងបានភ្លាមៗ។", {"inline_keyboard": [[{"text": "💰 ឆែក Wallet", "callback_data": "cust:wallet"}], [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]]}))
-                                    else:
-                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ រកមិនឃើញ User <code>{html.escape(text, quote=False)}</code> ទេ។", {"inline_keyboard": [[{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]]}))
-
-                            elif not text.startswith("/"):
-                                c_txt, c_markup = _build_tg_cust_home(chat_id)
-                                asyncio.create_task(send_telegram_direct_message(token, chat_id, c_txt, c_markup))
+                if resp.status_code == 409:
+                    # Webhook is currently active on Telegram; polling backs off gracefully
+                    sleep_sec = 15.0
+                elif resp.status_code == 200:
+                    j = resp.json()
+                    if j and j.get("ok") and isinstance(j.get("result"), list):
+                        for update in j["result"]:
+                            telegram_offset = update["update_id"] + 1
+                            asyncio.create_task(process_telegram_update(update, token))
             else:
-                sleep_sec = 2.0
-        except Exception:
-            sleep_sec = 2.0
+                sleep_sec = 5.0
+        except Exception as eLoop:
+            sleep_sec = 5.0
         await asyncio.sleep(sleep_sec)
 
 # Security Concurrency & Anti-DDoS Guards
@@ -3533,6 +3500,23 @@ def _cached_json_response(payload: Any, cache_state: str) -> JSONResponse:
             "X-Cache-Backend": cache_backend_name(),
         },
     )
+
+
+@app.post("/api/telegram/webhook")
+async def telegram_webhook(request: Request):
+    try:
+        body = await request.json()
+        token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "") or "8603328924:AAEkH7DeU2Yp7FaBhuBvEzYiGBAhzWlGOgE"
+        if body and isinstance(body, dict):
+            asyncio.create_task(process_telegram_update(body, token))
+        return {"ok": True}
+    except Exception as e:
+        print("[Telegram Webhook] Error:", e)
+        return {"ok": False, "error": str(e)}
+
+@app.get("/api/telegram/webhook")
+async def telegram_webhook_get():
+    return {"ok": True, "status": "active", "bot": "@RothzStore_bot"}
 
 
 @app.get("/api/settings")
