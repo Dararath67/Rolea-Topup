@@ -865,6 +865,14 @@ function openPaymentModal() {
   document.body.style.overflow = "hidden";
 }
 
+function closePaymentModal() {
+  $("ov").classList.remove("on");
+  document.body.style.overflow = "";
+  clearInterval(tm);
+  clearInterval(poll);
+  poll = null;
+}
+
 function setQRLoading(loading, message) {
   $("qbusy").hidden = !loading;
   $("qi").hidden = loading;
@@ -915,7 +923,6 @@ $("pay").onclick = async () => {
   payPending = true;
   $("pay").disabled = true;
   $("pmsg").textContent = "";
-  $("pay").textContent = "Creating QR…";
   cur = null;
   receiptToken = "";
   leavingForReceipt = false;
@@ -923,38 +930,42 @@ $("pay").onclick = async () => {
   clearInterval(poll);
   poll = null;
 
-  $("qa").textContent = $("stt").textContent;
-  $("qt").textContent = "--:--";
-  $("qt").className = "timer";
-  $("qo").textContent = "Preparing…";
-  $("qs").textContent = "Preparing";
-  $("qs").className = "st pending";
-  $("slabel").textContent = "Creating secure KHQR…";
-  $("sbox").className = "status-box wait payment-note";
-  $("snote").textContent = "Please wait while the payment QR is created.";
-  $("qpay").textContent = "Waiting";
-  $("qdel").textContent = "Not yet";
-  $("qrow").hidden = true;
-  $("qi").removeAttribute("src");
-
-  setQRLoading(true, "Creating secure KHQR…");
-  renderOrderProfile(null);
-  $("qc").disabled = true;
-  openPaymentModal();
-
   if (selectedPaymentMethod === 'wallet') {
     const user = window.RoleaAuth ? window.RoleaAuth.getUser() : null;
     if (!user) {
       payPending = false;
+      ready();
       if (window.RoleaAuth) window.RoleaAuth.openAuthModal('login');
       return;
     }
     const finalPrice = appliedPromoData ? appliedPromoData.new_amount : currentPackagePrice;
     if (user.balance < finalPrice) {
       payPending = false;
+      ready();
       if (window.RoleaAuth) window.RoleaAuth.openWalletModal();
       return;
     }
+    $("pay").textContent = "Processing Payment…";
+  } else {
+    $("pay").textContent = "Creating QR…";
+    $("qa").textContent = $("stt").textContent;
+    $("qt").textContent = "--:--";
+    $("qt").className = "timer";
+    $("qo").textContent = "Preparing…";
+    $("qs").textContent = "Preparing";
+    $("qs").className = "st pending";
+    $("slabel").textContent = "Creating secure KHQR…";
+    $("sbox").className = "status-box wait payment-note";
+    $("snote").textContent = "Please wait while the payment QR is created.";
+    $("qpay").textContent = "Waiting";
+    $("qdel").textContent = "Not yet";
+    $("qrow").hidden = true;
+    $("qi").removeAttribute("src");
+
+    setQRLoading(true, "Creating secure KHQR…");
+    renderOrderProfile(null);
+    $("qc").disabled = true;
+    openPaymentModal();
   }
 
   let ok, j, checkout;
@@ -985,6 +996,7 @@ $("pay").onclick = async () => {
 
   if (j && j.paid_with_wallet) {
     payPending = false;
+    closePaymentModal();
     $("pay").textContent = "Paid!";
     if (window.RoleaAuth) window.RoleaAuth.checkCurrentUser();
     if (window.RoleaDialog) {
@@ -1005,6 +1017,20 @@ $("pay").onclick = async () => {
 
   if (!ok) {
     if (window.PutiOrders && checkout) PutiOrders.remove(checkout.order_id);
+    if (selectedPaymentMethod === 'wallet') {
+      closePaymentModal();
+      ready();
+      if (window.RoleaDialog) {
+        window.RoleaDialog.alert({
+          title: "Payment Failed",
+          message: j?.error || "Could not complete wallet payment.",
+          type: "error"
+        });
+      } else {
+        toast(j?.error || "Payment failed");
+      }
+      return;
+    }
     $("slabel").textContent = "Could not create QR";
     $("qs").textContent = "Unavailable";
     $("qs").className = "st failed";
