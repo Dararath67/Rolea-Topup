@@ -1143,6 +1143,23 @@ async def check_khqrpay_status(payment_id: str) -> Optional[Dict[str, Any]]:
         print("[KHQRPay] Error checking payment status:", err)
     return None
 
+def format_ict_time(dt_val: Any = None) -> str:
+    ict_tz = timezone(timedelta(hours=7))
+    if not dt_val:
+        return datetime.now(ict_tz).strftime("%m/%d/%Y, %I:%M:%S %p")
+    if isinstance(dt_val, (int, float)):
+        return datetime.fromtimestamp(dt_val, tz=ict_tz).strftime("%m/%d/%Y, %I:%M:%S %p")
+    if isinstance(dt_val, str):
+        try:
+            clean_str = dt_val.strip().replace("Z", "+00:00")
+            dt = datetime.fromisoformat(clean_str)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(ict_tz).strftime("%m/%d/%Y, %I:%M:%S %p")
+        except Exception:
+            pass
+    return datetime.now(ict_tz).strftime("%m/%d/%Y, %I:%M:%S %p")
+
 # Telegram integration
 async def send_telegram_paid_alert(order: Dict[str, Any]):
     if not order or order.get("telegram_alerted"):
@@ -1175,11 +1192,7 @@ async def send_telegram_paid_alert(order: Dict[str, Any]):
     else:
         account_line = f"👤 <b>ឈ្មោះក្នុងហ្គេម (ចុច Copy):</b> <code>{html.escape(safe_raw_cust, quote=False)}</code>"
 
-    try:
-        dt = datetime.fromisoformat(order.get("created_at", datetime.now(timezone.utc).isoformat()).replace("Z", "+00:00"))
-        time_str = dt.astimezone(timezone(timedelta(hours=7))).strftime("%m/%d/%Y, %I:%M:%S %p")
-    except Exception:
-        time_str = datetime.now().strftime("%m/%d/%Y, %I:%M:%S %p")
+    time_str = format_ict_time(order.get("created_at"))
 
     safe_store = html.escape(str(settings.get("store_name", "Rolea Topup")), quote=False)
     safe_oid = html.escape(str(order.get("order_id") or ""), quote=False)
@@ -1428,11 +1441,7 @@ async def notify_customer_payment_received(order: Dict[str, Any]):
     pay_method = html.escape(str(order.get("payment_method") or "ABA KHQR"), quote=False)
     store_name = html.escape(str(settings.get("store_name", "Rolea Topup")), quote=False)
 
-    try:
-        dt = datetime.fromisoformat(order.get("created_at", datetime.now(timezone.utc).isoformat()).replace("Z", "+00:00"))
-        time_str = dt.astimezone(timezone(timedelta(hours=7))).strftime("%m/%d/%Y, %I:%M:%S %p")
-    except Exception:
-        time_str = datetime.now().strftime("%m/%d/%Y, %I:%M:%S %p")
+    time_str = format_ict_time(order.get("created_at"))
 
     text = (
         f"🧾 <b>[វិក្កយបត្រទទួលប្រាក់ / PAYMENT RECEIPT]</b>\n"
@@ -1657,11 +1666,7 @@ def _build_tg_order_track_card(order: Dict[str, Any]) -> tuple[str, Dict[str, An
         st_badge = f"📌 {st_raw.upper()}"
         st_desc = "សូមរង់ចាំការត្រួតពិនិត្យពី Admin។"
 
-    try:
-        dt = datetime.fromisoformat(order.get("created_at", datetime.now(timezone.utc).isoformat()).replace("Z", "+00:00"))
-        time_str = dt.astimezone(timezone(timedelta(hours=7))).strftime("%m/%d/%Y, %I:%M:%S %p")
-    except Exception:
-        time_str = datetime.now().strftime("%m/%d/%Y, %I:%M:%S %p")
+    time_str = format_ict_time(order.get("created_at"))
 
     text = (
         f"🔎 <b>ព័ត៌មានលម្អិតអំពីការកុម្ម៉ង់ (Order Tracking)</b>\n\n"
@@ -2400,7 +2405,7 @@ async def handle_telegram_callback_query(query: Dict[str, Any], token: str):
             await answer_callback_query(token, query_id, "Order not found.")
             return
 
-        now_ict = datetime.now(timezone(timedelta(hours=7))).strftime("%m/%d/%Y, %I:%M:%S %p")
+        now_ict = format_ict_time()
         g = games.get(order.get("game", "roblox"), {})
         game_name = html.escape(str(g.get("name") or order.get("game") or "Rolea Topup"), quote=False)
         raw_cust_acc = str(order.get("roblox_username") or order.get("username") or order.get("display_name") or "Customer")

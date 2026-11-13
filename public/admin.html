@@ -3364,6 +3364,21 @@ function safeHref(v) {
   return (s.startsWith('https://') || s.startsWith('http://') || (s.startsWith('/') && !s.startsWith('//'))) ? s : '#';
 }
 
+function formatKhmerTime(dateVal) {
+  if (!dateVal) return '-';
+  try {
+    let s = String(dateVal).trim();
+    if (!s.includes('Z') && !s.includes('+') && !s.includes('-')) {
+      s += 'Z';
+    }
+    const d = new Date(s);
+    if (isNaN(d.getTime())) return String(dateVal);
+    return d.toLocaleTimeString('en-US', { timeZone: 'Asia/Phnom_Penh', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+  } catch (e) {
+    return String(dateVal);
+  }
+}
+
 function toast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -4316,7 +4331,7 @@ function renderOrders() {
         <td><b style="color:#2563eb;font-size:14px;font-family:'Plus Jakarta Sans','Inter',sans-serif">$${Number(o.amount || 0).toFixed(2)}</b></td>
         <td><span class="chip ${escHtml(payStatus)}">${escHtml(payStatus)}</span></td>
         <td><span class="chip ${escHtml(delStatus)}">${isUnclaimedSpin ? 'unclaimed' : escHtml(delStatus)}</span></td>
-        <td style="font-size:12px;color:#64748b">${new Date(o.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
+        <td style="font-size:12px;color:#64748b">${formatKhmerTime(o.created_at)}</td>
         <td>
           <div style="display:flex;gap:4px">
             ${!o.paid ? `<button class="btn-top primary" style="padding:4px 8px;font-size:11px" onclick="orderAction('${escJsArg(o.order_id)}', 'mark_paid')">Pay</button>` : ''}
@@ -4353,7 +4368,7 @@ function renderOrders() {
         <td><b style="color:#2563eb">$${Number(o.amount || 0).toFixed(2)}</b></td>
         <td><span class="chip ${o.paid ? 'paid' : 'pending'}">${o.paid ? 'Paid' : 'Pending'}</span></td>
         <td><span class="chip ${o.delivered ? 'delivered' : 'wait'}">${o.delivered ? 'Delivered' : 'Pending'}</span></td>
-        <td style="font-size:12px;color:#64748b">${new Date(o.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
+        <td style="font-size:12px;color:#64748b">${formatKhmerTime(o.created_at)}</td>
       `;
       recentTbody.appendChild(tr);
     });
