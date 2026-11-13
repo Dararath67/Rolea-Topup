@@ -770,7 +770,39 @@ blacklist: Dict[str, Any] = load_json(BLACKLIST_PATH, {
     "logs": []
 })
 
-def save_inventory(): save_json(INVENTORY_PATH, inventory)
+def get_total_inventory_stock() -> int:
+    global inventory
+    if inventory.get("manual_stock_enabled", False):
+        return max(0, int(inventory.get("manual_stock_robux", 0)))
+    bots = inventory.get("bots", [])
+    if bots:
+        return max(0, sum(int(b.get("group_funds", 0)) for b in bots))
+    return 0
+
+def sync_package_stock_with_inventory() -> bool:
+    """Auto-adjust package in_stock status based on live Robux inventory/cookie stock."""
+    global packages
+    total_stock = get_total_inventory_stock()
+    changed = False
+    for p in packages:
+        if (p.get("game") or "roblox") == "roblox":
+            req_robux = float(p.get("robux") or 0)
+            if req_robux > 0:
+                should_be_in_stock = (total_stock >= req_robux)
+                if p.get("in_stock") != should_be_in_stock:
+                    p["in_stock"] = should_be_in_stock
+                    changed = True
+    if changed:
+        save_packages()
+        cache_invalidate_store("packages")
+        cache_invalidate("rolea:packages:roblox")
+        cache_invalidate("rolea:packages:all")
+        cache_invalidate("rolea:game:roblox")
+    return changed
+
+def save_inventory():
+    save_json(INVENTORY_PATH, inventory)
+    sync_package_stock_with_inventory()
 def save_blacklist(): save_json(BLACKLIST_PATH, blacklist)
 def save_packages(): save_json(PACKAGES_PATH, packages)
 def save_settings():
@@ -1854,6 +1886,61 @@ async def handle_telegram_customer_callback(query: Dict[str, Any], token: str, d
 
 _tg_admin_state: Dict[str, Dict[str, Any]] = {}
 
+def _build_tg_stock_card(status_note: str = "") -> tuple[str, Dict[str, Any]]:
+    global inventory, packages
+    bots = inventory.get("bots", [])
+    bot_funds = sum(int(b.get("group_funds", 0)) for b in bots) if bots else 0
+    man_en = bool(inventory.get("manual_stock_enabled", False))
+    man_rbx = int(inventory.get("manual_stock_robux") or 0)
+    total_stock = get_total_inventory_stock()
+
+    if man_en:
+        if man_rbx == 0:
+            mode_desc = "🔴 <b>បិទស្តុកទាំងអស់ (OUT OF STOCK - 0 R$)</b>\n<i>(រាល់កញ្ចប់ Robux ទាំងអស់ត្រូវបានបិទមិនឱ្យទិញឡើយ)</i>"
+        else:
+            mode_desc = f"🟡 <b>កំណត់ដោយដៃ (Manual: {man_rbx:,} R$)</b>\n<i>(កញ្ចប់លើសពី {man_rbx:,} R$ នឹងត្រូវបិទស្វ័យប្រវត្តិ)</i>"
+    else:
+        mode_desc = f"🟢 <b>ស្វ័យប្រវត្តិតាម Bot Funds ({bot_funds:,} R$)</b>\n<i>(កញ្ចប់លើសពី {bot_funds:,} R$ នឹងត្រូវបិទស្វ័យប្រវត្តិ)</i>"
+
+    # Count packages in stock vs out of stock
+    rbx_pkgs = [p for p in packages if (p.get("game") or "roblox") == "roblox" and p.get("ok", 1)]
+    in_cnt = sum(1 for p in rbx_pkgs if total_stock >= float(p.get("robux") or 0) and float(p.get("robux") or 0) > 0 and p.get("in_stock", True))
+    out_cnt = len(rbx_pkgs) - in_cnt
+
+    text = (
+        f"📦 <b>[ផ្ទាំងគ្រប់គ្រងស្តុក ROBUX / STOCK CONTROL]</b>\n\n"
+        + (f"🔔 {status_note}\n\n" if status_note else "")
+        + f"⚡ <b>ស្តុកសរុបដំណើរការបច្ចុប្បន្ន៖</b> <code>{total_stock:,} R$</code>\n"
+        f"🤖 <b>ស្តុកក្នុង Bot (Group Funds)៖</b> <code>{bot_funds:,} R$</code>\n"
+        f"📌 <b>របៀបស្តុកបច្ចុប្បន្ន៖</b> {mode_desc}\n\n"
+        f"📊 <b>ស្ថានភាពកញ្ចប់ Robux ក្នុងហាង៖</b>\n"
+        f"• មានស្តុក (In Stock)៖ <b>{in_cnt} កញ្ចប់</b>\n"
+        f"• អស់ស្តុក (Out of Stock)៖ <b>{out_cnt} កញ្ចប់</b>\n\n"
+        f"👇 <i>សូមចុចប៊ូតុងខាងក្រោមដើម្បី បិទ/បើក ឬកំណត់ស្តុកភ្លាមៗ៖</i>"
+    )
+
+    markup = {
+        "inline_keyboard": [
+            [
+                {"text": "🔴 បិទស្តុកទាំងអស់ (OFF)", "callback_data": "adm:stk_off"},
+                {"text": "🟢 បើកតាម Bot Funds (ON)", "callback_data": "adm:stk_bot"}
+            ],
+            [
+                {"text": "⚡ ដាក់ស្តុក 100 R$", "callback_data": "adm:stk_set:100"},
+                {"text": "⚡ ដាក់ស្តុក 200 R$", "callback_data": "adm:stk_set:200"},
+                {"text": "⚡ ដាក់ស្តុក 500 R$", "callback_data": "adm:stk_set:500"}
+            ],
+            [
+                {"text": "✏️ បញ្ចូលចំនួនស្តុកតាមចិត្ត (Custom)", "callback_data": "adm:stk_custom"},
+                {"text": "🔄 Sync ជាមួយ Bot", "callback_data": "adm:bot_sync"}
+            ],
+            [
+                {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}
+            ]
+        ]
+    }
+    return text, markup
+
 def _build_tg_admin_home() -> tuple[str, Dict[str, Any]]:
     pending_cnt = sum(
         1 for o in orders 
@@ -1898,7 +1985,7 @@ def _build_tg_admin_home() -> tuple[str, Dict[str, Any]]:
                 {"text": "🎡 គ្រប់គ្រង Spin Robux", "callback_data": "adm:spin"}
             ],
             [
-                {"text": "🤖 ឆែកស្តុក Robux ក្នុង Bot", "callback_data": "adm:bot"},
+                {"text": "📦 គ្រប់គ្រងស្តុក Robux", "callback_data": "adm:bot"},
                 {"text": "🎟️ កូដបញ្ចុះតម្លៃ (Promo)", "callback_data": "adm:promos:0"}
             ],
             [
@@ -2271,38 +2358,52 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, text, {"inline_keyboard": rows})
 
-    elif sub in ("bot", "bot_sync"):
-        sync_note = ""
+    elif sub in ("bot", "bot_sync") or sub.startswith("stk"):
+        status_note = ""
         if sub == "bot_sync":
             await answer_callback_query(token, query_id, "កំពុង Sync ឆែកស្តុក Robux…")
             sr = await sync_primary_bot_balance()
-            sync_note = "\n✅ <i>បាន Sync ជោគជ័យអម្បាញ់មិញ!</i>" if sr.get("ok") else f"\n⚠️ <i>{html.escape(str(sr.get('error', 'Sync failed')), quote=False)}</i>"
+            sync_package_stock_with_inventory()
+            status_note = "✅ បាន Sync ជាមួយ Bot ជោគជ័យ!" if sr.get("ok") else f"⚠️ Sync: {sr.get('error', 'បរាជ័យ')}"
+        elif sub == "stk_off":
+            inventory["manual_stock_enabled"] = True
+            inventory["manual_stock_robux"] = 0
+            save_inventory()
+            status_note = "🔴 បានបិទស្តុកទាំងអស់ (OUT OF STOCK)! រាល់កញ្ចប់ Robux ទាំងអស់ត្រូវបានបិទមិនឱ្យទិញឡើយ។"
+            await answer_callback_query(token, query_id, "🔴 បានបិទស្តុកទាំងអស់!")
+        elif sub == "stk_bot":
+            inventory["manual_stock_enabled"] = False
+            save_inventory()
+            await sync_primary_bot_balance()
+            status_note = "🟢 បានបើកស្តុកតាម Bot Funds ស្វ័យប្រវត្តិ!"
+            await answer_callback_query(token, query_id, "🟢 បានបើកស្តុកតាម Bot Funds!")
+        elif sub == "stk_set" and len(parts) >= 3 and parts[2].isdigit():
+            val = int(parts[2])
+            inventory["manual_stock_enabled"] = True
+            inventory["manual_stock_robux"] = val
+            save_inventory()
+            status_note = f"⚡ បានកំណត់ស្តុក {val:,} R$ ជោគជ័យ! (កញ្ចប់លើសពី {val:,} R$ នឹងបិទស្វ័យប្រវត្តិ)"
+            await answer_callback_query(token, query_id, f"⚡ បានកំណត់ស្តុក {val:,} R$!")
+        elif sub == "stk_custom":
+            _tg_admin_state[chat_id] = {"mode": "stock_set"}
+            prompt = (
+                "✏️ <b>កំណត់ចំនួនស្តុក Robux (Custom Stock Amount)</b>\n\n"
+                "សូម Reply សារនេះដោយបញ្ចូលចំនួន Robux ដែលត្រូវបើកក្នុងស្តុក:\n"
+                "• ឧទាហរណ៍ <code>100</code> (កញ្ចប់ 50 & 100 នៅបើក, 200+ នឹងបិទ)\n"
+                "• ឧទាហរណ៍ <code>0</code> (បិទស្តុកទាំងអស់)\n"
+                "• ឧទាហរណ៍ <code>1000</code>"
+            )
+            await answer_callback_query(token, query_id, "")
+            await send_telegram_direct_message(token, chat_id, prompt, {"force_reply": True, "selective": True})
+            return
         else:
             await answer_callback_query(token, query_id, "")
-        bots = inventory.get("bots", [])
-        if not bots:
-            bot_txt = "មិនទាន់មាន Roblox Bot ភ្ជាប់នៅឡើយទេ។"
-        else:
-            b = bots[0]
-            raw_bname = str(b.get('roblox_username') or b.get('name') or 'Primary Bot')
-            bot_txt = (
-                f"<b>Bot (ចុច Copy)៖</b> <code>{html.escape(raw_bname, quote=False)}</code>\n"
-                f"<b>Group ID៖</b> <code>{html.escape(str(b.get('group_id') or 'Personal'), quote=False)}</code>\n"
-                f"<b>Robux ជាក់ស្តែងក្នុង Bot៖</b> <code>{int(b.get('group_funds') or 0):,} R$</code>\n"
-                f"<b>ស្ថានភាព៖</b> {html.escape(str(b.get('status') or 'unknown'), quote=False)}\n"
-                f"<b>Sync ចុងក្រោយ៖</b> {html.escape(str(b.get('last_synced') or '—'), quote=False)}"
-            )
-        man_en = inventory.get("manual_stock_enabled", False)
-        man_rbx = int(inventory.get("manual_stock_robux") or 0)
-        text = f"🤖 <b>ស្តុក Robux ក្នុង Bot &amp; Inventory</b>\n\n{bot_txt}\n\n<b>ស្តុក Manual៖</b> {'បើក (' + f'{man_rbx:,} R$' + ')' if man_en else 'បិទ'}{sync_note}"
-        markup = {
-            "inline_keyboard": [
-                [{"text": "🔄 Sync ឆែកស្តុក Robux ឥឡូវនេះ", "callback_data": "adm:bot_sync"}],
-                [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]
-            ]
-        }
+
+        text, markup = _build_tg_stock_card(status_note)
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, text, markup)
+        else:
+            await send_telegram_direct_message(token, chat_id, text, markup)
 
     elif sub == "mute_stock_alert":
         inventory["telegram_alert_enabled"] = False
@@ -2582,6 +2683,20 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                         asyncio.create_task(send_telegram_direct_message(token, chat_id, f"✅ <b>{html.escape(note, quote=False)}</b>\n\n{card[0]}", card[1]))
                 else:
                     asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ {html.escape(note, quote=False)}"))
+            elif mode == "stock_set":
+                try:
+                    clean_txt = text.replace(",", "").replace("R$", "").replace("$", "").strip()
+                    val = int(clean_txt)
+                    if val < 0:
+                        raise ValueError()
+                except ValueError:
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ ចំនួន Robux មិនត្រឹមត្រូវ។ សូមបញ្ចូលលេខគត់ (ឧ. <code>100</code> ឬ <code>0</code> ដើម្បីបិទស្តុក)។", {"inline_keyboard": [[{"text": "📦 ផ្ទាំងគ្រប់គ្រងស្តុក", "callback_data": "adm:bot"}], [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
+                    return
+                inventory["manual_stock_enabled"] = True
+                inventory["manual_stock_robux"] = val
+                save_inventory()
+                st_card_txt, st_card_markup = _build_tg_stock_card(f"✅ បានកំណត់ស្តុក Robux: <b>{val:,} R$</b> ជោគជ័យ! (កញ្ចប់លើសពី {val:,} R$ នឹងបិទស្វ័យប្រវត្តិ)")
+                asyncio.create_task(send_telegram_direct_message(token, chat_id, st_card_txt, st_card_markup))
             elif mode == "find_ord":
                 q_ord = text.strip().lstrip("#").upper()
                 ord_obj = next((o for o in orders if str(o.get("order_id", "")).upper() in (q_ord, f"ORD-{q_ord}")), None)
@@ -3571,29 +3686,36 @@ async def get_games():
 @app.get("/api/packages")
 async def get_public_packages(game: Optional[str] = None):
     sync_package_stock_with_inventory()
-    cache_key = f"rolea:packages:{game or 'all'}"
-    data, state = cache_aside_get(
-        cache_key,
-        60,
-        lambda: {"ok": True, "packages": [p for p in packages if (not game or p.get("game", "roblox") == game) and p.get("ok") != 0]},
-    )
-    return _cached_json_response(data, state)
+    total_stock = get_total_inventory_stock()
+    res = []
+    for p in packages:
+        if (not game or p.get("game", "roblox") == game) and p.get("ok") != 0:
+            p_copy = dict(p)
+            if (p_copy.get("game") or "roblox") == "roblox":
+                req_robux = float(p_copy.get("robux") or 0)
+                if req_robux > 0:
+                    p_copy["in_stock"] = bool(p.get("in_stock", True)) and (total_stock >= req_robux)
+            res.append(p_copy)
+    return JSONResponse(content={"ok": True, "packages": res, "total_stock": total_stock}, headers={"Cache-Control": "no-store, max-age=0"})
 
 @app.get("/api/game/{game_id}")
 async def get_game_detail(game_id: str):
     if game_id == "roblox":
         sync_package_stock_with_inventory()
-    cache_key = f"rolea:game:{game_id}"
-    cached = cache_get(cache_key)
-    if cached is not None:
-        return _cached_json_response(cached, "HIT")
     g = games.get(game_id)
     if not g:
         return JSONResponse(status_code=404, content={"ok": False, "error": "Game not found"})
-    pkgs = [p for p in packages if p.get("game", "roblox") == game_id and p.get("ok") != 0]
-    payload = {"ok": True, "game": g, "packages": pkgs}
-    cache_set(cache_key, payload, 60)
-    return _cached_json_response(payload, "MISS")
+    total_stock = get_total_inventory_stock()
+    game_pkgs = []
+    for p in packages:
+        if p.get("game", "roblox") == game_id and p.get("ok") != 0:
+            p_copy = dict(p)
+            if game_id == "roblox":
+                req_robux = float(p_copy.get("robux") or 0)
+                if req_robux > 0:
+                    p_copy["in_stock"] = bool(p.get("in_stock", True)) and (total_stock >= req_robux)
+            game_pkgs.append(p_copy)
+    return JSONResponse(content={"ok": True, "game": g, "packages": game_pkgs, "total_stock": total_stock}, headers={"Cache-Control": "no-store, max-age=0"})
 
 @app.post("/api/check-id")
 async def check_player_id(request: Request):
@@ -5026,6 +5148,11 @@ async def create_order(request: Request):
             return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid or unavailable package."})
         if pkg.get("in_stock") is False:
             return JSONResponse(status_code=400, content={"ok": False, "error": f"កញ្ចប់ '{pkg.get('name')}' គឺអស់ពីស្តុកបណ្តោះអាសន្ន (Out of Stock)។ សូមជ្រើសរើសកញ្ចប់ផ្សេង។"})
+        if (pkg.get("game") or "roblox") == "roblox":
+            cur_stk = get_total_inventory_stock()
+            req_r = float(pkg.get("robux") or 0)
+            if req_r > 0 and cur_stk < req_r:
+                return JSONResponse(status_code=400, content={"ok": False, "error": f"កញ្ចប់ '{pkg.get('name')}' គឺអស់ពីស្តុកបណ្តោះអាសន្ន (ស្តុកនៅសល់ត្រឹមតែ {cur_stk:,} Robux)។ សូមជ្រើសរើសកញ្ចប់ផ្សេង។"})
 
         anti_ok, anti_msg = _check_unpaid_order_anti_bypass(client_ip, game_key, pkg.get("id"), body.get("player_id") or "")
         if not anti_ok:
@@ -6534,31 +6661,7 @@ def is_blacklisted(player_id: str = "", username: str = "", email: str = "", ip:
         return True, f"IP address ({ip}) has been blacklisted."
     return False, ""
 
-def sync_package_stock_with_inventory() -> bool:
-    """Auto-adjust package in_stock status based on live Robux inventory/cookie stock."""
-    global packages
-    total_stock = get_total_inventory_stock()
-    changed = False
-    for p in packages:
-        if (p.get("game") or "roblox") == "roblox":
-            req_robux = float(p.get("robux") or 0)
-            if req_robux > 0:
-                should_be_in_stock = total_stock >= req_robux
-                if p.get("in_stock") != should_be_in_stock:
-                    p["in_stock"] = should_be_in_stock
-                    changed = True
-    if changed:
-        save_packages()
-    return changed
-
-def get_total_inventory_stock() -> int:
-    global inventory
-    bots = inventory.get("bots", [])
-    if bots:
-        return sum(int(b.get("group_funds", 0)) for b in bots)
-    if inventory.get("manual_stock_enabled", False):
-        return int(inventory.get("manual_stock_robux", 0))
-    return 0
+# (get_total_inventory_stock & sync_package_stock_with_inventory defined above)
 
 async def check_and_send_low_stock_alert():
     global inventory, settings
