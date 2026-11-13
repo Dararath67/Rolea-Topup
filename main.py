@@ -1433,18 +1433,53 @@ async def send_telegram_direct_message(token: str, chat_id: Union[int, str], tex
     return False
 
 
-def is_telegram_admin(user_id: Union[str, int], username: str = "", chat_id: Union[str, int] = "") -> bool:
-    uid_str = str(user_id or "").strip()
-    cid_str = str(chat_id or "").strip()
-    target_chat_id = str(settings.get("telegram_chat_id") or "-5315869838").strip()
-    admin_handle = str(settings.get("telegram_handle") or "Rothzz3").lstrip("@").lower()
-    uname = str(username or "").lstrip("@").lower()
+_tg_user_timestamps: Dict[str, List[float]] = {}
+_TG_MAX_UPDATES_PER_5S = 6
 
-    if uid_str and uid_str in ("8710759437", target_chat_id):
+def _check_telegram_rate_limit(from_id: str) -> bool:
+    """Sliding-window rate limiter preventing Telegram spam/flood attacks."""
+    if not from_id:
         return True
-    if cid_str and cid_str in (target_chat_id, "-5315869838"):
+    # Primary admin is exempt from rate limits
+    if from_id == "8710759437":
         return True
-    if uname and (uname == admin_handle or uname in ("rothzz3", "dararath_admin")):
+    now = time.time()
+    hist = _tg_user_timestamps.setdefault(from_id, [])
+    hist[:] = [t for t in hist if now - t < 5.0]
+    if len(hist) >= _TG_MAX_UPDATES_PER_5S:
+        return False
+    hist.append(now)
+    return True
+
+
+def is_telegram_admin(user_id: Union[str, int, None] = None, username: str = "", chat_id: Union[str, int, None] = None) -> bool:
+    """Strictly authenticates whether a Telegram sender is an authorized store administrator.
+    Security: Admin authentication is tied exclusively to immutable numeric Telegram User IDs.
+    Group chats and untrusted usernames CANNOT grant admin privileges.
+    """
+    uid_str = str(user_id or "").strip()
+    if not uid_str:
+        return False
+
+    # Allowed Admin Telegram User IDs
+    primary_admin_id = "8710759437"
+    configured_admin_id = str(settings.get("admin_telegram_chat_id") or "").strip()
+    env_admin_id = str(os.environ.get("ADMIN_TELEGRAM_USER_ID") or "").strip()
+
+    allowed_ids = {primary_admin_id}
+    if configured_admin_id and not configured_admin_id.startswith("-"):
+        allowed_ids.add(configured_admin_id)
+    if env_admin_id and not env_admin_id.startswith("-"):
+        allowed_ids.add(env_admin_id)
+
+    # Telegram group IDs start with '-' and can NEVER be an admin user ID
+    if uid_str in allowed_ids:
+        return True
+
+    # Strict fallback: check verified username only if sender is a valid positive user ID and matches admin handle
+    uname = str(username or "").lstrip("@").lower()
+    admin_handle = str(settings.get("telegram_handle") or "Rothzz3").lstrip("@").lower()
+    if uname and (uname == admin_handle or uname in ("rothzz3", "dararath_admin")) and uid_str.isdigit() and int(uid_str) > 0:
         return True
     return False
 
@@ -2564,7 +2599,7 @@ async def handle_telegram_callback_query(query: Dict[str, Any], token: str):
         return
 
     if not is_telegram_admin(from_id, from_uname, msg_chat_id):
-        await answer_callback_query(token, query_id, "Unauthorized: Admin action only.")
+        await answer_callback_query(token, query_id, "⛔ Unauthorized: Admin action only.", show_alert=True)
         return
 
     if data.startswith("adm:"):
@@ -2689,11 +2724,23 @@ _last_daily_backup_date = ""
 async def process_telegram_update(update: Dict[str, Any], token: str):
     if not update or not isinstance(update, dict):
         return
+
+    # Anti-Flood / Rate Limiting per Telegram User ID
+    from_u = (update.get("message") or update.get("callback_query", {})).get("from", {})
+    sender_id = str(from_u.get("id") or "")
+    if sender_id and not _check_telegram_rate_limit(sender_id):
+        if "callback_query" in update:
+            cb_id = update["callback_query"].get("id")
+            if cb_id:
+                asyncio.create_task(answer_callback_query(token, cb_id, "⚠️ សូមកុំចុចញាប់ពេក! (Please slow down)", show_alert=False))
+        return
+
     if "callback_query" in update:
         asyncio.create_task(handle_telegram_callback_query(update["callback_query"], token))
     elif "message" in update:
         msg = update["message"]
         chat_id = str(msg.get("chat", {}).get("id"))
+        chat_type = str(msg.get("chat", {}).get("type") or "private").lower()
         text = (msg.get("text") or "").strip()
         from_user = msg.get("from") or {}
         from_id = str(from_user.get("id") or "")
@@ -2702,6 +2749,15 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
         if text == "/admin" or text.startswith("/admin ") or text.startswith("/admin@"):
             if not is_telegram_admin(from_id, from_uname, chat_id):
                 asyncio.create_task(send_telegram_direct_message(token, chat_id, "⛔ Unauthorized: Admin only."))
+            elif chat_type != "private":
+                # Security: prevent exposing admin console and customer data in public/shared groups
+                warn_msg = (
+                    "🔒 <b>[សុវត្ថិភាព / SECURITY NOTICE]</b>\n\n"
+                    "ដើម្បីសុវត្ថិភាពទិន្នន័យអតិថិជន និងស្តុក ផ្ទាំងបញ្ជា <b>Admin Console</b> អាចដំណើរការបានតែក្នុង <b>Private Chat (សារផ្ទាល់ខ្លួន)</b> ជាមួយ Bot តែប៉ុណ្ណោះ។\n\n"
+                    "👉 សូមចុចប៊ូតុងខាងក្រោមដើម្បីបើកផ្ទាំងបញ្ជា Admin ក្នុង Private Chat៖"
+                )
+                markup = {"inline_keyboard": [[{"text": "🔐 បើក Admin ក្នុង Private Chat", "url": "https://t.me/RothzStore_bot?start=admin"}]]}
+                asyncio.create_task(send_telegram_direct_message(token, chat_id, warn_msg, markup))
             else:
                 _tg_admin_state.pop(chat_id, None)
                 adm_text, adm_markup = _build_tg_admin_home()
@@ -3651,12 +3707,13 @@ async def security_and_no_cache_middleware(request: Request, call_next):
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
     response.headers["X-DNS-Prefetch-Control"] = "off"
+    response.headers["X-Download-Options"] = "noopen"
     response.headers["Content-Security-Policy"] = "frame-ancestors 'self'; object-src 'none'; base-uri 'self'"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=(), payment=(), usb=(), display-capture=()"
     response.headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
     if _is_https_request(request):
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
     return response
 
 @app.exception_handler(json.JSONDecodeError)
