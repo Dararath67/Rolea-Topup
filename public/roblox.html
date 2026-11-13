@@ -861,12 +861,20 @@ $("pid").addEventListener("input", () => {
 });
 
 function openPaymentModal() {
-  $("ov").classList.add("on");
+  const ov = $("ov");
+  if (ov) {
+    ov.style.display = "";
+    ov.classList.add("on");
+  }
   document.body.style.overflow = "hidden";
 }
 
 function closePaymentModal() {
-  $("ov").classList.remove("on");
+  const ov = $("ov");
+  if (ov) {
+    ov.classList.remove("on");
+    ov.style.display = "none";
+  }
   document.body.style.overflow = "";
   clearInterval(tm);
   clearInterval(poll);

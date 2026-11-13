@@ -6996,6 +6996,25 @@ def _mask_bot_public(b: Dict[str, Any]) -> Dict[str, Any]:
 @app.get("/api/admin/inventory")
 async def admin_get_inventory():
     global inventory
+    bots = inventory.get("bots", [])
+    if bots and bots[0].get("cookie"):
+        last_s = str(bots[0].get("last_synced") or "")
+        should_sync = False
+        if not last_s:
+            should_sync = True
+        else:
+            try:
+                dt = datetime.strptime(last_s, "%Y-%m-%d %H:%M:%S")
+                if (datetime.now() - dt).total_seconds() > 25:
+                    should_sync = True
+            except Exception:
+                should_sync = True
+        if should_sync:
+            try:
+                await sync_primary_bot_balance()
+            except Exception:
+                pass
+
     total_stock = get_total_inventory_stock()
     threshold = int(inventory.get("low_stock_threshold", 5000))
     is_low = total_stock <= threshold
@@ -7316,51 +7335,89 @@ async def sync_primary_bot_balance() -> Dict[str, Any]:
 
     b = bots[0]
     cookie = _get_bot_cookie(b)
-    group_id = b.get("group_id", "")
+    group_id = str(b.get("group_id") or "").strip()
+    cached_uid = b.get("roblox_user_id")
     if not cookie:
         return {"ok": False, "status_code": 400, "error": "Empty bot cookie"}
     header_cookie = f".ROBLOSECURITY={cookie}" if not cookie.startswith(".ROBLOSECURITY=") else cookie
+    req_headers = {
+        "Cookie": header_cookie,
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/json"
+    }
 
     try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
-            r_auth = await client.get(
-                "https://users.roblox.com/v1/users/authenticated",
-                headers={"Cookie": header_cookie, "User-Agent": "Mozilla/5.0"}
-            )
-            if r_auth.status_code != 200:
-                b["status"] = "error"
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            synced_funds = None
+
+            # 1. Fast-Path: Query currency directly if we already know the target ID
+            if not group_id and cached_uid:
+                try:
+                    rc = await client.get(
+                        f"https://economy.roblox.com/v1/users/{cached_uid}/currency",
+                        headers=req_headers
+                    )
+                    if rc.status_code == 200:
+                        synced_funds = int(rc.json().get("robux", 0))
+                except Exception:
+                    pass
+            elif group_id:
+                try:
+                    rc = await client.get(
+                        f"https://economy.roblox.com/v1/groups/{group_id}/currency",
+                        headers=req_headers
+                    )
+                    if rc.status_code == 200:
+                        synced_funds = int(rc.json().get("robux", 0))
+                except Exception:
+                    pass
+
+            # 2. Fallback: Authenticate first if fast-path didn't succeed
+            if synced_funds is None:
+                r_auth = await client.get(
+                    "https://users.roblox.com/v1/users/authenticated",
+                    headers=req_headers
+                )
+                if r_auth.status_code != 200:
+                    b["status"] = "error"
+                    save_inventory()
+                    return {"ok": False, "status_code": 400, "error": "Cookie expired or invalid on Roblox"}
+
+                user_data = r_auth.json()
+                b["roblox_username"] = user_data.get("name", b.get("roblox_username"))
+                b["roblox_user_id"] = user_data.get("id", b.get("roblox_user_id"))
+                b["status"] = "active"
+
+                if group_id:
+                    rc = await client.get(
+                        f"https://economy.roblox.com/v1/groups/{group_id}/currency",
+                        headers=req_headers
+                    )
+                    if rc.status_code == 200:
+                        synced_funds = int(rc.json().get("robux", 0))
+                else:
+                    rc = await client.get(
+                        f"https://economy.roblox.com/v1/users/{b.get('roblox_user_id')}/currency",
+                        headers=req_headers
+                    )
+                    if rc.status_code == 200:
+                        synced_funds = int(rc.json().get("robux", 0))
+
+            if synced_funds is not None:
+                b["group_funds"] = synced_funds
+                b["status"] = "active"
+                b["last_synced"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 save_inventory()
-                return {"ok": False, "status_code": 400, "error": "Cookie expired or invalid"}
-
-            user_data = r_auth.json()
-            b["roblox_username"] = user_data.get("name", b.get("roblox_username"))
-            b["roblox_user_id"] = user_data.get("id", b.get("roblox_user_id"))
-            b["status"] = "active"
-
-            if group_id:
-                rc = await client.get(
-                    f"https://economy.roblox.com/v1/groups/{group_id}/currency",
-                    headers={"Cookie": header_cookie, "User-Agent": "Mozilla/5.0"}
-                )
-                if rc.status_code == 200:
-                    b["group_funds"] = int(rc.json().get("robux", 0))
+                sync_package_stock_with_inventory()
+                asyncio.create_task(check_and_send_low_stock_alert())
+                return {"ok": True, "bot": b, "total_stock": b["group_funds"]}
             else:
-                rc = await client.get(
-                    f"https://economy.roblox.com/v1/users/{b.get('roblox_user_id')}/currency",
-                    headers={"Cookie": header_cookie, "User-Agent": "Mozilla/5.0"}
-                )
-                if rc.status_code == 200:
-                    b["group_funds"] = int(rc.json().get("robux", 0))
-
-            b["last_synced"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            save_inventory()
-            asyncio.create_task(check_and_send_low_stock_alert())
-            return {"ok": True, "bot": b, "total_stock": b["group_funds"]}
+                return {"ok": False, "status_code": 500, "error": "Could not read Robux balance from Roblox API"}
     except Exception as e:
         return {"ok": False, "status_code": 500, "error": f"Sync failed: {e}"}
 
 async def robux_balance_auto_sync_loop():
-    await asyncio.sleep(3)
+    await asyncio.sleep(2)
     while True:
         try:
             bots = inventory.get("bots", [])
@@ -7368,7 +7425,7 @@ async def robux_balance_auto_sync_loop():
                 await sync_primary_bot_balance()
         except Exception as e:
             print(f"[Robux AutoSync] Error: {e}")
-        await asyncio.sleep(90)
+        await asyncio.sleep(20)
 
 @app.post("/api/admin/inventory/cookie/sync")
 async def admin_inventory_cookie_sync():
