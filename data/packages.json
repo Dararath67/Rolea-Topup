@@ -74,7 +74,7 @@
     "ok": 1,
     "badge": "VIP SAVER",
     "icon": "/media/rolea-logo.webp",
-    "in_stock": true
+    "in_stock": false
   },
   {
     "id": "6aeecd78ad6c8e40c695d3f7",
@@ -85,7 +85,7 @@
     "ok": 1,
     "badge": "MEGA PACK",
     "icon": "/media/rolea-logo.webp",
-    "in_stock": true
+    "in_stock": false
   },
   {
     "id": "tiktok_100",

@@ -21,6 +21,7 @@ from email.mime.text import MIMEText
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
+import zipfile
 
 import httpx
 import qrcode
@@ -1187,10 +1188,15 @@ async def send_telegram_paid_alert(order: Dict[str, Any]):
     inline_keyboard = []
     if is_tiktok and (target_link.startswith("https://") or target_link.startswith("http://")):
         inline_keyboard.append([{"text": "🎬 បើកមើលវីដេអូ TikTok", "url": target_link}])
+    elif not is_tiktok and safe_raw_cust and safe_raw_cust != "Customer":
+        inline_keyboard.append([{"text": f"🌐 Roblox Profile (@{safe_raw_cust})", "url": f"https://www.roblox.com/search/users?keyword={quote_plus(safe_raw_cust)}"}])
     inline_keyboard.append([
         {"text": "✅ បាញ់រួចរាល់ (Complete)", "callback_data": f"complete:{order.get('order_id')}"},
         {"text": "❌ បដិសេធ & សងប្រាក់វិញ (Refund)", "callback_data": f"reject:{order.get('order_id')}"}
     ])
+
+    # Send auto receipt to customer
+    asyncio.create_task(notify_customer_payment_received(order))
 
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = {
@@ -1373,6 +1379,54 @@ async def send_telegram_admin_alert(text: str, reply_markup: Optional[Dict] = No
         return False
     return await send_telegram_direct_message(token, chat_id, text, reply_markup=reply_markup)
 
+async def notify_customer_payment_received(order: Dict[str, Any]):
+    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    if not token or not order:
+        return
+    chat_id = order.get("customer_telegram_chat_id")
+    if not chat_id and order.get("user_id"):
+        u = next((usr for usr in users if usr.get("id") == order.get("user_id")), None)
+        if u and u.get("telegram_chat_id"):
+            chat_id = u.get("telegram_chat_id")
+    if not chat_id:
+        return
+
+    oid = str(order.get("order_id") or "")
+    g = games.get(order.get("game", "roblox"), {})
+    game_name = html.escape(str(g.get("name") or order.get("game") or "Rolea Topup"), quote=False)
+    raw_cust = str(order.get("roblox_username") or order.get("buyer_account") or order.get("username") or "Customer")
+    customer = html.escape(raw_cust, quote=False)
+    pkg = html.escape(str(order.get("package") or f"{order.get('robux_amount', '')} {g.get('unit', 'Units')}".strip()), quote=False)
+    amount = f"{float(order.get('amount') or order.get('price') or 0):.2f}"
+    pay_method = html.escape(str(order.get("payment_method") or "ABA KHQR"), quote=False)
+    store_name = html.escape(str(settings.get("store_name", "Rolea Topup")), quote=False)
+
+    try:
+        dt = datetime.fromisoformat(order.get("created_at", datetime.now(timezone.utc).isoformat()).replace("Z", "+00:00"))
+        time_str = dt.astimezone(timezone(timedelta(hours=7))).strftime("%m/%d/%Y, %I:%M:%S %p")
+    except Exception:
+        time_str = datetime.now().strftime("%m/%d/%Y, %I:%M:%S %p")
+
+    text = (
+        f"🧾 <b>[វិក្កយបត្រទទួលប្រាក់ / PAYMENT RECEIPT]</b>\n"
+        f"🏪 <b>ហាង៖</b> {store_name}\n\n"
+        f"🆔 <b>Order ID (ចុច Copy)៖</b> <code>{html.escape(oid, quote=False)}</code>\n"
+        f"🎮 <b>ទំនិញ៖</b> {pkg} ({game_name})\n"
+        f"👤 <b>ឈ្មោះក្នុងហ្គេម (ចុច Copy)៖</b> <code>{customer}</code>\n"
+        f"💵 <b>ទឹកប្រាក់បានបង់៖</b> <code>${amount} USD</code>\n"
+        f"💳 <b>វិធីទូទាត់៖</b> {pay_method}\n"
+        f"⚡ <b>ស្ថានភាព៖</b> បង់ប្រាក់ជោគជ័យ - រង់ចាំ Admin បាញ់ទំនិញ\n"
+        f"🕒 <b>ពេលវេលា៖</b> {time_str}\n\n"
+        f"🙏 <i>សូមអរគុណសម្រាប់ការកុម្ម៉ង់! Admin នឹងបាញ់ទំនិញជូនក្នុងរយៈពេល 1-3 នាទី។</i>"
+    )
+    markup = {
+        "inline_keyboard": [
+            [{"text": "🔎 តាមដានស្ថានភាព Order", "callback_data": f"cust:track:{oid}"}],
+            [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]
+        ]
+    }
+    await send_telegram_direct_message(token, chat_id, text, reply_markup=markup)
+
 async def notify_customer_order_completed(order: Dict[str, Any]):
     token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
     if not token or not order:
@@ -1385,22 +1439,32 @@ async def notify_customer_order_completed(order: Dict[str, Any]):
     if not chat_id:
         return
 
+    oid = str(order.get("order_id") or "")
     g = games.get(order.get("game", "roblox"), {})
     game_name = html.escape(str(g.get("name") or order.get("game") or "Rolea Topup"), quote=False)
-    customer = html.escape(str(order.get("roblox_username") or order.get("username") or order.get("display_name") or "Customer"), quote=False)
+    raw_cust = str(order.get("roblox_username") or order.get("buyer_account") or order.get("username") or "Customer")
+    customer = html.escape(raw_cust, quote=False)
     pkg = html.escape(str(order.get("package") or f"{order.get('robux_amount', '')} {g.get('unit', 'Units')}".strip()), quote=False)
     amount = f"{float(order.get('amount') or order.get('price') or 0):.2f}"
+    store_name = html.escape(str(settings.get("store_name", "Rolea Topup")), quote=False)
 
     text = (
-        f"<b>ORDER DELIVERED SUCCESSFULLY</b>\n\n"
-        f"Hello <b>{customer}</b>, your order has been completed and delivered!\n\n"
-        f"<b>Order ID:</b> <code>#{html.escape(str(order.get('order_id') or ''), quote=False)}</code>\n"
-        f"<b>Product:</b> {pkg} ({game_name})\n"
-        f"<b>Amount:</b> ${amount} USD\n"
-        f"<b>Status:</b> Completed & Delivered\n\n"
-        f"Thank you for shopping at {html.escape(str(settings.get('store_name', 'Rolea Topup')), quote=False)}!"
+        f"🎉 <b>[ការកុម្ម៉ង់ត្រូវបានបាញ់រួចរាល់ / ORDER DELIVERED]</b>\n\n"
+        f"សួស្តី <b>{customer}</b>, ការកុម្ម៉ង់របស់អ្នកត្រូវបានបាញ់ទំនិញចូល Account រួចរាល់ ១០០% ហើយ!\n\n"
+        f"🆔 <b>Order ID (ចុច Copy)៖</b> <code>{html.escape(oid, quote=False)}</code>\n"
+        f"🎮 <b>ទំនិញ៖</b> {pkg} ({game_name})\n"
+        f"👤 <b>Account (ចុច Copy)៖</b> <code>{customer}</code>\n"
+        f"💵 <b>តម្លៃ៖</b> ${amount} USD\n"
+        f"✅ <b>ស្ថានភាព៖</b> បានបាញ់ទំនិញរួចរាល់ (COMPLETED)\n\n"
+        f"🙏 <i>សូមអរគុណសម្រាប់ការគាំទ្រហាង {store_name}!</i>"
     )
-    await send_telegram_direct_message(token, chat_id, text)
+    markup = {
+        "inline_keyboard": [
+            [{"text": "🔎 ពិនិត្យមើល Order", "callback_data": f"cust:track:{oid}"}],
+            [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]
+        ]
+    }
+    await send_telegram_direct_message(token, chat_id, text, reply_markup=markup)
 
 async def notify_customer_order_refunded(order: Dict[str, Any]):
     token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
@@ -1414,15 +1478,343 @@ async def notify_customer_order_refunded(order: Dict[str, Any]):
     if not chat_id:
         return
 
+    oid = str(order.get("order_id") or "")
     amount = f"{float(order.get('amount') or order.get('price') or 0):.2f}"
     text = (
-        f"<b>ORDER STATUS UPDATE: REFUNDED</b>\n\n"
-        f"Your order <code>#{order.get('order_id')}</code> has been refunded.\n\n"
-        f"<b>Amount:</b> ${amount} USD\n"
-        f"<b>Status:</b> Refunded\n\n"
-        f"If paid via Rolea Wallet, your balance has been restored. Contact support if you need further help."
+        f"⚠️ <b>[ការកុម្ម៉ង់ត្រូវបានបដិសេធ & សងប្រាក់វិញ / REFUNDED]</b>\n\n"
+        f"ការកុម្ម៉ង់ <code>#{html.escape(oid, quote=False)}</code> ត្រូវបានបដិសេធ និងសងប្រាក់វិញ។\n\n"
+        f"💵 <b>ចំនួនទឹកប្រាក់សង៖</b> ${amount} USD\n"
+        f"📌 <b>ស្ថានភាព៖</b> បានសងប្រាក់វិញ (REFUNDED)\n\n"
+        f"ℹ️ ប្រសិនបើលោកអ្នកបានទូទាត់តាម Rolea Wallet ទឹកប្រាក់ត្រូវបានបញ្ចូលត្រឡប់ទៅក្នុង Wallet របស់អ្នកវិញរួចរាល់ហើយ។ សូមទាក់ទង Admin ប្រសិនបើត្រូវការជំនួយបន្ថែម។"
     )
-    await send_telegram_direct_message(token, chat_id, text)
+    markup = {
+        "inline_keyboard": [
+            [{"text": "💰 ឆែកសមតុល្យ Wallet", "callback_data": "cust:wallet"}],
+            [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]
+        ]
+    }
+    await send_telegram_direct_message(token, chat_id, text, reply_markup=markup)
+
+async def notify_customer_wallet_deposit(user: Dict[str, Any], amount: float):
+    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    chat_id = user.get("telegram_chat_id")
+    if not token or not chat_id:
+        return
+    bal = float(user.get("balance") or 0.0)
+    store_name = html.escape(str(settings.get("store_name", "Rolea Topup")), quote=False)
+    now_ict = datetime.now(timezone(timedelta(hours=7))).strftime("%m/%d/%Y, %I:%M:%S %p")
+    text = (
+        f"💰 <b>[បង្កាន់ដៃបញ្ចូលលុយ Wallet / DEPOSIT SUCCESS]</b>\n"
+        f"🏪 <b>ហាង៖</b> {store_name}\n\n"
+        f"👤 <b>គណនី៖</b> <code>{html.escape(str(user.get('username') or 'User'), quote=False)}</code>\n"
+        f"💵 <b>ទឹកប្រាក់បានបញ្ចូល៖</b> <code>+${amount:.2f} USD</code>\n"
+        f"💳 <b>សមតុល្យ Wallet ថ្មី៖</b> <code>${bal:.2f} USD</code>\n"
+        f"🕒 <b>ពេលវេលា៖</b> {now_ict}\n\n"
+        f"✨ លោកអ្នកអាចប្រើប្រាស់លុយក្នុង Wallet ដើម្បីទិញទំនិញក្នុងហាងបានភ្លាមៗ!"
+    )
+    markup = {
+        "inline_keyboard": [
+            [{"text": "💰 ឆែក Wallet ឥឡូវនេះ", "callback_data": "cust:wallet"}],
+            [{"text": "🛒 ចូលទិញនៅលើ Website", "url": "https://rolea-topup.vercel.app"}]
+        ]
+    }
+    await send_telegram_direct_message(token, chat_id, text, reply_markup=markup)
+
+def build_daily_sales_report(target_date_str: Optional[str] = None) -> str:
+    now_ict = datetime.now(timezone(timedelta(hours=7)))
+    if not target_date_str:
+        target_date_str = now_ict.strftime("%Y-%m-%d")
+
+    day_orders = []
+    for o in orders:
+        c_at = str(o.get("created_at") or "")
+        try:
+            dt = datetime.fromisoformat(c_at.replace("Z", "+00:00"))
+            dt_ict = dt.astimezone(timezone(timedelta(hours=7))).strftime("%Y-%m-%d")
+        except Exception:
+            dt_ict = c_at[:10]
+        if dt_ict == target_date_str:
+            day_orders.append(o)
+
+    total_cnt = len(day_orders)
+    completed_cnt = sum(1 for o in day_orders if o.get("status") in ("completed", "delivered") or o.get("delivered"))
+    pending_cnt = sum(1 for o in day_orders if o.get("status") in ("pending", "sending", "paid"))
+    refunded_cnt = sum(1 for o in day_orders if o.get("status") == "refunded")
+    revenue = sum(float(o.get("amount") or 0) for o in day_orders if o.get("paid") and o.get("status") != "refunded")
+    robux_sold = sum(int(o.get("robux_amount") or 0) for o in day_orders if (o.get("status") in ("completed", "delivered") or o.get("delivered")) and o.get("robux_amount"))
+
+    new_users = 0
+    for u in users:
+        u_at = str(u.get("created_at") or "")
+        try:
+            dt_u = datetime.fromisoformat(u_at.replace("Z", "+00:00"))
+            dt_u_ict = dt_u.astimezone(timezone(timedelta(hours=7))).strftime("%Y-%m-%d")
+        except Exception:
+            dt_u_ict = u_at[:10]
+        if dt_u_ict == target_date_str:
+            new_users += 1
+
+    store_name = html.escape(str(settings.get("store_name", "Rolea Topup")), quote=False)
+    date_display = now_ict.strftime("%d/%m/%Y")
+
+    report_text = (
+        f"📊 <b>[របាយការណ៍លក់សង្ខេបប្រចាំថ្ងៃ / DAILY SALES REPORT]</b>\n"
+        f"🏪 <b>ហាង៖</b> {store_name}\n"
+        f"📅 <b>កាលបរិច្ឆេទ៖</b> {date_display} (ម៉ោងកម្ពុជា)\n\n"
+        f"📦 <b>ការកុម្ម៉ង់សរុបថ្ងៃនេះ៖</b> <code>{total_cnt}</code> កុម្ម៉ង់\n"
+        f"✅ <b>បាញ់ទំនិញជោគជ័យ៖</b> <code>{completed_cnt}</code> កុម្ម៉ង់\n"
+        f"⏳ <b>កំពុងរង់ចាំដំណើរការ៖</b> <code>{pending_cnt}</code> កុម្ម៉ង់\n"
+        f"❌ <b>បានសងប្រាក់វិញ៖</b> <code>{refunded_cnt}</code> កុម្ម៉ង់\n\n"
+        f"💵 <b>ចំណូលសរុបថ្ងៃនេះ៖</b> <code>${revenue:.2f} USD</code>\n"
+        f"💎 <b>Robux បានបាញ់ចេញ៖</b> <code>{robux_sold:,} R$</code>\n"
+        f"👥 <b>អតិថិជនចុះឈ្មោះថ្មី៖</b> <code>{new_users}</code> នាក់\n\n"
+        f"🕒 <i>ធ្វើបច្ចុប្បន្នភាពនៅម៉ោង៖ {now_ict.strftime('%I:%M %p')}</i>"
+    )
+    return report_text
+
+async def send_telegram_data_backup(admin_chat_id: Optional[str] = None) -> bool:
+    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    target_chat = admin_chat_id or settings.get("telegram_chat_id") or "8710759437"
+    if not token or not target_chat:
+        return False
+    
+    now_ict = datetime.now(timezone(timedelta(hours=7)))
+    date_tag = now_ict.strftime("%Y%m%d_%H%M")
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+        if os.path.isdir(data_dir):
+            for fn in os.listdir(data_dir):
+                if fn.endswith(".json"):
+                    fp = os.path.join(data_dir, fn)
+                    if os.path.isfile(fp):
+                        zf.write(fp, arcname=f"data/{fn}")
+    zip_buf.seek(0)
+    
+    url = f"https://api.telegram.org/bot{token}/sendDocument"
+    files = {"document": (f"Rolea_Backup_{date_tag}.zip", zip_buf.getvalue(), "application/zip")}
+    data = {
+        "chat_id": target_chat,
+        "caption": f"💾 <b>ទិន្នន័យ Backup ហាង ({now_ict.strftime('%d/%m/%Y %I:%M %p')})</b>\n\n✅ ឯកសារសុវត្ថិភាព Database រួមមាន Orders, Users, Wallet, Settings & Spin Data។",
+        "parse_mode": "HTML"
+    }
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            r = await client.post(url, data=data, files=files)
+            res = r.json()
+            return bool(res and res.get("ok"))
+    except Exception as e:
+        print("[Telegram Backup Error]", e)
+        return False
+
+def _build_tg_order_track_card(order: Dict[str, Any]) -> tuple[str, Dict[str, Any]]:
+    oid = str(order.get("order_id") or "")
+    raw_c = str(order.get("roblox_username") or order.get("buyer_account") or order.get("username") or "Customer")
+    cust = html.escape(raw_c, quote=False)
+    g = games.get(order.get("game", "roblox"), {})
+    game_name = html.escape(str(g.get("name") or order.get("game") or "Rolea Topup"), quote=False)
+    pkg = html.escape(str(order.get("package") or "Robux"), quote=False)
+    amt = float(order.get("amount") or 0)
+    st_raw = str(order.get("status") or "pending").lower()
+    
+    if st_raw in ("completed", "delivered") or order.get("delivered"):
+        st_badge = "✅ បានបាញ់ទំនិញរួចរាល់ (COMPLETED)"
+        st_desc = "🎉 ទំនិញត្រូវបានបញ្ជូនចូល Account របស់អ្នករួចរាល់ហើយ! សូមចូលទៅពិនិត្យមើលក្នុង Game។"
+    elif st_raw in ("pending", "sending", "paid"):
+        st_badge = "⏳ កំពុងរង់ចាំដំណើរការ (IN PROGRESS)"
+        st_desc = "⚡ Admin បានទទួលការទូទាត់របស់អ្នកហើយ និងកំពុងរៀបចំបាញ់ទំនិញជូនក្នុងរយៈពេលខ្លី។"
+    elif st_raw == "refunded":
+        st_badge = "❌ បានសងប្រាក់វិញ (REFUNDED)"
+        st_desc = "⚠️ ការកុម្ម៉ង់នេះត្រូវបានបដិសេធ និងសងប្រាក់ត្រឡប់ទៅវិញរួចរាល់។"
+    else:
+        st_badge = f"📌 {st_raw.upper()}"
+        st_desc = "សូមរង់ចាំការត្រួតពិនិត្យពី Admin។"
+
+    try:
+        dt = datetime.fromisoformat(order.get("created_at", datetime.now(timezone.utc).isoformat()).replace("Z", "+00:00"))
+        time_str = dt.astimezone(timezone(timedelta(hours=7))).strftime("%m/%d/%Y, %I:%M:%S %p")
+    except Exception:
+        time_str = datetime.now().strftime("%m/%d/%Y, %I:%M:%S %p")
+
+    text = (
+        f"🔎 <b>ព័ត៌មានលម្អិតអំពីការកុម្ម៉ង់ (Order Tracking)</b>\n\n"
+        f"🆔 <b>Order ID (ចុច Copy)៖</b> <code>{html.escape(oid, quote=False)}</code>\n"
+        f"🎮 <b>ទំនិញ៖</b> {pkg} ({game_name})\n"
+        f"👤 <b>ឈ្មោះក្នុងហ្គេម (ចុច Copy)៖</b> <code>{cust}</code>\n"
+        f"💵 <b>តម្លៃ៖</b> ${amt:.2f} USD\n"
+        f"⚡ <b>ស្ថានភាព៖</b> {st_badge}\n"
+        f"🕒 <b>កាលបរិច្ឆេទ៖</b> {time_str}\n\n"
+        f"ℹ️ {st_desc}"
+    )
+    markup = {
+        "inline_keyboard": [
+            [{"text": "🔄 Refresh ស្ថានភាព", "callback_data": f"cust:track:{oid}"}],
+            [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]
+        ]
+    }
+    return text, markup
+
+def _build_tg_cust_home(chat_id: str) -> tuple[str, Dict[str, Any]]:
+    store_name = html.escape(str(settings.get("store_name", "Rolea Topup")), quote=False)
+    u = next((x for x in users if str(x.get("telegram_chat_id")) == str(chat_id)), None)
+    greet_name = f" <b>@{u['username']}</b>" if (u and u.get("username")) else ""
+    
+    text = (
+        f"👋 <b>សួស្តី{greet_name}! សូមស្វាគមន៍មកកាន់ {store_name} Bot</b>\n\n"
+        f"🤖 ខ្ញុំជា Bot ស្វ័យប្រវត្តិសម្រាប់ជួយលោកអ្នកក្នុងការតាមដាន Order និងគ្រប់គ្រង Wallet ដោយផ្ទាល់នៅលើ Telegram មិនបាច់ចាំវាយអក្សរឡើយ។\n\n"
+        f"👇 <b>សូមចុចលើប៊ូតុងខាងក្រោមដើម្បីជ្រើសរើស៖</b>"
+    )
+    markup = {
+        "inline_keyboard": [
+            [{"text": "🔎 តាមដាន Order (Track Order)", "callback_data": "cust:track"}],
+            [
+                {"text": "💰 ឆែកសមតុល្យ Wallet", "callback_data": "cust:wallet"},
+                {"text": "🏷️ តារាងតម្លៃ Robux", "callback_data": "cust:prices"}
+            ],
+            [
+                {"text": "🌐 ចូលទៅកាន់គេហទំព័រ", "url": "https://rolea-topup.vercel.app"},
+                {"text": "📞 ទាក់ទង Admin", "callback_data": "cust:contact"}
+            ]
+        ]
+    }
+    return text, markup
+
+_tg_cust_state: Dict[str, Dict[str, Any]] = {}
+
+async def handle_telegram_customer_callback(query: Dict[str, Any], token: str, data: str):
+    query_id = query.get("id")
+    msg = query.get("message", {})
+    chat_id = str(msg.get("chat", {}).get("id") or query.get("from", {}).get("id"))
+    msg_id = msg.get("message_id")
+    parts = data.split(":")
+    sub = parts[1] if len(parts) > 1 else "home"
+    store_name = html.escape(str(settings.get("store_name", "Rolea Topup")), quote=False)
+
+    if sub == "home":
+        _tg_cust_state.pop(chat_id, None)
+        text, markup = _build_tg_cust_home(chat_id)
+        await answer_callback_query(token, query_id, "")
+        if msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, text, markup)
+
+    elif sub == "track":
+        _tg_cust_state.pop(chat_id, None)
+        oid_arg = parts[2] if len(parts) > 2 else ""
+        if oid_arg:
+            target_order = next((o for o in orders if o.get("order_id") == oid_arg or o.get("order_id") == f"ORD-{oid_arg}"), None)
+            if not target_order:
+                await answer_callback_query(token, query_id, "រកមិនឃើញ Order នេះទេ។")
+                return
+            await answer_callback_query(token, query_id, "")
+            card_text, card_markup = _build_tg_order_track_card(target_order)
+            if msg_id:
+                await edit_telegram_message(token, chat_id, msg_id, card_text, card_markup)
+            return
+
+        cust_orders = [o for o in orders if str(o.get("customer_telegram_chat_id")) == chat_id or (o.get("user_id") and any(u.get("id") == o.get("user_id") and str(u.get("telegram_chat_id")) == chat_id for u in users))][:5]
+        
+        rows = []
+        if cust_orders:
+            for o in cust_orders:
+                oid = str(o.get("order_id") or "")
+                pkg = str(o.get("package") or "Robux")
+                st = str(o.get("status") or "pending").upper()
+                st_icon = "✅" if st in ("COMPLETED", "DELIVERED") else ("⏳" if st in ("PENDING", "SENDING", "PAID") else "❌")
+                rows.append([{"text": f"{st_icon} #{oid[:8]} — {pkg} [{st}]", "callback_data": f"cust:track:{oid}"}])
+
+        rows.append([{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}])
+        
+        _tg_cust_state[chat_id] = {"mode": "track"}
+        prompt_text = (
+            f"🔎 <b>តាមដានស្ថានភាពការកុម្ម៉ង់ (Order Tracking)</b>\n\n"
+            + (f"👇 <i>សូមជ្រើសរើស Order ខាងក្រោម ឬ Reply សារនេះដោយបញ្ជូន <b>Order ID</b> (ឧ. <code>ORD-...</code>):</i>" if cust_orders else "👇 <i>សូម Reply សារនេះដោយបញ្ជូន <b>Order ID</b> របស់អ្នក (ឧ. <code>ORD-123456</code>):</i>")
+        )
+        await answer_callback_query(token, query_id, "")
+        if msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, prompt_text, {"inline_keyboard": rows})
+        else:
+            await send_telegram_direct_message(token, chat_id, prompt_text, {"inline_keyboard": rows})
+
+    elif sub == "wallet":
+        _tg_cust_state.pop(chat_id, None)
+        u = next((x for x in users if str(x.get("telegram_chat_id")) == chat_id), None)
+        if u:
+            uid = str(u.get("id") or "")
+            raw_uname = str(u.get("username") or "User")
+            bal = float(u.get("balance") or 0.0)
+            frozen = bool(u.get("wallet_frozen"))
+            st_wal = "❄️ បានបង្កក (FROZEN)" if frozen else "🟢 សកម្ម (ACTIVE)"
+            text = (
+                f"💰 <b>ព័ត៌មានសមតុល្យ Rolea Wallet</b>\n\n"
+                f"👤 <b>ឈ្មោះគណនី (ចុច Copy)៖</b> <code>{html.escape(raw_uname, quote=False)}</code>\n"
+                f"🆔 <b>User ID (ចុច Copy)៖</b> <code>{html.escape(uid, quote=False)}</code>\n"
+                f"💵 <b>សមតុល្យបច្ចុប្បន្ន៖</b> <code>${bal:.2f} USD</code>\n"
+                f"📌 <b>ស្ថានភាព Wallet៖</b> {st_wal}\n\n"
+                f"✨ លោកអ្នកអាចប្រើប្រាស់សមតុល្យនេះដើម្បីទិញទំនិញក្នុងហាងបានភ្លាមៗ!"
+            )
+            markup = {
+                "inline_keyboard": [
+                    [{"text": "➕ ចូល Website ដើម្បីបញ្ចូលលុយ", "url": "https://rolea-topup.vercel.app/my-account"}],
+                    [{"text": "🔄 Refresh", "callback_data": "cust:wallet"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]
+                ]
+            }
+        else:
+            _tg_cust_state[chat_id] = {"mode": "link_uid"}
+            text = (
+                f"💰 <b>គណនី Wallet មិនទាន់បានភ្ជាប់នៅឡើយទេ</b>\n\n"
+                f"Telegram របស់អ្នកមិនទាន់ភ្ជាប់ជាមួយ Account លើ Website ទេ។\n\n"
+                f"👇 <b>របៀបភ្ជាប់ដើម្បីឆែក Wallet៖</b>\n"
+                f"1. ចូលទៅ Website ត្រង់ទំព័រ <b>My Account</b> រួចចុច Link Telegram ឬ\n"
+                f"2. <b>Reply សារនេះដោយបញ្ជូន User ID</b> របស់អ្នក (ឧ. <code>usr_...</code>) ឬ Username ដើម្បីភ្ជាប់ភ្លាមៗ!"
+            )
+            markup = {
+                "inline_keyboard": [
+                    [{"text": "🌐 ចូលទៅកាន់ My Account", "url": "https://rolea-topup.vercel.app/my-account"}],
+                    [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]
+                ]
+            }
+        await answer_callback_query(token, query_id, "")
+        if msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, text, markup)
+
+    elif sub == "prices":
+        _tg_cust_state.pop(chat_id, None)
+        active_pkgs = [p for p in packages if p.get("game") == "roblox" or not p.get("game")][:8]
+        lines = [f"🏷️ <b>តារាងតម្លៃកញ្ចប់ Robux ហាង {store_name}</b>\n"]
+        for p in active_pkgs:
+            p_name = html.escape(str(p.get("name") or "Robux Package"), quote=False)
+            p_price = float(p.get("price") or 0)
+            in_stk = "🟢 មានស្តុក" if p.get("in_stock", True) else "⛔ អស់ស្តុក"
+            lines.append(f"• <b>{p_name}</b> — <code>${p_price:.2f} USD</code> [{in_stk}]")
+        
+        lines.append("\n⚡ <i>បាញ់លឿន រហ័ស និងមានសុវត្ថិភាពខ្ពស់ ១០០%</i>")
+        markup = {
+            "inline_keyboard": [
+                [{"text": "🛒 ចូលទិញលើ Website ឥឡូវនេះ", "url": "https://rolea-topup.vercel.app"}],
+                [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]
+            ]
+        }
+        await answer_callback_query(token, query_id, "")
+        if msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, "\n".join(lines), markup)
+
+    elif sub == "contact":
+        _tg_cust_state.pop(chat_id, None)
+        text = (
+            f"📞 <b>ផ្នែកបម្រើអតិថិជន (Customer Support)</b>\n\n"
+            f"ប្រសិនបើលោកអ្នកមានចម្ងល់ ឬត្រូវការជំនួយទាក់ទងនឹងការកុម្ម៉ង់ សូមទាក់ទង Admin៖\n"
+            f"👤 <b>Telegram Admin:</b> @Dararath_Admin\n"
+            f"🕒 <b>ម៉ោងបម្រើសេវា៖</b> 8:00 AM - 11:30 PM (រាល់ថ្ងៃ)"
+        )
+        markup = {
+            "inline_keyboard": [
+                [{"text": "💬 ឆាតទៅកាន់ Admin ផ្ទាល់", "url": "https://t.me/Dararath_Admin"}],
+                [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]
+            ]
+        }
+        await answer_callback_query(token, query_id, "")
+        if msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, text, markup)
 
 _tg_admin_state: Dict[str, Dict[str, Any]] = {}
 
@@ -1451,6 +1843,10 @@ def _build_tg_admin_home() -> tuple[str, Dict[str, Any]]:
             [
                 {"text": f"📦 Order កំពុងរង់ចាំ ({pending_cnt})", "callback_data": "adm:pending:0"},
                 {"text": "📊 ស្ថិតិហាងសរុប", "callback_data": "adm:stats"}
+            ],
+            [
+                {"text": "📊 របាយការណ៍លក់ថ្ងៃនេះ", "callback_data": "adm:daily_rep"},
+                {"text": "💾 Backup Data ចូល Telegram", "callback_data": "adm:backup_now"}
             ],
             [
                 {"text": "🎮 បិទ/បើក ហ្គេមនីមួយៗ", "callback_data": "adm:games"},
@@ -1560,6 +1956,8 @@ def _apply_tg_wallet_adjust(user_id: str, delta: float, admin_label: str) -> tup
     actual_diff = round(new_bal - old_bal, 2)
     u["balance"] = new_bal
     save_users()
+    if actual_diff > 0:
+        asyncio.create_task(notify_customer_wallet_deposit(u, actual_diff))
     wallet_transactions.insert(0, {
         "id": "wtx_" + secrets.token_hex(4),
         "user_id": u["id"],
@@ -1735,6 +2133,25 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         await answer_callback_query(token, query_id, "")
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, text, {"inline_keyboard": [[{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]})
+
+    elif sub == "daily_rep":
+        text = build_daily_sales_report()
+        markup = {"inline_keyboard": [
+            [{"text": "🔄 Refresh របាយការណ៍", "callback_data": "adm:daily_rep"}],
+            [{"text": "💾 Backup Data ចូល Telegram", "callback_data": "adm:backup_now"}],
+            [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]
+        ]}
+        await answer_callback_query(token, query_id, "")
+        if msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, text, markup)
+
+    elif sub == "backup_now":
+        await answer_callback_query(token, query_id, "កំពុងបង្កើត File Backup...")
+        ok = await send_telegram_data_backup(chat_id)
+        if ok:
+            await send_telegram_direct_message(token, chat_id, "✅ <b>បានផ្ញើឯកសារ Backup ចូល Telegram ជោគជ័យ!</b>", {"inline_keyboard": [[{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]})
+        else:
+            await send_telegram_direct_message(token, chat_id, "❌ <b>ការផ្ញើ Backup បរាជ័យ។</b>")
 
     elif sub in ("spin", "spin_tog", "spin_p"):
         if sub == "spin_tog":
@@ -1922,6 +2339,10 @@ async def handle_telegram_callback_query(query: Dict[str, Any], token: str):
     from_id = str(query.get("from", {}).get("id"))
     target_chat_id = str(settings.get("telegram_chat_id") or "8710759437")
 
+    if data.startswith("cust:"):
+        await handle_telegram_customer_callback(query, token, data)
+        return
+
     if from_id != target_chat_id:
         await answer_callback_query(token, query_id, "Unauthorized: Admin action only.")
         return
@@ -2036,13 +2457,31 @@ async def handle_telegram_callback_query(query: Dict[str, Any], token: str):
                 await edit_telegram_message(token, msg["chat"]["id"], msg["message_id"], updated_text)
 
 telegram_offset = 0
+_last_daily_report_date = ""
+_last_daily_backup_date = ""
+
 async def telegram_polling_loop():
-    global telegram_offset
+    global telegram_offset, _last_daily_report_date, _last_daily_backup_date
     while True:
         sleep_sec = 0.05
         try:
             token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
             if token:
+                target_chat_id = str(settings.get("telegram_chat_id") or "8710759437")
+
+                # Automatic Daily Sales Report at 23:00 (11:00 PM ICT)
+                now_ict = datetime.now(timezone(timedelta(hours=7)))
+                today_str = now_ict.strftime("%Y-%m-%d")
+                if now_ict.hour == 23 and _last_daily_report_date != today_str:
+                    _last_daily_report_date = today_str
+                    rep_msg = build_daily_sales_report(today_str)
+                    asyncio.create_task(send_telegram_direct_message(token, target_chat_id, rep_msg, {"inline_keyboard": [[{"text": "📊 មើលក្នុង Admin Panel", "callback_data": "adm:home"}]]}))
+
+                # Automatic Daily Backup at 00:00 (Midnight ICT)
+                if now_ict.hour == 0 and _last_daily_backup_date != today_str:
+                    _last_daily_backup_date = today_str
+                    asyncio.create_task(send_telegram_data_backup(target_chat_id))
+
                 url = f"https://api.telegram.org/bot{token}/getUpdates?offset={telegram_offset}&timeout=20"
                 client = _get_tg_client()
                 resp = await client.get(url, timeout=25.0)
@@ -2180,30 +2619,14 @@ async def telegram_polling_loop():
                                             if u:
                                                 u["telegram_chat_id"] = chat_id
                                                 save_users()
-                                        st = target_order.get("status", "pending").upper()
-                                        rep = (
-                                            f"Welcome to <b>{settings.get('store_name', 'Rolea Topup')}</b>!\n\n"
-                                            f"You are now subscribed to live delivery alerts for Order <code>#{target_order.get('order_id')}</code>.\n\n"
-                                            f"<b>Package:</b> {target_order.get('package')}\n"
-                                            f"<b>Amount:</b> ${float(target_order.get('amount') or 0):.2f} USD\n"
-                                            f"<b>Status:</b> {st}\n\n"
-                                            f"We will message you right here as soon as your items are delivered."
-                                        )
-                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, rep))
+                                        c_txt, c_markup = _build_tg_order_track_card(target_order)
+                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, f"✅ <b>បានភ្ជាប់ការជូនដំណឹងសម្រាប់ Order នេះជោគជ័យ!</b>\n\n{c_txt}", c_markup))
                                     else:
-                                        rep = (
-                                            f"Welcome to <b>{settings.get('store_name', 'Rolea Topup')}</b>!\n\n"
-                                            f"Order <code>#{param}</code> was not found. Please verify your order ID or use <code>/track &lt;ORDER_ID&gt;</code>."
-                                        )
-                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, rep))
+                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ រកមិនឃើញ Order <code>#{param}</code> ទេ។ សូមចុចប៊ូតុងខាងក្រោមដើម្បីជ្រើសរើស៖", {"inline_keyboard": [[{"text": "🔎 តាមដាន Order (Track Order)", "callback_data": "cust:track"}], [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]]}))
                                 else:
-                                    rep = (
-                                        f"Welcome to <b>{settings.get('store_name', 'Rolea Topup')} Bot</b>!\n\n"
-                                        f"Track orders and get instant delivery notifications.\n\n"
-                                        f"• Send <code>/track &lt;ORDER_ID&gt;</code> to link your order and check real-time status.\n\n"
-                                        f"Website: http://localhost:3000"
-                                    )
-                                    asyncio.create_task(send_telegram_direct_message(token, chat_id, rep))
+                                    c_txt, c_markup = _build_tg_cust_home(chat_id)
+                                    asyncio.create_task(send_telegram_direct_message(token, chat_id, c_txt, c_markup))
+
                             elif text.startswith("/track"):
                                 parts = text.split(maxsplit=1)
                                 param = parts[1].strip() if len(parts) > 1 else ""
@@ -2212,21 +2635,40 @@ async def telegram_polling_loop():
                                     if target_order:
                                         target_order["customer_telegram_chat_id"] = chat_id
                                         save_orders()
-                                        st = target_order.get("status", "pending").upper()
-                                        deliv = "Delivered" if target_order.get("delivered") else "In Progress"
-                                        rep = (
-                                            f"<b>Order #{target_order.get('order_id')}</b>\n\n"
-                                            f"<b>Product:</b> {target_order.get('package')}\n"
-                                            f"<b>Amount:</b> ${float(target_order.get('amount') or 0):.2f} USD\n"
-                                            f"<b>Status:</b> {st} ({deliv})\n"
-                                            f"<b>Date:</b> {target_order.get('created_at') or 'Recent'}\n\n"
-                                            f"Notifications are active for this chat."
-                                        )
-                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, rep))
+                                        c_txt, c_markup = _build_tg_order_track_card(target_order)
+                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, c_txt, c_markup))
                                     else:
-                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, f"Order <code>#{param}</code> not found."))
+                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ រកមិនឃើញ Order <code>#{param}</code> ទេ។", {"inline_keyboard": [[{"text": "🔎 តាមដាន Order (Track Order)", "callback_data": "cust:track"}], [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]]}))
                                 else:
-                                    asyncio.create_task(send_telegram_direct_message(token, chat_id, "Please provide an Order ID: <code>/track ORD-123456</code>"))
+                                    c_txt, c_markup = _build_tg_cust_home(chat_id)
+                                    asyncio.create_task(send_telegram_direct_message(token, chat_id, "👇 សូមចុចប៊ូតុង <b>'🔎 តាមដាន Order (Track Order)'</b> ខាងក្រោមដើម្បីឆែកមើលស្ថានភាព Order របស់អ្នក៖", c_markup))
+
+                            elif chat_id in _tg_cust_state and not text.startswith("/"):
+                                c_info = _tg_cust_state.pop(chat_id, {})
+                                c_mode = c_info.get("mode")
+                                if c_mode == "track":
+                                    q_ord = text.strip().lstrip("#").upper()
+                                    target_order = next((o for o in orders if str(o.get("order_id", "")).upper() in (q_ord, f"ORD-{q_ord}")), None)
+                                    if target_order:
+                                        target_order["customer_telegram_chat_id"] = chat_id
+                                        save_orders()
+                                        c_txt, c_markup = _build_tg_order_track_card(target_order)
+                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, c_txt, c_markup))
+                                    else:
+                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ រកមិនឃើញ Order <code>{html.escape(text, quote=False)}</code> ទេ។ សូមពិនិត្យលេខ Order សារជាថ្មី។", {"inline_keyboard": [[{"text": "🔎 តាមដាន Order (Track Order)", "callback_data": "cust:track"}], [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]]}))
+                                elif c_mode == "link_uid":
+                                    q_val = text.strip().lower()
+                                    u_match = next((u for u in users if str(u.get("id", "")).lower() == q_val or str(u.get("username", "")).lower() == q_val), None)
+                                    if u_match:
+                                        u_match["telegram_chat_id"] = chat_id
+                                        save_users()
+                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, f"✅ <b>បានភ្ជាប់ Telegram ជាមួយគណនី {html.escape(str(u_match.get('username') or 'User'), quote=False)} ជោគជ័យ!</b>\nឥឡូវនេះលោកអ្នកអាចឆែកសមតុល្យ Wallet និងទទួលការជូនដំណឹងបានភ្លាមៗ។", {"inline_keyboard": [[{"text": "💰 ឆែក Wallet", "callback_data": "cust:wallet"}], [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]]}))
+                                    else:
+                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ រកមិនឃើញ User <code>{html.escape(text, quote=False)}</code> ទេ។", {"inline_keyboard": [[{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]]}))
+
+                            elif not text.startswith("/"):
+                                c_txt, c_markup = _build_tg_cust_home(chat_id)
+                                asyncio.create_task(send_telegram_direct_message(token, chat_id, c_txt, c_markup))
             else:
                 sleep_sec = 2.0
         except Exception:
@@ -3542,10 +3984,13 @@ async def submit_spin_claim(request: Request):
 
     alert_header = "[SPIN CLAIM UPDATED]" if was_submitted else "[SPIN CLAIM SUBMITTED]"
     claim_markup = {
-        "inline_keyboard": [[
-            {"text": "✅ Complete Order", "callback_data": f"complete:{order_id}"},
-            {"text": "❌ Reject & Refund", "callback_data": f"reject:{order_id}"}
-        ]]
+        "inline_keyboard": [
+            [{"text": f"🌐 បើក Roblox Profile (@{roblox_username})", "url": f"https://www.roblox.com/search/users?keyword={quote_plus(roblox_username)}"}],
+            [
+                {"text": "✅ បាញ់រួចរាល់ (Complete)", "callback_data": f"complete:{order_id}"},
+                {"text": "❌ បដិសេធ (Reject)", "callback_data": f"reject:{order_id}"}
+            ]
+        ]
     }
     async def _send_spin_claim_tg():
         sent = await send_telegram_admin_alert(
@@ -4769,6 +5214,7 @@ async def get_order_status(order_id: str):
                                 if u:
                                     u["balance"] = round(float(u.get("balance", 0.0)) + float(order["amount"]), 2)
                                     save_users()
+                                    asyncio.create_task(notify_customer_wallet_deposit(u, float(order["amount"])))
                                     wallet_transactions.insert(0, {
                                         "id": "wtx_" + secrets.token_hex(4),
                                         "user_id": u["id"],
