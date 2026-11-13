@@ -2069,7 +2069,8 @@ def _build_tg_user_card(user_id: str, return_page: int = 0) -> Optional[tuple[st
                 {"text": "✏️ កាត់ចំនួនខ្លួនឯង -$", "callback_data": f"adm:csub:{uid}:{return_page}"}
             ],
             [
-                {"text": "🔓 ដោះការបង្កក (Unfreeze)" if frozen else "❄️ បង្កក Wallet (Freeze)", "callback_data": f"adm:frz:{uid}:{return_page}"}
+                {"text": "🔓 ដោះបង្កក" if frozen else "❄️ បង្កក Wallet", "callback_data": f"adm:frz:{uid}:{return_page}"},
+                {"text": "🗑️ លុបគណនី (Delete)", "callback_data": f"adm:u_del_ask:{uid}:{return_page}"}
             ],
             [
                 {"text": "⬅️ បញ្ជីអតិថិជន", "callback_data": f"adm:users:{return_page}"},
@@ -2156,6 +2157,58 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         card = _build_tg_user_card(uid, ret_p)
         if card and msg_id:
             await edit_telegram_message(token, chat_id, msg_id, card[0], card[1])
+
+    elif sub == "u_del_ask" and len(parts) >= 3:
+        uid = parts[2]
+        ret_p = int(parts[3]) if len(parts) > 3 and parts[3].isdigit() else 0
+        u = next((usr for usr in users if str(usr.get("id")) == uid), None)
+        if not u:
+            await answer_callback_query(token, query_id, "User not found.")
+            return
+        await answer_callback_query(token, query_id, "")
+        raw_uname = str(u.get("username") or "User")
+        bal = float(u.get("balance") or 0.0)
+        confirm_text = (
+            f"⚠️ <b>[បញ្ជាក់ការលុបគណនីអតិថិជន / DELETE USER]</b>\n\n"
+            f"តើអ្នកពិតជាចង់លុបគណនីនេះចោលមែនទេ?\n"
+            f"👤 <b>ឈ្មោះ៖</b> <code>{html.escape(raw_uname, quote=False)}</code>\n"
+            f"🆔 <b>User ID៖</b> <code>{html.escape(uid, quote=False)}</code>\n"
+            f"💵 <b>សមតុល្យ Wallet៖</b> <code>${bal:.2f} USD</code>\n\n"
+            f"🚨 <i>ចំណាំ៖ ទិន្នន័យគណនីនេះនឹងត្រូវលុបចេញពីប្រព័ន្ធជាអចិន្ត្រៃយ៍ មិនអាចត្រឡប់ក្រោយវិញបានឡើយ!</i>"
+        )
+        confirm_markup = {
+            "inline_keyboard": [
+                [{"text": f"🔴 បាទ/ចាស! លុបគណនី @{raw_uname} ចោល", "callback_data": f"adm:u_del_cfm:{uid}:{ret_p}"}],
+                [{"text": "❌ ទេ! ត្រឡប់ក្រោយ (Cancel)", "callback_data": f"adm:u:{uid}:{ret_p}"}]
+            ]
+        }
+        if msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, confirm_text, confirm_markup)
+        else:
+            await send_telegram_direct_message(token, chat_id, confirm_text, confirm_markup)
+
+    elif sub == "u_del_cfm" and len(parts) >= 3:
+        uid = parts[2]
+        ret_p = int(parts[3]) if len(parts) > 3 and parts[3].isdigit() else 0
+        async with _tx_lock:
+            idx = next((i for i, usr in enumerate(users) if str(usr.get("id")) == uid or str(usr.get("username")) == uid), -1)
+            if idx == -1:
+                await answer_callback_query(token, query_id, "រកមិនឃើញគណនីនេះទេ (ប្រហែលត្រូវបានលុបរួចហើយ)។")
+                return
+            deleted = users.pop(idx)
+            save_users()
+        del_name = str(deleted.get("username") or uid)
+        await answer_callback_query(token, query_id, f"✅ បានលុបគណនី {del_name} ជោគជ័យ!")
+        success_text = (
+            f"🗑️ <b>[បានលុបគណនីជោគជ័យ / USER DELETED]</b>\n\n"
+            f"គណនី <b>@{html.escape(del_name, quote=False)}</b> (ID: <code>{html.escape(uid, quote=False)}</code>) ត្រូវបានលុបចេញពីប្រព័ន្ធរួចរាល់ហើយ។"
+        )
+        users_txt, users_markup = _build_tg_users_page(ret_p)
+        full_text = f"{success_text}\n\n{users_txt}"
+        if msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, full_text, users_markup)
+        else:
+            await send_telegram_direct_message(token, chat_id, full_text, users_markup)
 
     elif sub == "frz" and len(parts) >= 3:
         uid = parts[2]
