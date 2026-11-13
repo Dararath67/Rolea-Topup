@@ -1034,10 +1034,11 @@ def verify_admin_session(request: Request) -> Optional[str]:
 async def send_admin_security_telegram(message_text: str):
     if not admin_security.get("telegram_login_alert", True):
         return
-    token = settings.get("telegram_bot_token")
-    chat_id = settings.get("telegram_chat_id")
-    if token and chat_id:
-        await send_telegram_direct_message(token, chat_id, message_text)
+    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "") or "8603328924:AAEkH7DeU2Yp7FaBhuBvEzYiGBAhzWlGOgE"
+    # Admin security alerts must ONLY go to private admin chat, NEVER to group -5315869838
+    admin_chat = str(settings.get("admin_telegram_chat_id") or "8710759437").strip()
+    if token and admin_chat:
+        await send_telegram_direct_message(token, admin_chat, message_text)
 
 # Helper functions
 _LEGACY_CUSTOMER_SALT = "ROLEA_SECURE_SALT_2026"
@@ -1340,16 +1341,16 @@ def _get_tg_client() -> httpx.AsyncClient:
         )
     return _tg_http_client
 
-async def answer_callback_query(token: str, query_id: str, text: str):
+async def answer_callback_query(token: str, query_id: str, text: str = ""):
     try:
         client = _get_tg_client()
         await client.post(
             f"https://api.telegram.org/bot{token}/answerCallbackQuery",
-            json={"callback_query_id": query_id, "text": text, "show_alert": False},
-            timeout=5.0
+            json={"callback_query_id": query_id, "text": text, "show_alert": bool(text)},
+            timeout=8.0
         )
-    except Exception:
-        pass
+    except Exception as e:
+        print("[answer_callback_query error]:", e)
 
 async def edit_telegram_message(token: str, chat_id: Any, message_id: Any, text: str, reply_markup: Optional[Dict] = None):
     try:
@@ -1408,7 +1409,7 @@ def is_telegram_admin(user_id: Union[str, int], username: str = "", chat_id: Uni
         return True
     if cid_str and cid_str in (target_chat_id, "-5315869838"):
         return True
-    if uname and uname == admin_handle:
+    if uname and (uname == admin_handle or uname in ("rothzz3", "dararath_admin")):
         return True
     return False
 
@@ -2403,9 +2404,15 @@ async def handle_telegram_callback_query(query: Dict[str, Any], token: str):
 
     action, order_id = parts[0], parts[1]
     async with _tx_lock:
-        order = next((o for o in orders if o.get("order_id") == order_id), None)
+        target_oid = str(order_id).strip().upper()
+        order = next((o for o in orders if str(o.get("order_id", "")).strip().upper() in (target_oid, f"ORD-{target_oid}", target_oid.replace("ORD-", ""))), None)
         if not order:
-            await answer_callback_query(token, query_id, "Order not found.")
+            refreshed = load_json(DB_PATH, orders)
+            if isinstance(refreshed, list):
+                orders[:] = refreshed
+                order = next((o for o in orders if str(o.get("order_id", "")).strip().upper() in (target_oid, f"ORD-{target_oid}", target_oid.replace("ORD-", ""))), None)
+        if not order:
+            await answer_callback_query(token, query_id, f"Order #{order_id} not found.")
             return
 
         now_ict = format_ict_time()
@@ -2657,20 +2664,20 @@ async def telegram_polling_loop():
         try:
             token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "") or "8603328924:AAEkH7DeU2Yp7FaBhuBvEzYiGBAhzWlGOgE"
             if token:
-                target_chat_id = str(settings.get("telegram_chat_id") or os.environ.get("TELEGRAM_CHAT_ID", "") or "-5315869838")
+                admin_private_chat = str(settings.get("admin_telegram_chat_id") or "8710759437").strip()
 
-                # Automatic Daily Sales Report at 23:00 (11:00 PM ICT)
+                # Automatic Daily Sales Report at 23:00 (11:00 PM ICT) - Private Admin only
                 now_ict = datetime.now(timezone(timedelta(hours=7)))
                 today_str = now_ict.strftime("%Y-%m-%d")
                 if now_ict.hour == 23 and _last_daily_report_date != today_str:
                     _last_daily_report_date = today_str
                     rep_msg = build_daily_sales_report(today_str)
-                    asyncio.create_task(send_telegram_direct_message(token, target_chat_id, rep_msg, {"inline_keyboard": [[{"text": "📊 មើលក្នុង Admin Panel", "callback_data": "adm:home"}]]}))
+                    asyncio.create_task(send_telegram_direct_message(token, admin_private_chat, rep_msg, {"inline_keyboard": [[{"text": "📊 មើលក្នុង Admin Panel", "callback_data": "adm:home"}]]}))
 
-                # Automatic Daily Backup at 00:00 (Midnight ICT)
+                # Automatic Daily Backup at 00:00 (Midnight ICT) - Private Admin only
                 if now_ict.hour == 0 and _last_daily_backup_date != today_str:
                     _last_daily_backup_date = today_str
-                    asyncio.create_task(send_telegram_data_backup(target_chat_id))
+                    asyncio.create_task(send_telegram_data_backup(admin_private_chat))
 
                 url = f"https://api.telegram.org/bot{token}/getUpdates?offset={telegram_offset}&timeout=20"
                 client = _get_tg_client()
@@ -6562,9 +6569,10 @@ async def check_and_send_low_stock_alert():
     inventory["last_alert_sent_at"] = now_ts
     save_inventory()
 
-    token = settings.get("telegram_bot_token")
-    chat_id = settings.get("telegram_chat_id") or "-5315869838"
-    if token and chat_id:
+    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "") or "8603328924:AAEkH7DeU2Yp7FaBhuBvEzYiGBAhzWlGOgE"
+    # Low stock alert must ONLY go to private admin chat, NEVER to group -5315869838
+    admin_chat = str(settings.get("admin_telegram_chat_id") or "8710759437").strip()
+    if token and admin_chat:
         store_name = html.escape(str(settings.get("store_name", "Rolea Topup")), quote=False)
         msg = (
             f"🚨 <b>[{store_name} — ការដាស់តឿនស្តុក ROBUX]</b>\n\n"
@@ -6572,7 +6580,7 @@ async def check_and_send_low_stock_alert():
             f"• ស្តុកជាក់ស្តែងបច្ចុប្បន្ន៖ <code>{current_stock:,} R$</code>\n"
             f"• កម្រិតកំណត់ដាស់តឿន៖ <code>{threshold:,} R$</code>\n\n"
             f"👉 សូមបញ្ចូល Group Funds ឬដាក់ Cookie បន្ថែមដើម្បីកុំឱ្យដាច់ស្តុកពេលភ្ញៀវកុម្ម៉ង់!\n"
-            f"<i>(សារនេះត្រូវបានផ្ញើតែម្តងគត់ គ្មានការ Spam ឡើយ)</i>"
+            f"<i>(សារដាស់តឿននេះផ្ញើជូនតែ Admin ឯកជនប៉ុណ្ណោះ មិនផ្ញើចូល Group ឡើយ)</i>"
         )
         markup = {
             "inline_keyboard": [
