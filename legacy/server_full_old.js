@@ -36,7 +36,7 @@ let games = {
 };
 let settings = {
   store_name: "Rolea Topup",
-  telegram_handle: "putireach",
+  telegram_handle: "Rothzz3",
   khqr_merchant_name: "Rolea",
   khqr_account: "bakong@rolea",
   khqrpay_api_key: "sk_52b3f4ed679f5de854a6dfae6a500a368a6e11e77670c8e7",

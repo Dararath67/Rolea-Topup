@@ -124,7 +124,7 @@ games: Dict[str, Dict[str, Any]] = {
 }
 settings: Dict[str, Any] = {
     "store_name": "Rolea Topup",
-    "telegram_handle": "putireach",
+    "telegram_handle": "Rothzz3",
     "khqr_merchant_name": "Rolea",
     "khqr_account": "bakong@rolea",
     "khqrpay_api_key": os.environ.get("KHQRPAY_API_KEY", ""),
@@ -1832,15 +1832,16 @@ async def handle_telegram_customer_callback(query: Dict[str, Any], token: str, d
 
     elif sub == "contact":
         _tg_cust_state.pop(chat_id, None)
+        adm_handle = str(settings.get("telegram_handle") or "Rothzz3").lstrip("@")
         text = (
             f"📞 <b>ផ្នែកបម្រើអតិថិជន (Customer Support)</b>\n\n"
             f"ប្រសិនបើលោកអ្នកមានចម្ងល់ ឬត្រូវការជំនួយទាក់ទងនឹងការកុម្ម៉ង់ សូមទាក់ទង Admin៖\n"
-            f"👤 <b>Telegram Admin:</b> @Dararath_Admin\n"
+            f"👤 <b>Telegram Admin:</b> @{adm_handle}\n"
             f"🕒 <b>ម៉ោងបម្រើសេវា៖</b> 8:00 AM - 11:30 PM (រាល់ថ្ងៃ)"
         )
         markup = {
             "inline_keyboard": [
-                [{"text": "💬 ឆាតទៅកាន់ Admin ផ្ទាល់", "url": "https://t.me/Dararath_Admin"}],
+                [{"text": "💬 ឆាតទៅកាន់ Admin ផ្ទាល់", "url": f"https://t.me/{adm_handle}"}],
                 [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]
             ]
         }
