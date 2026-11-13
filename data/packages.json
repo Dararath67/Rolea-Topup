@@ -3,7 +3,7 @@
     "id": "6aedea450bc5af89ab0ba8b1",
     "game": "roblox",
     "robux": 50.0,
-    "price": 0.05,
+    "price": 0.5,
     "name": "50 Robux",
     "ok": 1,
     "badge": "STARTER",
@@ -13,8 +13,8 @@
   {
     "id": "6aee1ad13f2228cb3063790e",
     "game": "roblox",
-    "robux": 100,
-    "price": 1,
+    "robux": 100.0,
+    "price": 1.0,
     "name": "100 Robux",
     "ok": 1,
     "badge": "POPULAR",
@@ -24,8 +24,8 @@
   {
     "id": "6aeecd78ad6c8e40c695d3f4",
     "game": "roblox",
-    "robux": 200,
-    "price": 2,
+    "robux": 200.0,
+    "price": 2.0,
     "name": "200 Robux",
     "ok": 1,
     "badge": "HOT",
@@ -35,11 +35,11 @@
   {
     "id": "6aeedcb28916fe345e816ddd",
     "game": "roblox",
-    "robux": 300,
-    "price": 2.9,
+    "robux": 300.0,
+    "price": 3.0,
     "name": "300 Robux",
     "ok": 1,
-    "badge": "SAVE 3%",
+    "badge": "",
     "icon": "/media/rolea-logo.webp",
     "in_stock": true
   },
@@ -57,8 +57,8 @@
   {
     "id": "6aeecd78ad6c8e40c695d3f5",
     "game": "roblox",
-    "robux": 500,
-    "price": 4.75,
+    "robux": 500.0,
+    "price": 5.0,
     "name": "500 Robux",
     "ok": 1,
     "badge": "BEST VALUE",
@@ -68,8 +68,8 @@
   {
     "id": "6aeecd78ad6c8e40c695d3f6",
     "game": "roblox",
-    "robux": 1000,
-    "price": 9.5,
+    "robux": 1000.0,
+    "price": 9.8,
     "name": "1000 Robux",
     "ok": 1,
     "badge": "VIP SAVER",
@@ -96,7 +96,7 @@
     "ok": 1,
     "badge": "STARTER",
     "icon": "/media/tiktok-thumb.svg",
-    "in_stock": true
+    "in_stock": false
   },
   {
     "id": "tiktok_500",
@@ -107,7 +107,7 @@
     "ok": 1,
     "badge": "POPULAR",
     "icon": "/media/tiktok-thumb.svg",
-    "in_stock": true
+    "in_stock": false
   },
   {
     "id": "tiktok_1000",
@@ -118,6 +118,6 @@
     "ok": 1,
     "badge": "HOT",
     "icon": "/media/tiktok-thumb.svg",
-    "in_stock": true
+    "in_stock": false
   }
 ]

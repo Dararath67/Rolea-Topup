@@ -1477,17 +1477,17 @@ def _build_tg_users_page(page: int = 0) -> tuple[str, Dict[str, Any]]:
     slice_users = users[page * per_page : (page + 1) * per_page]
 
     text = (
-        f"💰 <b>ជ្រើសរើសអតិថិជនដើម្បីកែសម្រួលលុយ</b>\n"
+        f"💰 <b>ជ្រើសរើសអតិថិជនដើម្បីកែសម្រួលលុយ Wallet</b>\n"
         f"ទំព័រ {page + 1}/{max_page + 1} · សរុប: {total} នាក់\n\n"
-        f"👇 ចុចលើឈ្មោះអតិថិជនដើម្បី បន្ថែម (+) ឬ កាត់ (-) លុយ:"
+        f"👇 ចុចលើលេខរៀង/ឈ្មោះ ដើម្បី បន្ថែម (+) ឬ កាត់ (-) លុយ:"
     )
     rows = []
-    for u in slice_users:
+    for idx, u in enumerate(slice_users, start=page * per_page + 1):
         uid = str(u.get("id") or "")
         uname = str(u.get("username") or "User")[:18]
         bal = float(u.get("balance") or 0.0)
         frozen_tag = " ❄️ (កក)" if u.get("wallet_frozen") else ""
-        rows.append([{"text": f"👤 {uname} — ${bal:.2f}{frozen_tag}", "callback_data": f"adm:u:{uid}"}])
+        rows.append([{"text": f"{idx}. 👤 {uname} — ${bal:.2f}{frozen_tag}", "callback_data": f"adm:u:{uid}:{page}"}])
 
     nav = []
     if page > 0:
@@ -1502,7 +1502,7 @@ def _build_tg_users_page(page: int = 0) -> tuple[str, Dict[str, Any]]:
     ])
     return text, {"inline_keyboard": rows}
 
-def _build_tg_user_card(user_id: str) -> Optional[tuple[str, Dict[str, Any]]]:
+def _build_tg_user_card(user_id: str, return_page: int = 0) -> Optional[tuple[str, Dict[str, Any]]]:
     u = next((usr for usr in users if str(usr.get("id")) == str(user_id)), None)
     if not u:
         return None
@@ -1525,26 +1525,26 @@ def _build_tg_user_card(user_id: str) -> Optional[tuple[str, Dict[str, Any]]]:
     markup = {
         "inline_keyboard": [
             [
-                {"text": "+$0.50", "callback_data": f"adm:adj:{uid}:0.5"},
-                {"text": "+$1.00", "callback_data": f"adm:adj:{uid}:1"},
-                {"text": "+$5.00", "callback_data": f"adm:adj:{uid}:5"},
-                {"text": "+$10.00", "callback_data": f"adm:adj:{uid}:10"}
+                {"text": "+$0.50", "callback_data": f"adm:adj:{uid}:0.5:{return_page}"},
+                {"text": "+$1.00", "callback_data": f"adm:adj:{uid}:1:{return_page}"},
+                {"text": "+$5.00", "callback_data": f"adm:adj:{uid}:5:{return_page}"},
+                {"text": "+$10.00", "callback_data": f"adm:adj:{uid}:10:{return_page}"}
             ],
             [
-                {"text": "-$0.50", "callback_data": f"adm:adj:{uid}:-0.5"},
-                {"text": "-$1.00", "callback_data": f"adm:adj:{uid}:-1"},
-                {"text": "-$5.00", "callback_data": f"adm:adj:{uid}:-5"},
-                {"text": "-$10.00", "callback_data": f"adm:adj:{uid}:-10"}
+                {"text": "-$0.50", "callback_data": f"adm:adj:{uid}:-0.5:{return_page}"},
+                {"text": "-$1.00", "callback_data": f"adm:adj:{uid}:-1:{return_page}"},
+                {"text": "-$5.00", "callback_data": f"adm:adj:{uid}:-5:{return_page}"},
+                {"text": "-$10.00", "callback_data": f"adm:adj:{uid}:-10:{return_page}"}
             ],
             [
-                {"text": "✏️ ដាក់ចំនួនខ្លួនឯង +$", "callback_data": f"adm:cadd:{uid}"},
-                {"text": "✏️ កាត់ចំនួនខ្លួនឯង -$", "callback_data": f"adm:csub:{uid}"}
+                {"text": "✏️ ដាក់ចំនួនខ្លួនឯង +$", "callback_data": f"adm:cadd:{uid}:{return_page}"},
+                {"text": "✏️ កាត់ចំនួនខ្លួនឯង -$", "callback_data": f"adm:csub:{uid}:{return_page}"}
             ],
             [
-                {"text": "🔓 ដោះការបង្កក (Unfreeze)" if frozen else "❄️ បង្កក Wallet (Freeze)", "callback_data": f"adm:frz:{uid}"}
+                {"text": "🔓 ដោះការបង្កក (Unfreeze)" if frozen else "❄️ បង្កក Wallet (Freeze)", "callback_data": f"adm:frz:{uid}:{return_page}"}
             ],
             [
-                {"text": "⬅️ បញ្ជីអតិថិជន", "callback_data": "adm:users:0"},
+                {"text": "⬅️ បញ្ជីអតិថិជន", "callback_data": f"adm:users:{return_page}"},
                 {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}
             ]
         ]
@@ -1600,7 +1600,8 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
 
     elif sub == "u":
         uid = parts[2] if len(parts) > 2 else ""
-        card = _build_tg_user_card(uid)
+        ret_p = int(parts[3]) if len(parts) > 3 and parts[3].isdigit() else 0
+        card = _build_tg_user_card(uid, ret_p)
         if not card:
             await answer_callback_query(token, query_id, "User not found.")
             return
@@ -1610,6 +1611,7 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
 
     elif sub == "adj" and len(parts) >= 4:
         uid = parts[2]
+        ret_p = int(parts[4]) if len(parts) > 4 and parts[4].isdigit() else 0
         try:
             delta = float(parts[3])
         except ValueError:
@@ -1621,12 +1623,13 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
             await answer_callback_query(token, query_id, note)
             return
         await answer_callback_query(token, query_id, f"✅ {note}")
-        card = _build_tg_user_card(uid)
+        card = _build_tg_user_card(uid, ret_p)
         if card and msg_id:
             await edit_telegram_message(token, chat_id, msg_id, card[0], card[1])
 
     elif sub == "frz" and len(parts) >= 3:
         uid = parts[2]
+        ret_p = int(parts[3]) if len(parts) > 3 and parts[3].isdigit() else 0
         async with _tx_lock:
             u = next((usr for usr in users if str(usr.get("id")) == uid), None)
             if not u:
@@ -1636,12 +1639,13 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
             save_users()
             st_lbl = "Frozen ❄️" if u["wallet_frozen"] else "Active ✅"
         await answer_callback_query(token, query_id, f"Wallet is now {st_lbl}")
-        card = _build_tg_user_card(uid)
+        card = _build_tg_user_card(uid, ret_p)
         if card and msg_id:
             await edit_telegram_message(token, chat_id, msg_id, card[0], card[1])
 
     elif sub in ("find", "find_ord", "cadd", "csub", "promo_new", "blk_u", "blk_ip", "bcast"):
         uid = parts[2] if len(parts) > 2 else ""
+        ret_p = int(parts[3]) if len(parts) > 3 and parts[3].isdigit() else 0
         if sub == "find":
             _tg_admin_state[chat_id] = {"mode": "find"}
             prompt = "🔍 <b>ស្វែងរកអតិថិជន (Find User)</b>\nសូម Reply សារនេះដោយបញ្ជូន <b>User ID</b> (ឧ. <code>usr_...</code>), ឈ្មោះ Username ឬ Email:"
@@ -1649,10 +1653,10 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
             _tg_admin_state[chat_id] = {"mode": "find_ord"}
             prompt = "🔎 <b>ស្វែងរក Order (Find Order)</b>\nសូម Reply សារនេះដោយបញ្ជូន <b>Order ID</b> (ឧ. <code>ORD-...</code> ឬ <code>SPIN...</code>):"
         elif sub == "cadd":
-            _tg_admin_state[chat_id] = {"mode": "cadd", "user_id": uid}
+            _tg_admin_state[chat_id] = {"mode": "cadd", "user_id": uid, "page": ret_p}
             prompt = f"✏️ <b>បញ្ចូលទឹកប្រាក់តាមចិត្ត</b>\nសូម Reply សារនេះដោយបញ្ជូនចំនួនទឹកប្រាក់ USD ដែលត្រូវ <b>បន្ថែម</b> ទៅកាន់ User <code>{html.escape(uid, quote=False)}</code> (ឧ. <code>25</code>):"
         elif sub == "csub":
-            _tg_admin_state[chat_id] = {"mode": "csub", "user_id": uid}
+            _tg_admin_state[chat_id] = {"mode": "csub", "user_id": uid, "page": ret_p}
             prompt = f"✏️ <b>កាត់ទឹកប្រាក់តាមចិត្ត</b>\nសូម Reply សារនេះដោយបញ្ជូនចំនួនទឹកប្រាក់ USD ដែលត្រូវ <b>កាត់ចេញពី</b> User <code>{html.escape(uid, quote=False)}</code> (ឧ. <code>5</code>):"
         elif sub == "promo_new":
             _tg_admin_state[chat_id] = {"mode": "promo_new"}
@@ -1670,25 +1674,49 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         await send_telegram_direct_message(token, chat_id, prompt, {"force_reply": True, "selective": True})
 
     elif sub == "pending":
-        pending_list = [o for o in orders if o.get("status") in ("pending", "sending", "paid")][:5]
-        if not pending_list:
+        page = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
+        active_orders = [o for o in orders if o.get("status") in ("pending", "sending", "paid")]
+        total = len(active_orders)
+        if total == 0:
             text = "📦 <b>បញ្ជី Order កំពុងរង់ចាំ</b>\n\n✅ គ្មាន Order ណាកំពុងរង់ចាំនៅពេលនេះទេ!"
-            rows = [[{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]
+            rows = [
+                [{"text": "🔄 Refresh", "callback_data": "adm:pending:0"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]
+            ]
         else:
-            lines = ["📦 <b>បញ្ជី Order សកម្ម / កំពុងរង់ចាំចុងក្រោយ</b>\n"]
+            per_page = 5
+            max_page = max(0, (total - 1) // per_page)
+            page = max(0, min(page, max_page))
+            slice_orders = active_orders[page * per_page : (page + 1) * per_page]
+
+            lines = [
+                f"📦 <b>បញ្ជី Order សកម្ម / កំពុងរង់ចាំ</b>\n"
+                f"ទំព័រ {page + 1}/{max_page + 1} · សរុប: {total} Order\n"
+            ]
             rows = []
-            for o in pending_list:
+            for idx, o in enumerate(slice_orders, start=page * per_page + 1):
                 oid = str(o.get("order_id") or "")
                 raw_c = str(o.get("roblox_username") or o.get("buyer_account") or "Customer")
                 cust = html.escape(raw_c, quote=False)
                 amt = float(o.get("amount") or 0)
                 st = str(o.get("status") or "pending").upper()
-                lines.append(f"• <code>{html.escape(oid, quote=False)}</code> — <code>{cust}</code> (${amt:.2f}) [{st}]")
+                lines.append(f"{idx}. <code>{html.escape(oid, quote=False)}</code> — <code>{cust}</code> (${amt:.2f}) [{st}]")
                 rows.append([
-                    {"text": f"✅ បាញ់រួចរាល់ ({oid[:8]})", "callback_data": f"complete:{oid}"},
+                    {"text": f"✅ {idx}. បាញ់រួច ({oid[:8]})", "callback_data": f"complete:{oid}"},
                     {"text": f"❌ បដិសេធ ({oid[:8]})", "callback_data": f"reject:{oid}"}
                 ])
-            rows.append([{"text": "🔄 Refresh", "callback_data": "adm:pending:0"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}])
+
+            nav = []
+            if page > 0:
+                nav.append({"text": "⬅️ ថយក្រោយ", "callback_data": f"adm:pending:{page - 1}"})
+            if page < max_page:
+                nav.append({"text": "បន្ទាប់ ➡️", "callback_data": f"adm:pending:{page + 1}"})
+            if nav:
+                rows.append(nav)
+
+            rows.append([
+                {"text": "🔄 Refresh", "callback_data": f"adm:pending:{page}"},
+                {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}
+            ])
             text = "\n".join(lines)
         await answer_callback_query(token, query_id, "")
         if msg_id:
@@ -2045,25 +2073,26 @@ async def telegram_polling_loop():
                                     if not found:
                                         found = next((usr for usr in users if q_low in str(usr.get("id", "")).lower() or q_low in str(usr.get("username", "")).lower()), None)
                                     if found:
-                                        card = _build_tg_user_card(str(found.get("id")))
+                                        card = _build_tg_user_card(str(found.get("id")), 0)
                                         if card:
                                             asyncio.create_task(send_telegram_direct_message(token, chat_id, card[0], card[1]))
                                     else:
-                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ No user found matching <code>{html.escape(text, quote=False)}</code>.", {"inline_keyboard": [[{"text": "🔍 Try Again", "callback_data": "adm:find"}, {"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]}))
+                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ រកមិនឃើញអតិថិជនណាត្រូវនឹង <code>{html.escape(text, quote=False)}</code> ទេ។", {"inline_keyboard": [[{"text": "🔍 សាកល្បងម្តងទៀត", "callback_data": "adm:find"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
                                 elif mode in ("cadd", "csub"):
                                     uid = st_info.get("user_id", "")
+                                    ret_p = int(st_info.get("page") or 0)
                                     try:
                                         amt_val = float(text.replace("$", "").strip())
                                         if amt_val <= 0 or not math.isfinite(amt_val):
                                             raise ValueError()
                                     except ValueError:
-                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ Invalid amount. Please enter a positive number (e.g. <code>10</code>).", {"inline_keyboard": [[{"text": "⬅️ Back to User", "callback_data": f"adm:u:{uid}"}, {"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]}))
+                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ ចំនួនទឹកប្រាក់មិនត្រឹមត្រូវ។ សូមបញ្ចូលលេខវិជ្ជមាន (ឧ. <code>10</code>)។", {"inline_keyboard": [[{"text": "⬅️ ត្រឡប់ទៅកាន់ User", "callback_data": f"adm:u:{uid}:{ret_p}"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
                                         continue
                                     delta = amt_val if mode == "cadd" else -amt_val
                                     async with _tx_lock:
                                         ok, note, _ = _apply_tg_wallet_adjust(uid, delta, "Admin")
                                     if ok:
-                                        card = _build_tg_user_card(uid)
+                                        card = _build_tg_user_card(uid, ret_p)
                                         if card:
                                             asyncio.create_task(send_telegram_direct_message(token, chat_id, f"✅ <b>{html.escape(note, quote=False)}</b>\n\n{card[0]}", card[1]))
                                     else:
@@ -2081,12 +2110,12 @@ async def telegram_polling_loop():
                                         amt = float(ord_obj.get("amount") or 0)
                                         st = str(ord_obj.get("status") or "pending").upper()
                                         o_txt = (
-                                            f"🔎 <b>ព័ត៌មានលម្អិតអំពីការកុម្ម៉ង់ (Order Details)</b>\n\n"
-                                            f"🆔 <b>Order ID (ចុច Copy)៖</b> <code>{html.escape(oid, quote=False)}</code>\n"
-                                            f"👤 <b>ឈ្មោះក្នុងហ្គេម (ចុច Copy)៖</b> <code>{html.escape(raw_cust, quote=False)}</code>\n"
-                                            f"📦 <b>កញ្ចប់៖</b> {pkg}\n"
-                                            f"💵 <b>តម្លៃ៖</b> ${amt:.2f} USD\n"
-                                            f"📌 <b>ស្ថានភាព៖</b> {st}"
+                                             f"🔎 <b>ព័ត៌មានលម្អិតអំពីការកុម្ម៉ង់ (Order Details)</b>\n\n"
+                                             f"🆔 <b>Order ID (ចុច Copy)៖</b> <code>{html.escape(oid, quote=False)}</code>\n"
+                                             f"👤 <b>ឈ្មោះក្នុងហ្គេម (ចុច Copy)៖</b> <code>{html.escape(raw_cust, quote=False)}</code>\n"
+                                             f"📦 <b>កញ្ចប់៖</b> {pkg}\n"
+                                             f"💵 <b>តម្លៃ៖</b> ${amt:.2f} USD\n"
+                                             f"📌 <b>ស្ថានភាព៖</b> {st}"
                                         )
                                         o_rows = []
                                         if ord_obj.get("status") in ("pending", "sending", "paid"):
@@ -2096,7 +2125,7 @@ async def telegram_polling_loop():
                                 elif mode == "promo_new":
                                     parts_p = text.strip().split()
                                     if len(parts_p) < 2:
-                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ Format: <code>CODE 10%</code> or <code>CODE $5</code>", {"inline_keyboard": [[{"text": "🎟️ Promo Codes", "callback_data": "adm:promos:0"}, {"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]}))
+                                        asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ ទម្រង់មិនត្រឹមត្រូវ: <code>CODE 10%</code> ឬ <code>CODE $5</code>", {"inline_keyboard": [[{"text": "🎟️ Promo Codes", "callback_data": "adm:promos:0"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
                                     else:
                                         p_code = parts_p[0].upper()
                                         raw_v = parts_p[1]
@@ -2106,13 +2135,13 @@ async def telegram_polling_loop():
                                             if p_val <= 0:
                                                 raise ValueError()
                                             if any(c.get("code", "").upper() == p_code for c in coupons):
-                                                asyncio.create_task(send_telegram_direct_message(token, chat_id, f"⚠️ Promo <code>{html.escape(p_code, quote=False)}</code> already exists.", {"inline_keyboard": [[{"text": "🎟️ Promo Codes", "callback_data": "adm:promos:0"}]]}))
+                                                asyncio.create_task(send_telegram_direct_message(token, chat_id, f"⚠️ កូដ Promo <code>{html.escape(p_code, quote=False)}</code> មានរួចហើយ។", {"inline_keyboard": [[{"text": "🎟️ Promo Codes", "callback_data": "adm:promos:0"}]]}))
                                             else:
                                                 coupons.insert(0, {"id": "cpn_" + secrets.token_hex(4), "code": p_code, "type": p_type, "value": p_val, "min_spend": 0.0, "max_uses": 0, "used_count": 0, "enabled": True, "description": f"{p_val}{'$' if p_type == 'fixed' else '%'} Discount"})
                                                 save_coupons()
-                                                asyncio.create_task(send_telegram_direct_message(token, chat_id, f"✅ Created promo <code>{html.escape(p_code, quote=False)}</code> ({html.escape(raw_v, quote=False)})!", {"inline_keyboard": [[{"text": "🎟️ View Promos", "callback_data": "adm:promos:0"}, {"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]}))
+                                                asyncio.create_task(send_telegram_direct_message(token, chat_id, f"✅ បានបង្កើតកូដ Promo <code>{html.escape(p_code, quote=False)}</code> ({html.escape(raw_v, quote=False)}) ជោគជ័យ!", {"inline_keyboard": [[{"text": "🎟️ មើល Promo Codes", "callback_data": "adm:promos:0"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
                                         except ValueError:
-                                            asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ Invalid discount value.", {"inline_keyboard": [[{"text": "🎟️ Promo Codes", "callback_data": "adm:promos:0"}]]}))
+                                            asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ ចំនួនទឹកប្រាក់បញ្ចុះមិនត្រឹមត្រូវ។", {"inline_keyboard": [[{"text": "🎟️ Promo Codes", "callback_data": "adm:promos:0"}]]}))
                                 elif mode in ("blk_u", "blk_ip"):
                                     target_v = text.strip()
                                     key = "blocked_users" if mode == "blk_u" else "blocked_ips"
@@ -2120,7 +2149,7 @@ async def telegram_polling_loop():
                                     if target_v and target_v not in lst:
                                         lst.append(target_v)
                                         save_blacklist()
-                                    asyncio.create_task(send_telegram_direct_message(token, chat_id, f"🚫 Blacklisted <code>{html.escape(target_v, quote=False)}</code>!", {"inline_keyboard": [[{"text": "🚫 Blacklist Menu", "callback_data": "adm:blk"}, {"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]}))
+                                    asyncio.create_task(send_telegram_direct_message(token, chat_id, f"🚫 បាន Blacklist <code>{html.escape(target_v, quote=False)}</code> ជោគជ័យ!", {"inline_keyboard": [[{"text": "🚫 មឺនុយ Blacklist", "callback_data": "adm:blk"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
                                 elif mode == "bcast":
                                     targets = set()
                                     for u_it in users:
