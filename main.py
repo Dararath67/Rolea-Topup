@@ -772,11 +772,14 @@ blacklist: Dict[str, Any] = load_json(BLACKLIST_PATH, {
 
 def get_total_inventory_stock() -> int:
     global inventory
-    if inventory.get("manual_stock_enabled", False):
-        return max(0, int(inventory.get("manual_stock_robux", 0)))
-    bots = inventory.get("bots", [])
-    if bots:
-        return max(0, sum(int(b.get("group_funds", 0)) for b in bots))
+    try:
+        if inventory.get("manual_stock_enabled", False):
+            return max(0, int(float(inventory.get("manual_stock_robux") or 0)))
+        bots = inventory.get("bots", [])
+        if bots:
+            return max(0, sum(int(float(b.get("group_funds") or 0)) for b in bots if isinstance(b, dict)))
+    except Exception:
+        pass
     return 0
 
 def sync_package_stock_with_inventory() -> bool:
@@ -1889,7 +1892,7 @@ _tg_admin_state: Dict[str, Dict[str, Any]] = {}
 def _build_tg_stock_card(status_note: str = "") -> tuple[str, Dict[str, Any]]:
     global inventory, packages
     bots = inventory.get("bots", [])
-    bot_funds = sum(int(b.get("group_funds", 0)) for b in bots) if bots else 0
+    bot_funds = sum(int(float(b.get("group_funds") or 0)) for b in bots if isinstance(b, dict)) if bots else 0
     man_en = bool(inventory.get("manual_stock_enabled", False))
     man_rbx = int(inventory.get("manual_stock_robux") or 0)
     total_stock = get_total_inventory_stock()

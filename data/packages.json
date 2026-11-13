@@ -41,7 +41,7 @@
     "ok": 1,
     "badge": "",
     "icon": "/media/rolea-logo.webp",
-    "in_stock": true
+    "in_stock": false
   },
   {
     "id": "6af086a373d46597668e1216",
@@ -52,7 +52,7 @@
     "ok": 1,
     "badge": "",
     "icon": "/media/rolea-logo.webp",
-    "in_stock": true
+    "in_stock": false
   },
   {
     "id": "6aeecd78ad6c8e40c695d3f5",
@@ -63,7 +63,7 @@
     "ok": 1,
     "badge": "BEST VALUE",
     "icon": "/media/rolea-logo.webp",
-    "in_stock": true
+    "in_stock": false
   },
   {
     "id": "6aeecd78ad6c8e40c695d3f6",
