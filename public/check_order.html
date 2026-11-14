@@ -652,11 +652,6 @@
             <span>ការកុម្ម៉ង់ត្រូវបានបដិសេធ & សងប្រាក់វិញ (Order Refunded)</span>
           </div>
           <div id="refund-notice-detail" style="color:#7f1d1d;font-size:12.5px"></div>
-          <div id="refund-claim-action" style="margin-top:12px;display:none">
-            <button id="btn-claim-refund" onclick="claimRefundWallet()" style="background:linear-gradient(135deg, #10b981, #059669);color:#ffffff;border:none;padding:10px 18px;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(16,185,129,0.35);transition:transform 0.15s">
-              🎁 ចុច Claim យកលុយចូល Wallet ឥឡូវនេះ
-            </button>
-          </div>
           <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <a href="https://t.me/Rothzz3" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px;background:#dc2626;color:#ffffff;padding:7px 14px;border-radius:8px;font-weight:700;font-size:12px;text-decoration:none">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 3L10 14"/><path d="M21 3l-7 18-4-7-7-4z"/></svg>
@@ -914,25 +909,8 @@ function renderOrderCard(o) {
     step3Text.textContent = '3. Refunded';
     if (refundBox && refundDetail) {
       refundBox.style.display = 'block';
-      const claimBox = document.getElementById('refund-claim-action');
-      const claimBtn = document.getElementById('btn-claim-refund');
       window._currentRefundOrder = o;
-
-      const uLabel = o.refunded_username ? `@${o.refunded_username}` : (o.roblox_username ? `@${o.roblox_username}` : 'គណនីរបស់អ្នក');
-      refundDetail.innerHTML = `🎉 <b>ការកុម្ម៉ង់ត្រូវបានបដិសេធ & សងប្រាក់វិញ!</b><br>ប្រព័ន្ធបាន <b>Auto-Login ចូលគណនី <code>${uLabel}</code></b> រួចរាល់ ជាមួយទឹកប្រាក់ <b>$${Number(o.amount || 0).toFixed(2)} USD</b> ក្នុង Rolea Wallet! លោកអ្នកអាចប្រើប្រាស់ទឹកប្រាក់នេះដើម្បីទិញកញ្ចប់ Robux ផ្សេងទៀតបានភ្លាមៗ។`;
-      if (claimBox) {
-        claimBox.style.display = 'flex';
-        claimBox.style.gap = '8px';
-        claimBox.style.flexWrap = 'wrap';
-        claimBox.innerHTML = `
-          <a href="/my-account" style="background:linear-gradient(135deg, #10b981, #059669);color:#ffffff;padding:9px 16px;border-radius:10px;font-weight:800;font-size:12.5px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 14px rgba(16,185,129,0.35)">
-            👛 មើលកាបូបលុយ ($${Number(o.amount || 0).toFixed(2)} USD)
-          </a>
-          <a href="/game/roblox" style="background:#2563eb;color:#ffffff;padding:9px 16px;border-radius:10px;font-weight:800;font-size:12.5px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 14px rgba(37,99,235,0.35)">
-            🛒 ទិញ Robux ភ្លាមៗ
-          </a>
-        `;
-      }
+      refundDetail.innerHTML = `ទឹកប្រាក់ <b>$${Number(o.amount || 0).toFixed(2)} USD</b> ត្រូវបានបង្វិលសងចូលទៅក្នុង <b>Rolea Wallet</b> របស់អ្នករួចរាល់ហើយ។ លោកអ្នកអាចចូលទៅកាន់ Wallet ដើម្បីប្រើប្រាស់បាន។`;
     }
   } else if (o.paid || status === 'paid') {
     badgeEl.className = 'track-status-pill paid';

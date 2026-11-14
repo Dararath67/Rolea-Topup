@@ -1976,10 +1976,24 @@ def _build_tg_stock_card(status_note: str = "") -> tuple[str, Dict[str, Any]]:
 
     return text, {"inline_keyboard": inline_rows}
 
-def _build_tg_bot_view(bot_id: str, status_note: str = "") -> tuple[str, Dict[str, Any]]:
+def _find_tg_bot(bid: str) -> Optional[Dict[str, Any]]:
     global inventory
     bots = inventory.get("bots", [])
-    b = next((x for x in bots if str(x.get("id")) == str(bot_id)), None)
+    if not bid:
+        return None
+    for idx, b in enumerate(bots):
+        if str(b.get("id")) == str(bid) or f"bot_{idx+1}" == str(bid) or str(idx) == str(bid):
+            return b
+        if str(b.get("roblox_username") or "").lower() == str(bid).lower():
+            return b
+        if str(b.get("roblox_user_id") or "") == str(bid):
+            return b
+        if str(b.get("name") or "").lower() == str(bid).lower():
+            return b
+    return None
+
+def _build_tg_bot_view(bot_id: str, status_note: str = "") -> tuple[str, Dict[str, Any]]:
+    b = _find_tg_bot(bot_id)
     if not b:
         return "❌ រកមិនឃើញ Bot នេះទេ។", {"inline_keyboard": [[{"text": "⬅️ ត្រឡប់ទៅបញ្ជី Bot", "callback_data": "adm:bot"}]]}
 
@@ -2623,10 +2637,10 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
             await answer_callback_query(token, query_id, "")
             text, markup = _build_tg_bot_view(bid)
         elif sub == "bot_tog":
-            bots = inventory.get("bots", [])
-            target = next((b for b in bots if str(b.get("id")) == str(bid)), None)
+            target = _find_tg_bot(bid)
             if target:
                 target["enabled"] = not target.get("enabled", True)
+                target["status"] = "active" if target["enabled"] else "disabled"
                 save_inventory()
                 sync_package_stock_with_inventory()
                 bname = target.get("name") or "Bot"
@@ -2639,8 +2653,7 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
                 await answer_callback_query(token, query_id, "រកមិនឃើញ Bot នេះទេ។")
                 text, markup = _build_tg_stock_card()
         elif sub == "bot_sync1":
-            bots = inventory.get("bots", [])
-            target = next((b for b in bots if str(b.get("id")) == str(bid)), None)
+            target = _find_tg_bot(bid)
             if target:
                 await answer_callback_query(token, query_id, f"កំពុង Sync {target.get('name')}…")
                 s_res = await sync_single_bot(target)
@@ -2652,12 +2665,12 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
                 await answer_callback_query(token, query_id, "រកមិនឃើញ Bot នេះទេ។")
                 text, markup = _build_tg_stock_card()
         elif sub == "bot_del":
+            target = _find_tg_bot(bid)
             bots = inventory.get("bots", [])
-            del_bot = next((b for b in bots if str(b.get("id")) == str(bid)), None)
-            inventory["bots"] = [b for b in bots if str(b.get("id")) != str(bid)]
+            inventory["bots"] = [b for b in bots if b is not target]
             save_inventory()
             sync_package_stock_with_inventory()
-            bname = del_bot.get("name") if del_bot else "Bot"
+            bname = target.get("name") if target else "Bot"
             await answer_callback_query(token, query_id, f"🗑️ បានលុប {bname} រួចរាល់!")
             text, markup = _build_tg_stock_card(f"🗑️ បានលុប {bname} ចេញពីប្រព័ន្ធរួចរាល់!")
         else:
@@ -5972,20 +5985,31 @@ async def get_order_status(order_id: str, request: Request):
         "refunded_balance": (float(ref_usr.get("balance", 0.0)) if ref_usr else None)
     }
 
-    # Auto-Login token generation: instantly authenticate user when viewing refunded order!
+    # Auto-Login & Wallet Credit: instantly authenticate user when viewing refunded order!
     auto_login_token = None
-    if order.get("status") == "refunded" and order.get("wallet_refunded") and ref_usr:
-        now_ms = int(time.time() * 1000)
-        existing_tok = next((tok for tok, s in sessions.items() if s.get("userId") == ref_usr["id"] and s.get("expiresAt", 0) > now_ms), None)
-        if existing_tok:
-            auto_login_token = existing_tok
-        else:
-            auto_login_token = secrets.token_hex(32)
-            sessions[auto_login_token] = {
-                "userId": ref_usr["id"],
-                "expiresAt": int((time.time() + 30 * 24 * 3600) * 1000)
-            }
-        order_status_payload["auto_login_token"] = auto_login_token
+    if order.get("status") == "refunded":
+        # If wallet refund wasn't credited yet (e.g. older refunded order or skipped step), process it now
+        if not order.get("wallet_refunded"):
+            process_order_refund(order)
+            save_orders()
+            if order.get("user_id"):
+                ref_usr = next((u for u in users if u.get("id") == order.get("user_id")), None)
+
+        if ref_usr:
+            now_ms = int(time.time() * 1000)
+            existing_tok = next((tok for tok, s in sessions.items() if s.get("userId") == ref_usr["id"] and s.get("expiresAt", 0) > now_ms), None)
+            if existing_tok:
+                auto_login_token = existing_tok
+            else:
+                auto_login_token = secrets.token_hex(32)
+                sessions[auto_login_token] = {
+                    "userId": ref_usr["id"],
+                    "expiresAt": int((time.time() + 30 * 24 * 3600) * 1000)
+                }
+            order_status_payload["auto_login_token"] = auto_login_token
+            order_status_payload["wallet_refunded"] = True
+            order_status_payload["refunded_username"] = ref_usr.get("username")
+            order_status_payload["refunded_balance"] = float(ref_usr.get("balance", 0.0))
 
     resp = JSONResponse(content=order_status_payload)
     if auto_login_token:

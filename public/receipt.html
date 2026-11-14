@@ -174,11 +174,6 @@
           <span>Order ត្រូវបានបដិសេធ & សងប្រាក់វិញ</span>
         </div>
         <div id="rc-refund-desc" style="color:#7f1d1d;font-size:12px"></div>
-        <div id="rc-claim-wrap" style="margin-top:10px;display:none">
-          <button id="rc-btn-claim" onclick="claimRefundWalletReceipt()" style="background:linear-gradient(135deg, #10b981, #059669);color:#ffffff;border:none;padding:9px 16px;border-radius:9px;font-weight:800;font-size:12.5px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(16,185,129,0.3)">
-            🎁 ចុច Claim យកលុយចូល Wallet ឥឡូវនេះ
-          </button>
-        </div>
         <div style="margin-top:8px">
           <a href="https://t.me/Rothzz3" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px;background:#dc2626;color:#ffffff;padding:6px 12px;border-radius:7px;font-weight:700;font-size:11.5px;text-decoration:none">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 3L10 14"/><path d="M21 3l-7 18-4-7-7-4z"/></svg>
@@ -265,27 +260,11 @@
         fillEl.style.background = '#dc2626';
         const rfBox = document.getElementById('rc-refund-box');
         const rfDesc = document.getElementById('rc-refund-desc');
-        const rfClaimWrap = document.getElementById('rc-claim-wrap');
-        const rfBtnClaim = document.getElementById('rc-btn-claim');
         window._currentRefundData = data;
 
         if (rfBox && rfDesc) {
           rfBox.style.display = 'block';
-          const uLabel = data.refunded_username ? `@${data.refunded_username}` : (data.roblox_username ? `@${data.roblox_username}` : 'គណនីរបស់អ្នក');
-          rfDesc.innerHTML = `🎉 <b>ការកុម្ម៉ង់ត្រូវបានបដិសេធ & សងប្រាក់វិញ!</b><br>ប្រព័ន្ធបាន <b>Auto-Login ចូលគណនី <code>${uLabel}</code></b> រួចរាល់ ជាមួយទឹកប្រាក់ <b>$${Number(data.amount || 0).toFixed(2)} USD</b> ក្នុង Rolea Wallet! លោកអ្នកអាចប្រើប្រាស់ទឹកប្រាក់នេះដើម្បីទិញកញ្ចប់ Robux ផ្សេងទៀតបានភ្លាមៗ។`;
-          if (rfClaimWrap) {
-            rfClaimWrap.style.display = 'flex';
-            rfClaimWrap.style.gap = '8px';
-            rfClaimWrap.style.flexWrap = 'wrap';
-            rfClaimWrap.innerHTML = `
-              <a href="/my-account" style="background:linear-gradient(135deg, #10b981, #059669);color:#ffffff;padding:8px 14px;border-radius:9px;font-weight:800;font-size:12px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(16,185,129,0.3)">
-                👛 មើលកាបូបលុយ ($${Number(data.amount || 0).toFixed(2)} USD)
-              </a>
-              <a href="/game/roblox" style="background:#2563eb;color:#ffffff;padding:8px 14px;border-radius:9px;font-weight:800;font-size:12px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(37,99,235,0.3)">
-                🛒 ទិញ Robux ភ្លាមៗ
-              </a>
-            `;
-          }
+          rfDesc.innerHTML = `ទឹកប្រាក់ <b>$${Number(data.amount || 0).toFixed(2)} USD</b> ត្រូវបានបង្វិលសងចូលទៅក្នុង <b>Rolea Wallet</b> របស់អ្នករួចរាល់ហើយ។ លោកអ្នកអាចចូលទៅកាន់ Wallet ដើម្បីប្រើប្រាស់បាន។`;
         }
       } else {
         statusEl.textContent = 'PAID · WAITING FOR ADMIN';
