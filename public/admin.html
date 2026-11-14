@@ -1598,9 +1598,9 @@
             <div class="panel-title">
               <h3 style="display:flex;align-items:center;gap:8px">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.3"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                Set Roblox Cookie (.ROBLOSECURITY)
+                ➕ Add / Connect Roblox Bot (.ROBLOSECURITY)
               </h3>
-              <span>Authenticate your bot and connect real Robux funds</span>
+              <span>Add multiple bot cookies (Bot A, Bot B, Bot C) to your balance pool</span>
             </div>
           </div>
 
@@ -5270,53 +5270,124 @@ function renderCookieBotStatus(bots) {
     return;
   }
 
-  const b = bots[0];
-  const isOk = b.status === 'active';
-  const statusBg = isOk ? '#dcfce7' : '#fee2e2';
-  const statusColor = isOk ? '#15803d' : '#dc2626';
-  const statusText = isOk ? '● Connected & Verified' : '✕ Cookie Expired';
+  const activeCount = bots.filter(b => b.enabled !== false).length;
+  const offCount = bots.length - activeCount;
+
+  let cardsHtml = bots.map((b, idx) => {
+    const isOk = b.status === 'active';
+    const isEnabled = b.enabled !== false;
+    const bid = b.id || `bot_${idx+1}`;
+    const bname = b.name || `Bot ${String.fromCharCode(65 + idx)}`;
+    const statusBg = isOk ? (isEnabled ? '#dcfce7' : '#f1f5f9') : '#fee2e2';
+    const statusColor = isOk ? (isEnabled ? '#15803d' : '#64748b') : '#dc2626';
+    const statusText = !isOk ? '✕ Cookie Expired' : (isEnabled ? '● Active (In Stock)' : '⛔ Disabled (Excluded)');
+    const toggleBg = isEnabled ? '#10b981' : '#cbd5e1';
+    const toggleDotPos = isEnabled ? '22px' : '3px';
+
+    return `
+      <div style="background:#fff;border:1.5px solid ${isEnabled ? '#e2e8f0' : '#f1f5f9'};border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:14px;box-shadow:0 1px 4px rgba(0,0,0,0.03);opacity:${isEnabled ? '1' : '0.85'};transition:all 0.2s">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid #f1f5f9;padding-bottom:12px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <img src="${b.avatar_url || '/media/rolea-logo.webp'}" alt="Roblox Bot" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid ${isEnabled ? '#2563eb' : '#94a3b8'};background:#f8fafc">
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <span style="font-weight:800;font-size:15px;color:#0f172a">${bname}</span>
+                <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:${statusBg};color:${statusColor}">${statusText}</span>
+              </div>
+              <div style="font-size:12px;color:#64748b;margin-top:2px">
+                <span>Username: <b style="color:#0f172a">@${b.roblox_username || '-'}</b> (ID: ${b.roblox_user_id || '-'})</span>
+              </div>
+              ${b.group_id ? `<div style="font-size:11.5px;color:#2563eb;margin-top:2px;font-weight:600">Group: ${b.group_name || b.group_id} (#${b.group_id})</div>` : ''}
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="text-align:right">
+              <div style="font-size:11px;font-weight:700;color:${isEnabled ? '#059669' : '#64748b'}">${isEnabled ? 'STORE STOCK: ON' : 'STORE STOCK: OFF'}</div>
+              <div style="font-size:10px;color:#94a3b8">${isEnabled ? 'Counted in shop' : 'Excluded from shop'}</div>
+            </div>
+            <button onclick="toggleBotStatus('${bid}')" title="Toggle Bot ON/OFF" style="position:relative;width:46px;height:26px;background:${toggleBg};border-radius:999px;border:none;cursor:pointer;padding:0;transition:background 0.2s">
+              <span style="position:absolute;top:3px;left:${toggleDotPos};width:20px;height:20px;background:#fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.25);transition:left 0.2s"></span>
+            </button>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;background:${isEnabled ? '#f0fdf4' : '#f8fafc'};border:1px solid ${isEnabled ? '#bbf7d0' : '#e2e8f0'};border-radius:12px;padding:12px 14px">
+          <div>
+            <div style="font-size:11.5px;font-weight:700;color:${isEnabled ? '#166534' : '#64748b'};display:flex;align-items:center;flex-wrap:wrap;gap:6px">
+              Real Robux Balance
+              <span class="live-sync-pill"><span class="live-sync-dot"></span>Auto-Refresh</span>
+            </div>
+            <div style="font-size:22px;font-weight:900;color:${isEnabled ? '#059669' : '#64748b'};margin-top:2px">${Number(b.group_funds || 0).toLocaleString()} R$</div>
+            <div style="font-size:10.5px;color:#64748b;margin-top:2px">Last verified: ${b.last_synced || 'Just now'}</div>
+          </div>
+          <button class="btn-top" onclick="syncCookieBalance(false)" style="display:flex;align-items:center;gap:6px;background:#fff;border-color:#cbd5e1;color:#1e293b;font-weight:700;font-size:12px;padding:6px 12px">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            Sync
+          </button>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:2px">
+          <span style="font-size:11px;color:#94a3b8">Encrypted at rest · Unique Bot ID: <code>${bid}</code></span>
+          <button class="btn-top" onclick="deleteSingleBot('${bid}')" style="background:#fee2e2;border-color:#fecaca;color:#dc2626;font-weight:700;font-size:11.5px;padding:5px 10px">
+            Remove Bot
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
 
   container.innerHTML = `
-    <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:16px;box-shadow:0 1px 4px rgba(0,0,0,0.03)">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid #f1f5f9;padding-bottom:14px">
-        <div style="display:flex;align-items:center;gap:14px">
-          <img src="${b.avatar_url || '/media/rolea-logo.webp'}" alt="Roblox Bot" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid #2563eb;background:#f8fafc">
-          <div>
-            <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-weight:800;font-size:16px;color:#0f172a">${b.name || 'Payout Bot'}</span>
-              <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:${statusBg};color:${statusColor}">${statusText}</span>
-            </div>
-            <div style="font-size:12px;color:#64748b;margin-top:2px">
-              <span>Username: <b style="color:#0f172a">@${b.roblox_username || '-'}</b> (ID: ${b.roblox_user_id || '-'})</span>
-            </div>
-            ${b.group_id ? `<div style="font-size:12px;color:#2563eb;margin-top:2px;font-weight:600">Group: ${b.group_name || b.group_id} (#${b.group_id})</div>` : ''}
-          </div>
-        </div>
-      </div>
-
-      <div style="display:flex;align-items:center;justify-content:space-between;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:14px 16px">
-        <div>
-          <div style="font-size:12px;font-weight:700;color:#166534;display:flex;align-items:center;flex-wrap:wrap">
-            Real Live Robux Balance
-            <span class="live-sync-pill"><span class="live-sync-dot"></span>Auto-Refresh (10s)</span>
-          </div>
-          <div id="live-robux-val" style="font-size:24px;font-weight:900;color:#059669;margin-top:2px">${Number(b.group_funds || 0).toLocaleString()} R$</div>
-          <div id="live-robux-ts" style="font-size:11px;color:#64748b;margin-top:2px">Last verified: ${b.last_synced || 'Just now'}</div>
-        </div>
-        <button class="btn-top" onclick="syncCookieBalance(false)" style="display:flex;align-items:center;gap:6px;background:#fff;border-color:#a7f3d0;color:#065f46;font-weight:700">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-          Sync Now
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:10px 14px;font-size:12px">
+        <span style="color:#1e40af;font-weight:700">Multi-Cookie Bot Pool: <b>${bots.length} Bot(s)</b> (🟢 Active: ${activeCount} | ⛔ Off: ${offCount})</span>
+        <button class="btn-top" onclick="syncCookieBalance(false)" style="background:#2563eb;color:#fff;border:none;font-weight:700;font-size:11.5px;padding:4px 10px;border-radius:6px">
+          🔄 Sync All Bots
         </button>
       </div>
-
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:4px">
-        <span style="font-size:11.5px;color:#64748b">Cookie is securely stored on your private server node.</span>
-        <button class="btn-top" onclick="deleteCookie()" style="background:#fee2e2;border-color:#fecaca;color:#dc2626;font-weight:700;font-size:12px;padding:6px 12px">
-          Remove Cookie
-        </button>
-      </div>
+      ${cardsHtml}
     </div>
   `;
+}
+
+async function toggleBotStatus(botId) {
+  try {
+    const res = await fetch('/api/admin/inventory/bot/toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bot_id: botId })
+    });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      const bname = j.bot.name || 'Bot';
+      const st = j.bot.enabled ? 'Enabled 🟢 (Included in Stock)' : 'Disabled ⛔ (Excluded from Stock)';
+      toast(`${bname} is now ${st}`);
+      loadInventoryData();
+    } else {
+      toast(j.error || 'Failed to toggle bot status');
+    }
+  } catch (e) {
+    toast('Network error toggling bot status');
+  }
+}
+
+async function deleteSingleBot(botId) {
+  if (!(await adminDialog.confirm('Remove Bot?', 'Are you sure you want to disconnect this bot from your pool?', 'danger', 'Remove Bot'))) return;
+  try {
+    const res = await fetch('/api/admin/inventory/cookie/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bot_id: botId })
+    });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      toast('Bot removed from pool');
+      loadInventoryData();
+    } else {
+      toast(j.error || 'Failed to remove bot');
+    }
+  } catch (e) {
+    toast('Network error removing bot');
+  }
 }
 
 function toggleCookieVisibility() {

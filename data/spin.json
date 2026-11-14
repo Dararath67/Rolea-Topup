@@ -17,7 +17,7 @@
       "id": "sl_1",
       "label": "Thank You",
       "robux": 0,
-      "weight": 40.0,
+      "weight": 80.0,
       "color": "#475569",
       "text_color": "#ffffff"
     },
@@ -25,7 +25,7 @@
       "id": "sl_2",
       "label": "10 Robux",
       "robux": 10,
-      "weight": 35.0,
+      "weight": 12.0,
       "color": "#2563eb",
       "text_color": "#ffffff"
     },
@@ -33,7 +33,7 @@
       "id": "sl_3",
       "label": "25 Robux",
       "robux": 25,
-      "weight": 18.0,
+      "weight": 5.0,
       "color": "#0284c7",
       "text_color": "#ffffff"
     },
@@ -41,7 +41,7 @@
       "id": "sl_4",
       "label": "50 Robux",
       "robux": 50,
-      "weight": 8.0,
+      "weight": 2.0,
       "color": "#059669",
       "text_color": "#ffffff"
     },
@@ -49,7 +49,7 @@
       "id": "sl_5",
       "label": "100 Robux",
       "robux": 100,
-      "weight": 2.8,
+      "weight": 0.7,
       "color": "#7c3aed",
       "text_color": "#ffffff"
     },
@@ -57,7 +57,7 @@
       "id": "sl_6",
       "label": "200 Robux",
       "robux": 200,
-      "weight": 0.9,
+      "weight": 0.2,
       "color": "#d97706",
       "text_color": "#ffffff"
     },
@@ -65,7 +65,7 @@
       "id": "sl_7",
       "label": "500 Robux",
       "robux": 500,
-      "weight": 0.1,
+      "weight": 0.08,
       "color": "#e11d48",
       "text_color": "#ffffff"
     },

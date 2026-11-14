@@ -775,7 +775,7 @@ def get_total_inventory_stock() -> int:
     try:
         bots = inventory.get("bots", [])
         if bots:
-            return max(0, sum(int(float(b.get("group_funds") or 0)) for b in bots if isinstance(b, dict)))
+            return max(0, sum(int(float(b.get("group_funds") or 0)) for b in bots if isinstance(b, dict) and b.get("enabled", True)))
     except Exception:
         pass
     return 0
@@ -1927,35 +1927,90 @@ _tg_admin_state: Dict[str, Dict[str, Any]] = {}
 def _build_tg_stock_card(status_note: str = "") -> tuple[str, Dict[str, Any]]:
     global inventory, packages
     bots = inventory.get("bots", [])
-    b = bots[0] if bots else {}
-    uname = b.get("roblox_username", "មិនទាន់ភ្ជាប់")
-    funds = int(float(b.get("group_funds") or 0)) if b else 0
-    last_sync = b.get("last_synced", "មិនទាន់ Sync")
-    bot_st = "🟢 Active (ភ្ជាប់ជោគជ័យ)" if b.get("status") == "active" else "🔴 មិនទាន់ភ្ជាប់"
+    total_stock = get_total_inventory_stock()
 
-    # Count packages in stock vs out of stock
     rbx_pkgs = [p for p in packages if (p.get("game") or "roblox") == "roblox" and p.get("ok", 1)]
-    in_cnt = sum(1 for p in rbx_pkgs if funds >= float(p.get("robux") or 0) and float(p.get("robux") or 0) > 0 and p.get("in_stock", True))
+    in_cnt = sum(1 for p in rbx_pkgs if total_stock >= float(p.get("robux") or 0) and float(p.get("robux") or 0) > 0 and p.get("in_stock", True))
     out_cnt = len(rbx_pkgs) - in_cnt
 
+    bot_lines = []
+    inline_rows = []
+
+    for idx, b in enumerate(bots):
+        bid = str(b.get("id") or f"bot_{idx+1}")
+        bname = b.get("name") or f"Bot {chr(65 + idx)}"
+        buname = b.get("roblox_username") or "Unassigned"
+        funds = int(float(b.get("group_funds") or 0))
+        is_on = bool(b.get("enabled", True))
+        st_icon = "🟢" if is_on else "⛔"
+        st_text = "បើកដំណើរការ (ON)" if is_on else "បានបិទ (OFF)"
+
+        bot_lines.append(f"{st_icon} <b>{bname}</b> (@{buname}): <code>{funds:,} R$</code> — {st_text}")
+        btn_txt = f"{st_icon} {bname} (@{buname}) • {funds:,} R$"
+        inline_rows.append([{"text": btn_txt, "callback_data": f"adm:bot_view:{bid}"}])
+
+    bots_summary = "\n".join(bot_lines) if bot_lines else "<i>មិនទាន់មាន Bot Cookie នៅក្នុងប្រព័ន្ធនៅឡើយទេ។</i>"
+    active_cnt = sum(1 for b in bots if b.get("enabled", True))
+    off_cnt = len(bots) - active_cnt
+
     text = (
-        f"🤖 <b>[ស្ថានភាព BOT ROBLOX & COOKIE]</b>\n\n"
+        f"🤖 <b>[គ្រប់គ្រង ROBLOX BOT & MULTI-COOKIE POOL]</b>\n\n"
         + (f"🔔 {status_note}\n\n" if status_note else "")
-        + f"👤 <b>Bot Account៖</b> @{uname}\n"
-        f"⚡ <b>Robux Balance (Funds)៖</b> <code>{funds:,} R$</code>\n"
-        f"📡 <b>ស្ថានភាពភ្ជាប់៖</b> {bot_st}\n"
-        f"🕒 <b>បាន Sync ចុងក្រោយ៖</b> <code>{last_sync}</code>\n\n"
-        f"📊 <b>ស្ថានភាពកញ្ចប់ Robux ក្នុងហាង៖</b>\n"
-        f"• មានស្តុក (In Stock)៖ <b>{in_cnt} កញ្ចប់</b>\n"
-        f"• អស់ស្តុក (Out of Stock)៖ <b>{out_cnt} កញ្ចប់</b>\n"
+        + f"⚡ <b>ស្តុកសរុបដំណើរការក្នុងហាង៖</b> <code>{total_stock:,} R$</code>\n"
+        f"📊 <b>Bot សរុប៖</b> {len(bots)} គណនី (🟢 បើក: {active_cnt} | ⛔ បិទ: {off_cnt})\n\n"
+        f"📋 <b>បញ្ជី Bot & Cookie ក្នុងប្រព័ន្ធ៖</b>\n"
+        f"{bots_summary}\n\n"
+        f"📦 <b>ស្ថានភាពកញ្ចប់ Robux ក្នុងហាង៖</b>\n"
+        f"• មានស្តុក (In Stock)៖ <b>{in_cnt} កញ្ចប់</b> | អស់ស្តុក៖ <b>{out_cnt} កញ្ចប់</b>\n\n"
+        f"👇 <i>សូមចុចលើ Bot នីមួយៗដើម្បី បិទ/បើក (ON/OFF) ឬបន្ថែម Bot ថ្មី៖</i>"
     )
 
+    inline_rows.append([
+        {"text": "➕ បន្ថែម Cookie ថ្មី (Add Bot)", "callback_data": "adm:bot_add"},
+        {"text": "🔄 Sync Balance គ្រប់ Bot", "callback_data": "adm:bot_sync"}
+    ])
+    inline_rows.append([{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}])
+
+    return text, {"inline_keyboard": inline_rows}
+
+def _build_tg_bot_view(bot_id: str, status_note: str = "") -> tuple[str, Dict[str, Any]]:
+    global inventory
+    bots = inventory.get("bots", [])
+    b = next((x for x in bots if str(x.get("id")) == str(bot_id)), None)
+    if not b:
+        return "❌ រកមិនឃើញ Bot នេះទេ។", {"inline_keyboard": [[{"text": "⬅️ ត្រឡប់ទៅបញ្ជី Bot", "callback_data": "adm:bot"}]]}
+
+    bname = b.get("name") or "Payout Bot"
+    buname = b.get("roblox_username") or "Unknown"
+    buid = b.get("roblox_user_id") or "N/A"
+    funds = int(float(b.get("group_funds") or 0))
+    is_on = bool(b.get("enabled", True))
+    last_sync = b.get("last_synced") or "មិនទាន់ Sync"
+    st_status = "🟢 កំពុងបើក (ON - រាប់បញ្ចូលក្នុងស្តុកហាង)" if is_on else "⛔ បានបិទ (OFF - មិនរាប់ក្នុងស្តុក)"
+
+    text = (
+        f"🤖 <b>[ព័ត៌មានលម្អិតអំពី {bname}]</b>\n\n"
+        + (f"🔔 {status_note}\n\n" if status_note else "")
+        + f"• <b>ឈ្មោះសម្គាល់៖</b> {bname}\n"
+        f"• <b>គណនី Roblox៖</b> @{buname} (ID: <code>{buid}</code>)\n"
+        f"• <b>ស្ថានភាពដំណើរការ៖</b> {st_status}\n"
+        f"• <b>តុល្យភាព Robux៖</b> <code>{funds:,} R$</code>\n"
+        f"• <b>Sync ចុងក្រោយ៖</b> <code>{last_sync}</code>\n\n"
+        f"👇 <i>សូមចុចប៊ូតុងខាងក្រោមដើម្បី បិទ/បើក (ON/OFF), Sync ឬលុប៖</i>"
+    )
+
+    tog_text = "⛔ បិទ Bot នេះ (OFF)" if is_on else "✅ បើក Bot នេះ (ON)"
     markup = {
         "inline_keyboard": [
             [
-                {"text": "🔄 Sync Balance ជាមួយ Roblox", "callback_data": "adm:bot_sync"}
+                {"text": tog_text, "callback_data": f"adm:bot_tog:{bot_id}"},
+                {"text": "🔄 Sync Bot នេះ", "callback_data": f"adm:bot_sync1:{bot_id}"}
             ],
             [
+                {"text": "🗑️ លុប Bot នេះចេញ (Delete)", "callback_data": f"adm:bot_del:{bot_id}"}
+            ],
+            [
+                {"text": "⬅️ ត្រឡប់ទៅបញ្ជី Bot", "callback_data": "adm:bot"},
                 {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}
             ]
         ]
@@ -1999,11 +2054,11 @@ def _build_tg_spin_card(status_note: str = "") -> tuple[str, Dict[str, Any]]:
     markup = {
         "inline_keyboard": [
             [
-                {"text": "🛡️ ដាក់ Thank You 70% (ចំណេញ)", "callback_data": "adm:spin_pre:hard"},
-                {"text": "⚖️ 50% (មធ្យម)", "callback_data": "adm:spin_pre:mid"}
+                {"text": "🔒 ដាក់ Thank You 80% (តឹង/ចំណេញ)", "callback_data": "adm:spin_pre:hard"},
+                {"text": "⚖️ 60% (មធ្យម)", "callback_data": "adm:spin_pre:mid"}
             ],
             [
-                {"text": "🎁 ដាក់ Thank You 38% (ងាយឈ្នះ)", "callback_data": "adm:spin_pre:easy"},
+                {"text": "🎁 ដាក់ Thank You 40% (ងាយឈ្នះ)", "callback_data": "adm:spin_pre:easy"},
                 {"text": "✏️ កែទម្ងន់តាមចិត្ត (Custom)", "callback_data": "adm:spin_slices"}
             ],
             [
@@ -2541,17 +2596,73 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, text, {"inline_keyboard": rows})
 
-    elif sub in ("bot", "bot_sync"):
+    elif sub in ("bot", "bot_sync", "bot_add") or sub.startswith("bot_view:") or sub.startswith("bot_tog:") or sub.startswith("bot_sync1:") or sub.startswith("bot_del:"):
         status_note = ""
         if sub == "bot_sync":
-            await answer_callback_query(token, query_id, "កំពុង Sync ឆែកស្តុក Robux…")
-            sr = await sync_primary_bot_balance()
+            await answer_callback_query(token, query_id, "កំពុង Sync ឆែកស្តុក Robux គ្រប់ Bot…")
+            sr = await sync_all_bots_balance()
             sync_package_stock_with_inventory()
-            status_note = "✅ បាន Sync ជាមួយ Bot ជោគជ័យ!" if sr.get("ok") else f"⚠️ Sync: {sr.get('error', 'បរាជ័យ')}"
+            status_note = "✅ បាន Sync ជាមួយគ្រប់ Bot ជោគជ័យ!" if sr.get("ok") else f"⚠️ Sync: {sr.get('error', 'បរាជ័យ')}"
+            text, markup = _build_tg_stock_card(status_note)
+        elif sub == "bot_add":
+            _tg_admin_state[chat_id] = {"mode": "bot_cookie_add"}
+            prompt = (
+                "➕ <b>បន្ថែម ROBLOX BOT & COOKIE ថ្មី</b>\n\n"
+                "សូម <b>Reply (ឆ្លើយតប)</b> សារនេះដោយផ្ញើកូដ <code>.ROBLOSECURITY</code> cookie របស់ Bot ថ្មី (Bot B / Bot C…):\n\n"
+                "<i>🔐 ប្រព័ន្ធនឹងធ្វើការផ្ទៀងផ្ទាត់ឈ្មោះ និង Live Robux Funds ដោយស្វ័យប្រវត្ត។</i>"
+            )
+            await answer_callback_query(token, query_id, "")
+            await send_telegram_direct_message(token, chat_id, prompt, {"force_reply": True, "selective": True})
+            return
+        elif sub.startswith("bot_view:"):
+            await answer_callback_query(token, query_id, "")
+            bid = parts[2]
+            text, markup = _build_tg_bot_view(bid)
+        elif sub.startswith("bot_tog:"):
+            bid = parts[2]
+            bots = inventory.get("bots", [])
+            target = next((b for b in bots if str(b.get("id")) == str(bid)), None)
+            if target:
+                target["enabled"] = not target.get("enabled", True)
+                save_inventory()
+                sync_package_stock_with_inventory()
+                bname = target.get("name") or "Bot"
+                is_on = target["enabled"]
+                st_label = "បើកដំណើរការ (ON) 🟢" if is_on else "បិទដំណើរការ (OFF) ⛔"
+                await answer_callback_query(token, query_id, f"{bname} គឺ {st_label}")
+                status_note = f"✅ បាន{'បើក' if is_on else 'បិទ'} {bname} ({st_label}) រួចរាល់!"
+                text, markup = _build_tg_bot_view(bid, status_note)
+            else:
+                await answer_callback_query(token, query_id, "រកមិនឃើញ Bot នេះទេ។")
+                text, markup = _build_tg_stock_card()
+        elif sub.startswith("bot_sync1:"):
+            bid = parts[2]
+            bots = inventory.get("bots", [])
+            target = next((b for b in bots if str(b.get("id")) == str(bid)), None)
+            if target:
+                await answer_callback_query(token, query_id, f"កំពុង Sync {target.get('name')}…")
+                s_res = await sync_single_bot(target)
+                save_inventory()
+                sync_package_stock_with_inventory()
+                status_note = f"✅ បាន Sync {target.get('name')} ជោគជ័យ! ({target.get('group_funds', 0):,} R$)" if s_res.get("ok") else f"⚠️ Sync: {s_res.get('error')}"
+                text, markup = _build_tg_bot_view(bid, status_note)
+            else:
+                await answer_callback_query(token, query_id, "រកមិនឃើញ Bot នេះទេ។")
+                text, markup = _build_tg_stock_card()
+        elif sub.startswith("bot_del:"):
+            bid = parts[2]
+            bots = inventory.get("bots", [])
+            del_bot = next((b for b in bots if str(b.get("id")) == str(bid)), None)
+            inventory["bots"] = [b for b in bots if str(b.get("id")) != str(bid)]
+            save_inventory()
+            sync_package_stock_with_inventory()
+            bname = del_bot.get("name") if del_bot else "Bot"
+            await answer_callback_query(token, query_id, f"🗑️ បានលុប {bname} រួចរាល់!")
+            text, markup = _build_tg_stock_card(f"🗑️ បានលុប {bname} ចេញពីប្រព័ន្ធរួចរាល់!")
         else:
             await answer_callback_query(token, query_id, "")
+            text, markup = _build_tg_stock_card(status_note)
 
-        text, markup = _build_tg_stock_card(status_note)
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, text, markup)
         else:
@@ -2877,6 +2988,87 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                     asyncio.create_task(send_telegram_direct_message(token, chat_id, st_txt, st_markup))
                 else:
                     asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ រកមិនឃើញរង្វាន់នេះទេ។", {"inline_keyboard": [[{"text": "⬅️ ត្រឡប់ក្រោយ", "callback_data": "adm:spin_slices"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
+            elif mode == "bot_cookie_add":
+                clean_c = text.strip()
+                if clean_c.startswith(".ROBLOSECURITY="):
+                    clean_c = clean_c[len(".ROBLOSECURITY="):].strip()
+                if not clean_c or len(clean_c) < 50:
+                    asyncio.create_task(send_telegram_direct_message(
+                        token, chat_id,
+                        "❌ <b>Cookie មិនត្រឹមត្រូវ!</b>\nសូមផ្ញើកូដ <code>.ROBLOSECURITY</code> cookie ពេញលេញ។",
+                        {"inline_keyboard": [[{"text": "🔄 សាកល្បងម្ដងទៀត", "callback_data": "adm:bot_add"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}
+                    ))
+                    return
+
+                asyncio.create_task(send_telegram_direct_message(token, chat_id, "⏳ <i>កំពុងផ្ទៀងផ្ទាត់ Cookie ជាមួយ Roblox Server…</i>"))
+
+                header_cookie = f".ROBLOSECURITY={clean_c}"
+                try:
+                    async with httpx.AsyncClient(timeout=10.0) as cl:
+                        r_auth = await cl.get("https://users.roblox.com/v1/users/authenticated", headers={"Cookie": header_cookie, "User-Agent": "Mozilla/5.0"})
+                        if r_auth.status_code != 200:
+                            asyncio.create_task(send_telegram_direct_message(
+                                token, chat_id,
+                                f"❌ <b>Cookie មិនត្រឹមត្រូវ ឬផុតកំណត់ (HTTP {r_auth.status_code})!</b>\nសូមចម្លង .ROBLOSECURITY ថ្មីពី Browser។",
+                                {"inline_keyboard": [[{"text": "🔄 សាកល្បងម្ដងទៀត", "callback_data": "adm:bot_add"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}
+                            ))
+                            return
+                        u_data = r_auth.json()
+                        uid = u_data.get("id")
+                        uname = u_data.get("name")
+                        disp = u_data.get("displayName")
+
+                        avatar = "/media/rolea-logo.webp"
+                        try:
+                            r_th = await cl.get(f"https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds={uid}&size=150x150&format=Png&isCircular=true")
+                            if r_th.status_code == 200 and r_th.json().get("data"):
+                                avatar = r_th.json()["data"][0].get("imageUrl") or avatar
+                        except Exception:
+                            pass
+
+                        funds = 0
+                        try:
+                            rc = await cl.get(f"https://economy.roblox.com/v1/users/{uid}/currency", headers={"Cookie": header_cookie, "User-Agent": "Mozilla/5.0"})
+                            if rc.status_code == 200:
+                                funds = int(rc.json().get("robux", 0))
+                        except Exception:
+                            pass
+
+                        bots = inventory.get("bots", [])
+                        existing = next((b for b in bots if b.get("roblox_user_id") == uid), None)
+                        if existing:
+                            existing["cookie"] = _encrypt_secret(clean_c)
+                            existing["group_funds"] = funds
+                            existing["status"] = "active"
+                            existing["last_synced"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            bot_name = existing.get("name") or "Bot"
+                        else:
+                            bot_name = f"Bot {chr(65 + len(bots))}"
+                            new_b = {
+                                "id": "bot_" + str(int(time.time() * 1000)),
+                                "name": bot_name,
+                                "enabled": True,
+                                "roblox_user_id": uid,
+                                "roblox_username": uname,
+                                "display_name": disp,
+                                "avatar_url": avatar,
+                                "group_id": "",
+                                "group_name": "",
+                                "cookie": _encrypt_secret(clean_c),
+                                "group_funds": funds,
+                                "status": "active",
+                                "last_synced": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            }
+                            bots.append(new_b)
+
+                        inventory["bots"] = bots
+                        save_inventory()
+                        sync_package_stock_with_inventory()
+
+                        st_txt, st_markup = _build_tg_stock_card(f"🎉 <b>ភ្ជាប់ជោគជ័យ!</b> បានបន្ថែម <b>{bot_name}</b> (@{uname}) ជាមួយ <code>{funds:,} R$</code>។")
+                        asyncio.create_task(send_telegram_direct_message(token, chat_id, st_txt, st_markup))
+                except Exception as ex:
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ បរាជ័យក្នុងការតភ្ជាប់៖ {ex}"))
             elif mode == "find_ord":
                 q_ord = text.strip().lstrip("#").upper()
                 ord_obj = next((o for o in orders if str(o.get("order_id", "")).upper() in (q_ord, f"ORD-{q_ord}")), None)
@@ -7371,8 +7563,9 @@ async def admin_inventory_cookie_save(request: Request):
             pass
 
     bot_item = {
-        "id": "bot_primary",
+        "id": "bot_" + str(int(time.time() * 1000)),
         "name": name,
+        "enabled": True,
         "roblox_user_id": roblox_user_id,
         "roblox_username": roblox_username,
         "display_name": display_name,
@@ -7385,25 +7578,34 @@ async def admin_inventory_cookie_save(request: Request):
         "last_synced": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
 
-    inventory["bots"] = [bot_item]
+    bots = inventory.get("bots", [])
+    existing_idx = next((i for i, b in enumerate(bots) if b.get("roblox_user_id") == roblox_user_id), None)
+    if existing_idx is not None:
+        bot_item["id"] = bots[existing_idx].get("id") or bot_item["id"]
+        bot_item["name"] = name if name != "Payout Bot" else (bots[existing_idx].get("name") or name)
+        bot_item["enabled"] = bots[existing_idx].get("enabled", True)
+        bots[existing_idx] = bot_item
+    else:
+        if name == "Payout Bot":
+            bot_item["name"] = f"Bot {chr(65 + len(bots))}"
+        bots.append(bot_item)
+
+    inventory["bots"] = bots
     inventory["manual_stock_enabled"] = False
     save_inventory()
+    sync_package_stock_with_inventory()
     _record_admin_audit(request, "Roblox Bot Cookie Connected", roblox_username or name, f"Funds: {funds} R$ (cookie encrypted at rest)")
 
-    return {"ok": True, "bot": _mask_bot_public(bot_item), "total_stock": funds}
+    return {"ok": True, "bot": _mask_bot_public(bot_item), "total_stock": get_total_inventory_stock()}
 
-async def sync_primary_bot_balance() -> Dict[str, Any]:
-    global inventory
-    bots = inventory.get("bots", [])
-    if not bots:
-        return {"ok": False, "status_code": 400, "error": "No bot cookie configured to sync"}
-
-    b = bots[0]
+async def sync_single_bot(b: Dict[str, Any]) -> Dict[str, Any]:
     cookie = _get_bot_cookie(b)
     group_id = str(b.get("group_id") or "").strip()
     cached_uid = b.get("roblox_user_id")
     if not cookie:
-        return {"ok": False, "status_code": 400, "error": "Empty bot cookie"}
+        b["status"] = "error"
+        return {"ok": False, "error": "Empty bot cookie", "bot": b}
+
     header_cookie = f".ROBLOSECURITY={cookie}" if not cookie.startswith(".ROBLOSECURITY=") else cookie
     req_headers = {
         "Cookie": header_cookie,
@@ -7412,10 +7614,10 @@ async def sync_primary_bot_balance() -> Dict[str, Any]:
     }
 
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=6.0) as client:
             synced_funds = None
 
-            # 1. Fast-Path: Query currency directly if we already know the target ID
+            # 1. Fast-Path: Query currency directly if we already know target ID
             if not group_id and cached_uid:
                 try:
                     rc = await client.get(
@@ -7437,7 +7639,7 @@ async def sync_primary_bot_balance() -> Dict[str, Any]:
                 except Exception:
                     pass
 
-            # 2. Fallback: Authenticate first if fast-path didn't succeed
+            # 2. Fallback: Authenticate first
             if synced_funds is None:
                 r_auth = await client.get(
                     "https://users.roblox.com/v1/users/authenticated",
@@ -7445,8 +7647,7 @@ async def sync_primary_bot_balance() -> Dict[str, Any]:
                 )
                 if r_auth.status_code != 200:
                     b["status"] = "error"
-                    save_inventory()
-                    return {"ok": False, "status_code": 400, "error": "Cookie expired or invalid on Roblox"}
+                    return {"ok": False, "error": "Cookie expired or invalid on Roblox", "bot": b}
 
                 user_data = r_auth.json()
                 b["roblox_username"] = user_data.get("name", b.get("roblox_username"))
@@ -7472,40 +7673,92 @@ async def sync_primary_bot_balance() -> Dict[str, Any]:
                 b["group_funds"] = synced_funds
                 b["status"] = "active"
                 b["last_synced"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                save_inventory()
-                sync_package_stock_with_inventory()
-                asyncio.create_task(check_and_send_low_stock_alert())
-                return {"ok": True, "bot": b, "total_stock": b["group_funds"]}
+                return {"ok": True, "bot": b, "funds": synced_funds}
             else:
-                return {"ok": False, "status_code": 500, "error": "Could not read Robux balance from Roblox API"}
+                return {"ok": False, "error": "Could not read Robux balance from Roblox API", "bot": b}
     except Exception as e:
-        return {"ok": False, "status_code": 500, "error": f"Sync failed: {e}"}
+        return {"ok": False, "error": f"Sync failed: {e}", "bot": b}
+
+async def sync_all_bots_balance() -> Dict[str, Any]:
+    global inventory
+    bots = inventory.get("bots", [])
+    if not bots:
+        return {"ok": False, "status_code": 400, "error": "No bot cookies configured to sync"}
+
+    tasks = [sync_single_bot(b) for b in bots if isinstance(b, dict)]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    save_inventory()
+    sync_package_stock_with_inventory()
+    asyncio.create_task(check_and_send_low_stock_alert())
+    total_stock = get_total_inventory_stock()
+    any_ok = any(isinstance(r, dict) and r.get("ok") for r in results)
+    return {
+        "ok": any_ok,
+        "total_stock": total_stock,
+        "bots": bots,
+        "results": [r if isinstance(r, dict) else {"ok": False, "error": str(r)} for r in results]
+    }
+
+async def sync_primary_bot_balance() -> Dict[str, Any]:
+    res = await sync_all_bots_balance()
+    bots = inventory.get("bots", [])
+    primary = bots[0] if bots else {}
+    return {
+        "ok": res.get("ok", False),
+        "bot": primary,
+        "total_stock": res.get("total_stock", 0),
+        "error": res.get("error")
+    }
 
 async def robux_balance_auto_sync_loop():
     await asyncio.sleep(2)
     while True:
         try:
             bots = inventory.get("bots", [])
-            if bots and bots[0].get("cookie"):
-                await sync_primary_bot_balance()
+            if bots and any(b.get("cookie") for b in bots):
+                await sync_all_bots_balance()
         except Exception as e:
             print(f"[Robux AutoSync] Error: {e}")
         await asyncio.sleep(20)
 
 @app.post("/api/admin/inventory/cookie/sync")
 async def admin_inventory_cookie_sync():
-    res = await sync_primary_bot_balance()
-    if not res.get("ok"):
-        return JSONResponse(status_code=res.get("status_code", 400), content={"ok": False, "error": res.get("error", "Sync failed")})
-    return {"ok": True, "bot": _mask_bot_public(res["bot"]), "total_stock": res["total_stock"]}
+    res = await sync_all_bots_balance()
+    return {"ok": True, "bots": [_mask_bot_public(b) for b in inventory.get("bots", [])], "total_stock": res.get("total_stock", 0)}
+
+@app.post("/api/admin/inventory/bot/toggle")
+async def admin_inventory_bot_toggle(request: Request):
+    global inventory
+    body = await request.json() if (await request.body()) else {}
+    bot_id = str(body.get("bot_id", "")).strip()
+    if not bot_id:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Bot ID is required"})
+
+    bots = inventory.get("bots", [])
+    target = next((b for b in bots if str(b.get("id")) == bot_id), None)
+    if not target:
+        return JSONResponse(status_code=404, content={"ok": False, "error": "Bot not found"})
+
+    target["enabled"] = not target.get("enabled", True)
+    save_inventory()
+    sync_package_stock_with_inventory()
+    return {"ok": True, "bot": _mask_bot_public(target), "total_stock": get_total_inventory_stock()}
 
 @app.post("/api/admin/inventory/cookie/delete")
-async def admin_inventory_cookie_delete():
+async def admin_inventory_cookie_delete(request: Request):
     global inventory
-    inventory["bots"] = []
+    body = await request.json() if (await request.body()) else {}
+    bot_id = body.get("bot_id")
+    if bot_id:
+        inventory["bots"] = [b for b in inventory.get("bots", []) if str(b.get("id")) != str(bot_id)]
+    else:
+        inventory["bots"] = []
     inventory["manual_stock_enabled"] = False
     inventory["manual_stock_robux"] = 0
     save_inventory()
+    sync_package_stock_with_inventory()
+    return {"ok": True, "total_stock": get_total_inventory_stock(), "bots": [_mask_bot_public(b) for b in inventory.get("bots", [])]}
     return {"ok": True, "total_stock": 0}
 
 
