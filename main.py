@@ -5820,7 +5820,7 @@ async def create_order(request: Request):
         return JSONResponse(status_code=500, content={"ok": False, "error": "Unable to process order right now. Please try again."})
 
 @app.get("/api/order-status/{order_id}")
-async def get_order_status(order_id: str):
+async def get_order_status(order_id: str, request: Request):
     clean_id = str(order_id or "").strip().upper().lstrip("#")
     order = next((o for o in orders if str(o.get("order_id", "")).strip().upper() in (clean_id, f"ORD-{clean_id}", clean_id.replace("ORD-", ""))), None)
     if not order:
@@ -5831,6 +5831,16 @@ async def get_order_status(order_id: str):
             order = next((o for o in orders if str(o.get("order_id", "")).strip().upper() in (clean_id, f"ORD-{clean_id}", clean_id.replace("ORD-", ""))), None)
     if not order:
         return JSONResponse(status_code=404, content={"ok": False, "error": "Order not found"})
+
+    # Check ownership security: only buyer with valid receipt token or logged-in account can claim / see login info
+    client_token = str(request.query_params.get("token") or request.headers.get("X-Receipt-Token") or "").strip()
+    current_usr = get_user_from_req(request)
+    is_owner = False
+    exp_tok = str(order.get("token") or "")
+    if client_token and exp_tok and hmac.compare_digest(exp_tok, client_token):
+        is_owner = True
+    elif current_usr and order.get("user_id") and str(current_usr.get("id")) == str(order.get("user_id")):
+        is_owner = True
 
     if order.get("khqrpay_id") and not order.get("paid") and order.get("status") not in ("completed", "expired", "failed", "refunded"):
         live = await check_khqrpay_status(order["khqrpay_id"])
@@ -5937,9 +5947,10 @@ async def get_order_status(order_id: str):
         "label": order.get("label"),
         "is_refunded": bool(order.get("status") == "refunded"),
         "wallet_refunded": bool(order.get("wallet_refunded")),
-        "can_claim_wallet": bool(order.get("status") == "refunded" and order.get("wallet_refunded") and order.get("user_id")),
-        "refunded_username": (ref_usr.get("username") if ref_usr else None),
-        "refunded_balance": (float(ref_usr.get("balance", 0.0)) if ref_usr else None)
+        "is_owner": bool(is_owner),
+        "can_claim_wallet": bool(is_owner and order.get("status") == "refunded" and order.get("wallet_refunded") and order.get("user_id")),
+        "refunded_username": (ref_usr.get("username") if (is_owner and ref_usr) else None),
+        "refunded_balance": (float(ref_usr.get("balance", 0.0)) if (is_owner and ref_usr) else None)
     }
 
 @app.post("/api/orders/claim-refund-wallet")
@@ -5947,6 +5958,7 @@ async def claim_refund_wallet(request: Request):
     """
     1-Click Claim for Auto-Created Wallet Account after Guest ABA/KHQR Refund.
     Issues session token so customer is instantly logged in with their refunded balance.
+    STRICT SECURITY: Other users cannot see or claim this wallet without the original secret receipt token!
     """
     global users, sessions, orders
     try:
@@ -5976,17 +5988,21 @@ async def claim_refund_wallet(request: Request):
     if not target_user:
         return JSONResponse(status_code=404, content={"ok": False, "error": "User account not found."})
 
-    # Validate receipt token for guest security
-    exp_tok = str(order.get("token") or "")
-    usr_tok = str(target_user.get("claim_token") or "")
-    if receipt_token:
+    # STRICT SECURITY: Require matching receipt token from original buyer's browser
+    if not receipt_token:
+        auth_usr = get_user_from_req(request)
+        if not (auth_usr and str(auth_usr.get("id")) == str(target_user.get("id"))):
+            return JSONResponse(status_code=403, content={"ok": False, "error": "Unauthorized: Receipt token required to claim this account."})
+    else:
+        exp_tok = str(order.get("token") or "")
+        usr_tok = str(target_user.get("claim_token") or "")
         valid_tok = False
         if exp_tok and hmac.compare_digest(exp_tok, receipt_token):
             valid_tok = True
         elif usr_tok and hmac.compare_digest(usr_tok, receipt_token):
             valid_tok = True
         if not valid_tok:
-            return JSONResponse(status_code=403, content={"ok": False, "error": "Invalid receipt token."})
+            return JSONResponse(status_code=403, content={"ok": False, "error": "Invalid receipt token. You do not have permission to claim this wallet."})
 
     token = secrets.token_hex(32)
     sessions[token] = {
