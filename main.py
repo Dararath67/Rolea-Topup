@@ -3359,7 +3359,7 @@ def _get_rate_tier(path: str, is_authed_admin: bool = False) -> tuple[str, int, 
         "/api/admin/forgot-password", "/api/admin/verify-reset-code", "/api/admin/reset-password"
     ):
         return ("otp", 8, 60)
-    if path in ("/api/auth/login", "/api/auth/register", "/api/auth/google", "/api/admin/login", "/api/orders/claim-refund-wallet"):
+    if path in ("/api/auth/login", "/api/auth/register", "/api/auth/google", "/api/admin/login", "/api/orders/claim-refund-wallet", "/api/auth/check-refund-autologin"):
         return ("auth", 15, 60)
     if path in ("/api/create-order", "/api/wallet/topup", "/api/spin/create-ticket"):
         return ("pay_create", 15, 60)
@@ -5253,13 +5253,14 @@ async def get_current_user(request: Request):
 async def check_refund_autologin(request: Request):
     """
     Seamless auto-login when guest returns to the website on ANY page after an order was refunded by Admin.
-    Checks recent order IDs stored in client localStorage (puti_reach_my_orders_v22 / rolea_recent_orders).
-    If any was refunded, credits user wallet (if not already), generates active session token,
-    and returns user info so the navbar seamlessly logs them in with zero clicks!
+    Enforces strict cryptographic token verification:
+    If order has a private receipt token, caller MUST provide the matching receipt token.
+    Rate-limited under 'auth' tier.
     """
     global orders, users, sessions
     body = await request.json() if (await request.body()) else {}
     order_ids = body.get("order_ids", [])
+    tokens_map = body.get("tokens", {}) if isinstance(body.get("tokens"), dict) else {}
     if not isinstance(order_ids, list):
         return {"ok": False}
 
@@ -5267,11 +5268,19 @@ async def check_refund_autologin(request: Request):
         oid = str(raw_oid or "").strip()
         if not oid:
             continue
-        order = next((o for o in orders if str(o.get("order_id", "")).lower() == oid.lower()), None)
+        clean_id = oid.lstrip("#")
+        order = next((o for o in orders if str(o.get("order_id", "")).strip().upper() in (clean_id.upper(), f"ORD-{clean_id}".upper(), clean_id.replace("ORD-", "").upper())), None)
         if not order:
             continue
 
         if order.get("status") == "refunded":
+            # Cryptographic security verification: If order has a secret receipt token set, client must provide matching token!
+            exp_tok = str(order.get("token") or "")
+            client_tok = str(tokens_map.get(oid) or tokens_map.get(order.get("order_id")) or "")
+            if exp_tok:
+                if not client_tok or not hmac.compare_digest(exp_tok, client_tok):
+                    continue
+
             # Ensure wallet refund is processed (credits existing user or creates guest account)
             if not order.get("wallet_refunded"):
                 process_order_refund(order)
@@ -6072,7 +6081,9 @@ async def get_order_status(order_id: str, request: Request):
             if order.get("user_id"):
                 ref_usr = next((u for u in users if u.get("id") == order.get("user_id")), None)
 
-        if ref_usr:
+        # Security: Only issue auto_login_token if client is verified owner (via receipt token or active session)
+        can_auto_login = is_owner or not bool(order.get("token"))
+        if ref_usr and can_auto_login:
             now_ms = int(time.time() * 1000)
             existing_tok = next((tok for tok, s in sessions.items() if s.get("userId") == ref_usr["id"] and s.get("expiresAt", 0) > now_ms), None)
             if existing_tok:
@@ -6086,6 +6097,9 @@ async def get_order_status(order_id: str, request: Request):
             order_status_payload["auto_login_token"] = auto_login_token
             order_status_payload["wallet_refunded"] = True
             order_status_payload["refunded_username"] = ref_usr.get("username")
+            order_status_payload["refunded_balance"] = float(ref_usr.get("balance", 0.0))
+        elif ref_usr:
+            order_status_payload["wallet_refunded"] = True
             order_status_payload["refunded_balance"] = float(ref_usr.get("balance", 0.0))
 
     resp = JSONResponse(content=order_status_payload)

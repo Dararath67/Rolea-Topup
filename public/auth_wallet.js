@@ -159,13 +159,19 @@
     } catch (e) {}
 
     // 3. Auto-Login when admin refund and guest opens website again (ANY PAGE):
-    // Check if customer has any recent order in localStorage that was refunded
+    // Cryptographically verified via secret receipt token stored in localStorage
     try {
       const candidateOrders = [];
+      const tokensMap = {};
       try {
         const rawPuti = JSON.parse(localStorage.getItem('puti_reach_my_orders_v22') || '[]');
         if (Array.isArray(rawPuti)) {
-          rawPuti.forEach(x => { if (x && x.order_id) candidateOrders.push(x.order_id); });
+          rawPuti.forEach(x => {
+            if (x && x.order_id) {
+              candidateOrders.push(x.order_id);
+              if (x.token) tokensMap[x.order_id] = x.token;
+            }
+          });
         }
       } catch (e) {}
       try {
@@ -179,7 +185,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ order_ids: uniqueOrderIds })
+          body: JSON.stringify({ order_ids: uniqueOrderIds, tokens: tokensMap })
         });
         if (refRes.ok) {
           const refData = await refRes.json();
