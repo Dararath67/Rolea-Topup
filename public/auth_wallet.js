@@ -122,24 +122,79 @@
   }
 
   async function checkCurrentUser() {
-    const t = getToken();
-    if (!t) {
-      currentUser = null;
-      renderNavbar();
-      return;
-    }
-    try {
-      const res = await fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + t } });
-      const j = await res.json();
-      if (res.ok && j.ok && j.user) {
-        currentUser = j.user;
-      } else {
-        currentUser = null;
-        setToken(null);
+    let t = getToken();
+
+    // 1. If we already have a local token, verify it with /api/auth/me
+    if (t) {
+      try {
+        const res = await fetch('/api/auth/me', {
+          headers: { 'Authorization': 'Bearer ' + t },
+          credentials: 'include'
+        });
+        const j = await res.json();
+        if (res.ok && j.ok && j.user) {
+          currentUser = j.user;
+          renderNavbar();
+          return;
+        } else {
+          currentUser = null;
+          setToken(null);
+          t = null;
+        }
+      } catch (e) {
+        console.warn('Auth check offline');
       }
-    } catch (e) {
-      console.warn('Auth check offline');
     }
+
+    // 2. If no local token, check if authenticated via Cookie rolea_token
+    try {
+      const cRes = await fetch('/api/auth/me', { credentials: 'include' });
+      const cJ = await cRes.json();
+      if (cRes.ok && cJ.ok && cJ.user) {
+        currentUser = cJ.user;
+        if (cJ.token) setToken(cJ.token);
+        renderNavbar();
+        return;
+      }
+    } catch (e) {}
+
+    // 3. Auto-Login when admin refund and guest opens website again (ANY PAGE):
+    // Check if customer has any recent order in localStorage that was refunded
+    try {
+      const candidateOrders = [];
+      try {
+        const rawPuti = JSON.parse(localStorage.getItem('puti_reach_my_orders_v22') || '[]');
+        if (Array.isArray(rawPuti)) {
+          rawPuti.forEach(x => { if (x && x.order_id) candidateOrders.push(x.order_id); });
+        }
+      } catch (e) {}
+      try {
+        const rawRec = JSON.parse(localStorage.getItem('rolea_recent_orders') || '[]');
+        if (Array.isArray(rawRec)) candidateOrders.push(...rawRec);
+      } catch (e) {}
+
+      const uniqueOrderIds = Array.from(new Set(candidateOrders.filter(Boolean))).slice(0, 10);
+      if (uniqueOrderIds.length > 0) {
+        const refRes = await fetch('/api/auth/check-refund-autologin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ order_ids: uniqueOrderIds })
+        });
+        if (refRes.ok) {
+          const refData = await refRes.json();
+          if (refData.ok && refData.auto_login_token && refData.user) {
+            setToken(refData.auto_login_token);
+            document.cookie = `rolea_token=${refData.auto_login_token}; path=/; max-age=2592000; SameSite=Lax`;
+            currentUser = refData.user;
+            renderNavbar();
+            return;
+          }
+        }
+      }
+    } catch (e) {}
+
+    currentUser = null;
     renderNavbar();
   }
 

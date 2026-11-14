@@ -5227,8 +5227,19 @@ async def get_current_user(request: Request):
     user = get_user_from_req(request)
     if not user:
         return {"ok": False, "user": None}
+
+    token = None
+    auth_header = request.headers.get("authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+    elif request.headers.get("x-auth-token"):
+        token = request.headers.get("x-auth-token", "").strip()
+    elif "rolea_token" in request.cookies:
+        token = request.cookies.get("rolea_token", "").strip()
+
     return {
         "ok": True,
+        "token": token,
         "user": {
             "id": user["id"],
             "username": user["username"],
@@ -5237,6 +5248,72 @@ async def get_current_user(request: Request):
             "avatar": user["avatar"]
         }
     }
+
+@app.post("/api/auth/check-refund-autologin")
+async def check_refund_autologin(request: Request):
+    """
+    Seamless auto-login when guest returns to the website on ANY page after an order was refunded by Admin.
+    Checks recent order IDs stored in client localStorage (puti_reach_my_orders_v22 / rolea_recent_orders).
+    If any was refunded, credits user wallet (if not already), generates active session token,
+    and returns user info so the navbar seamlessly logs them in with zero clicks!
+    """
+    global orders, users, sessions
+    body = await request.json() if (await request.body()) else {}
+    order_ids = body.get("order_ids", [])
+    if not isinstance(order_ids, list):
+        return {"ok": False}
+
+    for raw_oid in order_ids[:10]:
+        oid = str(raw_oid or "").strip()
+        if not oid:
+            continue
+        order = next((o for o in orders if str(o.get("order_id", "")).lower() == oid.lower()), None)
+        if not order:
+            continue
+
+        if order.get("status") == "refunded":
+            # Ensure wallet refund is processed (credits existing user or creates guest account)
+            if not order.get("wallet_refunded"):
+                process_order_refund(order)
+                save_orders()
+
+            user_id = order.get("user_id")
+            target_user = next((u for u in users if u.get("id") == user_id), None) if user_id else None
+            if target_user:
+                now_ms = int(time.time() * 1000)
+                tok = next((t for t, s in sessions.items() if s.get("userId") == target_user["id"] and s.get("expiresAt", 0) > now_ms), None)
+                if not tok:
+                    tok = secrets.token_hex(32)
+                    sessions[tok] = {
+                        "userId": target_user["id"],
+                        "expiresAt": int((time.time() + 30 * 24 * 3600) * 1000)
+                    }
+
+                resp = JSONResponse(content={
+                    "ok": True,
+                    "auto_login_token": tok,
+                    "refunded_order_id": order.get("order_id"),
+                    "refunded_amount": float(order.get("amount") or 0.0),
+                    "user": {
+                        "id": target_user["id"],
+                        "username": target_user["username"],
+                        "email": target_user.get("email", ""),
+                        "balance": float(target_user.get("balance", 0.0)),
+                        "avatar": target_user.get("avatar", "/media/rolea-logo.webp")
+                    }
+                })
+                resp.set_cookie(
+                    key="rolea_token",
+                    value=tok,
+                    httponly=False,
+                    samesite="lax",
+                    secure=_is_https_request(request),
+                    path="/",
+                    max_age=30 * 24 * 3600
+                )
+                return resp
+
+    return {"ok": False}
 
 @app.post("/api/auth/logout")
 async def logout(request: Request):
