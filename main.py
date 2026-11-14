@@ -1962,6 +1962,89 @@ def _build_tg_stock_card(status_note: str = "") -> tuple[str, Dict[str, Any]]:
     }
     return text, markup
 
+def _build_tg_spin_card(status_note: str = "") -> tuple[str, Dict[str, Any]]:
+    global spin_data
+    st_en = "🟢 កំពុងបើក (Enabled)" if spin_data.get("enabled", True) else "⛔ បានបិទ (Disabled)"
+    sp_price = float(spin_data.get("spin_price_usd") or 0.5)
+    tot_spins = int(spin_data.get("total_spins") or len(spin_data.get("history", [])))
+    tot_rev = float(spin_data.get("total_revenue_usd") or 0.0)
+    tot_rbx = int(spin_data.get("total_robux_awarded") or 0)
+
+    slices = spin_data.get("slices", [])
+    total_w = sum(max(0.0, float(s.get("weight", 0))) for s in slices) or 1.0
+
+    slice_lines = []
+    for s in slices:
+        w = max(0.0, float(s.get("weight", 0)))
+        pct = (w / total_w) * 100
+        lbl = s.get("label", "Prize")
+        rob = int(s.get("robux", 0))
+        icon = "❌" if rob == 0 else ("🏆" if rob >= 500 else "🎁")
+        slice_lines.append(f"{icon} <b>{lbl}</b>: <code>{w:g}</code> ({pct:.1f}%)")
+
+    slices_str = "\n".join(slice_lines)
+
+    text = (
+        f"🎡 <b>[ផ្ទាំងគ្រប់គ្រង LUCKY SPIN ROBUX]</b>\n\n"
+        + (f"🔔 {status_note}\n\n" if status_note else "")
+        + f"• <b>ស្ថានភាព៖</b> {st_en}\n"
+        f"• <b>តម្លៃបង្វិល៖</b> <code>${sp_price:.2f} USD</code>\n"
+        f"• <b>បង្វិលសរុប៖</b> {tot_spins} ដង | <b>ចំណូល៖</b> ${tot_rev:.2f} USD\n"
+        f"• <b>Robux ចេញសរុប៖</b> {tot_rbx:,} R$\n\n"
+        f"📊 <b>ទម្ងន់ & ឱកាសចេញរង្វាន់ (Weights & Chances)៖</b>\n"
+        f"{slices_str}\n\n"
+        f"👇 <i>សូមជ្រើសរើស Preset កំណត់ទម្ងន់លឿន ឬកែតាមចិត្ត៖</i>"
+    )
+
+    markup = {
+        "inline_keyboard": [
+            [
+                {"text": "🛡️ ដាក់ Thank You 70% (ចំណេញ)", "callback_data": "adm:spin_pre:hard"},
+                {"text": "⚖️ 50% (មធ្យម)", "callback_data": "adm:spin_pre:mid"}
+            ],
+            [
+                {"text": "🎁 ដាក់ Thank You 38% (ងាយឈ្នះ)", "callback_data": "adm:spin_pre:easy"},
+                {"text": "✏️ កែទម្ងន់តាមចិត្ត (Custom)", "callback_data": "adm:spin_slices"}
+            ],
+            [
+                {"text": "💲 $0.25", "callback_data": "adm:spin_p:0.25"},
+                {"text": "💲 $0.50", "callback_data": "adm:spin_p:0.50"},
+                {"text": "💲 $1.00", "callback_data": "adm:spin_p:1.00"}
+            ],
+            [
+                {"text": "⛔ បិទ Spin" if spin_data.get("enabled", True) else "✅ បើក Spin", "callback_data": "adm:spin_tog"}
+            ],
+            [
+                {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}
+            ]
+        ]
+    }
+    return text, markup
+
+def _build_tg_spin_slices_picker() -> tuple[str, Dict[str, Any]]:
+    global spin_data
+    slices = spin_data.get("slices", [])
+    text = (
+        "✏️ <b>ជ្រើសរើសរង្វាន់ដើម្បីកែប្រែទម្ងន់ (Edit Slice Weight)</b>\n\n"
+        "ចុចលើប៊ូតុងរង្វាន់ខាងក្រោម រួច Reply បញ្ចូលលេខទម្ងន់ថ្មី (Weight):\n"
+        "<i>(លេខកាន់តែធំ = ឱកាសចេញកាន់តែខ្ពស់)</i>"
+    )
+    rows = []
+    curr_row = []
+    for s in slices:
+        sid = s.get("id")
+        lbl = s.get("label", "Prize")
+        w = max(0.0, float(s.get("weight", 0)))
+        btn_text = f"{lbl} ({w:g})"
+        curr_row.append({"text": btn_text, "callback_data": f"adm:spw_ed:{sid}"})
+        if len(curr_row) == 2:
+            rows.append(curr_row)
+            curr_row = []
+    if curr_row:
+        rows.append(curr_row)
+    rows.append([{"text": "⬅️ ត្រឡប់ទៅផ្ទាំង Spin", "callback_data": "adm:spin"}])
+    return text, {"inline_keyboard": rows}
+
 def _build_tg_admin_home() -> tuple[str, Dict[str, Any]]:
     pending_cnt = sum(
         1 for o in orders 
@@ -2367,47 +2450,73 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         else:
             await send_telegram_direct_message(token, chat_id, "❌ <b>ការផ្ញើ Backup បរាជ័យ។</b>")
 
-    elif sub in ("spin", "spin_tog", "spin_p"):
+    elif sub in ("spin", "spin_tog", "spin_slices") or sub.startswith("spin_p") or sub.startswith("spin_pre:") or sub.startswith("spw_ed:"):
+        status_note = ""
         if sub == "spin_tog":
             spin_data["enabled"] = not bool(spin_data.get("enabled", True))
             save_spin_data()
-            await answer_callback_query(token, query_id, f"Spin Wheel ត្រូវបាន {'បើកដំណើរការ 🟢' if spin_data['enabled'] else 'បិទដំណើរការ ⛔'}")
-        elif sub == "spin_p" and len(parts) >= 3:
+            status_note = f"Spin Wheel ត្រូវបាន {'បើកដំណើរការ 🟢' if spin_data['enabled'] else 'បិទដំណើរការ ⛔'}"
+            await answer_callback_query(token, query_id, status_note)
+        elif sub.startswith("spin_p") and len(parts) >= 3:
             try:
                 p_val = float(parts[2])
                 if p_val > 0:
                     spin_data["spin_price_usd"] = round(p_val, 2)
                     save_spin_data()
-                    await answer_callback_query(token, query_id, f"តម្លៃ Spin ត្រូវបានដាក់ ${p_val:.2f} USD")
+                    status_note = f"✅ តម្លៃ Spin ត្រូវបានដាក់ ${p_val:.2f} USD"
+                    await answer_callback_query(token, query_id, status_note)
             except ValueError:
                 await answer_callback_query(token, query_id, "តម្លៃមិនត្រឹមត្រូវ។")
+        elif sub.startswith("spin_pre:") and len(parts) >= 3:
+            pre = parts[2]
+            slices = spin_data.get("slices", [])
+            if pre == "hard":
+                preset_weights = {"sl_1": 70.0, "sl_2": 18.0, "sl_3": 8.0, "sl_4": 3.0, "sl_5": 0.8, "sl_6": 0.2, "sl_7": 0.05, "sl_8": 0.01}
+                status_note = "🛡️ បានកំណត់ Thank You 70% (កម្រិតតឹង/ការពារការខាត) ជោគជ័យ!"
+            elif pre == "mid":
+                preset_weights = {"sl_1": 50.0, "sl_2": 28.0, "sl_3": 14.0, "sl_4": 6.0, "sl_5": 1.5, "sl_6": 0.4, "sl_7": 0.08, "sl_8": 0.02}
+                status_note = "⚖️ បានកំណត់ Thank You 50% (កម្រិតមធ្យម) ជោគជ័យ!"
+            else:
+                preset_weights = {"sl_1": 40.0, "sl_2": 35.0, "sl_3": 18.0, "sl_4": 8.0, "sl_5": 2.8, "sl_6": 0.9, "sl_7": 0.1, "sl_8": 0.02}
+                status_note = "🎁 បានកំណត់ Thank You 38% (កម្រិតងាយឈ្នះ) ជោគជ័យ!"
+
+            for s in slices:
+                sid = s.get("id")
+                if sid in preset_weights:
+                    s["weight"] = preset_weights[sid]
+            save_spin_data()
+            await answer_callback_query(token, query_id, status_note)
+        elif sub == "spin_slices":
+            await answer_callback_query(token, query_id, "")
+            st_txt, st_markup = _build_tg_spin_slices_picker()
+            if msg_id:
+                await edit_telegram_message(token, chat_id, msg_id, st_txt, st_markup)
+            return
+        elif sub.startswith("spw_ed:") and len(parts) >= 3:
+            sid = parts[2]
+            slices = spin_data.get("slices", [])
+            target = next((s for s in slices if s.get("id") == sid), None)
+            if not target:
+                await answer_callback_query(token, query_id, "រកមិនឃើញរង្វាន់នេះទេ។")
+                return
+            _tg_admin_state[chat_id] = {"mode": "spin_w_set", "slice_id": sid}
+            t_lbl = target.get("label", sid)
+            t_w = float(target.get("weight", 0))
+            prompt = (
+                f"✏️ <b>កំណត់ទម្ងន់ (Weight) សម្រាប់៖ {t_lbl}</b>\n\n"
+                f"• ទម្ងន់បច្ចុប្បន្ន៖ <code>{t_w:g}</code>\n\n"
+                f"សូម Reply សារនេះដោយបញ្ចូលទម្ងន់ថ្មី (Weight):\n"
+                f"• ឧទាហរណ៍ <code>70</code> (ប្រសិនបើចង់ឱ្យចេញញឹកញាប់)\n"
+                f"• ឧទាហរណ៍ <code>10</code> (ប្រសិនបើចង់ឱ្យចេញមធ្យម)\n"
+                f"• ឧទាហរណ៍ <code>0.5</code> (ប្រសិនបើចង់ឱ្យកម្រចេញ)"
+            )
+            await answer_callback_query(token, query_id, "")
+            await send_telegram_direct_message(token, chat_id, prompt, {"force_reply": True, "selective": True})
+            return
         else:
             await answer_callback_query(token, query_id, "")
 
-        st_en = "🟢 កំពុងបើក (Enabled)" if spin_data.get("enabled", True) else "⛔ បានបិទ (Disabled)"
-        sp_price = float(spin_data.get("spin_price_usd") or 0.5)
-        tot_spins = int(spin_data.get("total_spins") or len(spin_data.get("history", [])))
-        tot_rev = float(spin_data.get("total_revenue_usd") or 0.0)
-        tot_rbx = int(spin_data.get("total_robux_awarded") or 0)
-        text = (
-            f"🎡 <b>ផ្ទាំងគ្រប់គ្រង Spin Robux</b>\n\n"
-            f"<b>ស្ថានភាព៖</b> {st_en}\n"
-            f"<b>តម្លៃក្នុង ១ ដង៖</b> <code>${sp_price:.2f} USD</code>\n"
-            f"<b>ចំនួនបង្វិលសរុប៖</b> {tot_spins} ដង\n"
-            f"<b>ចំណូលពី Spin៖</b> ${tot_rev:.2f} USD\n"
-            f"<b>Robux ដែលបានឈ្នះសរុប៖</b> {tot_rbx:,} R$"
-        )
-        markup = {
-            "inline_keyboard": [
-                [{"text": "⛔ បិទ Spin" if spin_data.get("enabled", True) else "✅ បើក Spin", "callback_data": "adm:spin_tog"}],
-                [
-                    {"text": "💲 $0.25", "callback_data": "adm:spin_p:0.25"},
-                    {"text": "💲 $0.50", "callback_data": "adm:spin_p:0.50"},
-                    {"text": "💲 $1.00", "callback_data": "adm:spin_p:1.00"}
-                ],
-                [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]
-            ]
-        }
+        text, markup = _build_tg_spin_card(status_note)
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, text, markup)
 
@@ -2748,6 +2857,26 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                         asyncio.create_task(send_telegram_direct_message(token, chat_id, f"✅ <b>{html.escape(note, quote=False)}</b>\n\n{card[0]}", card[1]))
                 else:
                     asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ {html.escape(note, quote=False)}"))
+            elif mode == "spin_w_set":
+                sid = st_info.get("slice_id")
+                try:
+                    clean_txt = text.replace(",", "").strip()
+                    val = float(clean_txt)
+                    if val < 0 or not math.isfinite(val):
+                        raise ValueError()
+                except ValueError:
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ ទម្ងន់ Weight ត្រូវតែជាលេខវិជ្ជមាន (ឧ. <code>70</code> ឬ <code>15.5</code>)។", {"inline_keyboard": [[{"text": "⬅️ ត្រឡប់ក្រោយ", "callback_data": "adm:spin_slices"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
+                    return
+
+                slices = spin_data.get("slices", [])
+                sl = next((s for s in slices if s.get("id") == sid), None)
+                if sl:
+                    sl["weight"] = round(val, 2)
+                    save_spin_data()
+                    st_txt, st_markup = _build_tg_spin_card(f"✅ បានកំណត់ទម្ងន់ <b>{sl.get('label')}</b> ទៅជា <b>{val:g}</b> ជោគជ័យ!")
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, st_txt, st_markup))
+                else:
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ រកមិនឃើញរង្វាន់នេះទេ។", {"inline_keyboard": [[{"text": "⬅️ ត្រឡប់ក្រោយ", "callback_data": "adm:spin_slices"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
             elif mode == "find_ord":
                 q_ord = text.strip().lstrip("#").upper()
                 ord_obj = next((o for o in orders if str(o.get("order_id", "")).upper() in (q_ord, f"ORD-{q_ord}")), None)
