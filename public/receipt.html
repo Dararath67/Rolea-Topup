@@ -261,21 +261,18 @@
 
         if (rfBox && rfDesc) {
           rfBox.style.display = 'block';
-          // STRICT SECURITY: ONLY show claim and auto-account credentials to verified owner
-          if (data.can_claim_wallet && localReceiptToken) {
-            rfDesc.innerHTML = `🎉 ការកុម្ម៉ង់ត្រូវបានបដិសេធ & សងប្រាក់វិញ! យើងបានបង្កើត Rolea Account & Wallet (<code>@${data.refunded_username || 'Your Account'}</code>) ជូនអ្នកជាមួយទឹកប្រាក់ <b>$${Number(data.amount || 0).toFixed(2)} USD</b> រួចរាល់។`;
+          if (data.can_claim_wallet) {
+            const uLabel = data.refunded_username ? `@${data.refunded_username}` : (data.roblox_username ? `@${data.roblox_username}` : 'គណនីរបស់អ្នក');
+            rfDesc.innerHTML = `🎉 <b>ការកុម្ម៉ង់ត្រូវបានបដិសេធ & សងប្រាក់វិញ!</b> យើងបានបង្កើត Rolea Account & Wallet (<code>${uLabel}</code>) ជូនអ្នកជាមួយទឹកប្រាក់ <b>$${Number(data.amount || 0).toFixed(2)} USD</b> រួចរាល់។ លោកអ្នកអាចចុច Auto Login ខាងក្រោមដើម្បីចូលគណនី និងយកលុយនេះទៅទិញកញ្ចប់ផ្សេងទៀតបានភ្លាមៗ!`;
             if (rfClaimWrap) rfClaimWrap.style.display = 'block';
-            if (rfBtnClaim) rfBtnClaim.textContent = `🎁 ចុច Claim យកលុយ $${Number(data.amount || 0).toFixed(2)} USD ចូល Wallet ឥឡូវនេះ`;
+            if (rfBtnClaim) rfBtnClaim.innerHTML = `🎁 ចុច Auto Login យកលុយ $${Number(data.amount || 0).toFixed(2)} USD ចូល Wallet ឥឡូវនេះ`;
           } else {
             if (rfClaimWrap) rfClaimWrap.style.display = 'none';
             const isWallet = (data.payment_method || '').toLowerCase().includes('wallet') || !!data.wallet_refunded;
-            if (isWallet && (localReceiptToken || data.is_owner)) {
+            if (isWallet) {
               rfDesc.innerHTML = `ទឹកប្រាក់ <b>$${Number(data.amount || 0).toFixed(2)} USD</b> ត្រូវបានបង្វិលសងចូលទៅក្នុង <b>Rolea Wallet</b> របស់អ្នករួចរាល់ហើយ។`;
-            } else if (localReceiptToken || data.is_owner) {
-              rfDesc.innerHTML = `ការកុម្ម៉ង់នេះត្រូវបាន Admin បដិសេធ និងសងប្រាក់វិញ។ ដោយសារលោកអ្នកបានស្កេនទូទាត់តាម <b>ABA KHQR</b> សូមផ្ញើ Order ID នេះ និង <b>QR ធនាគារ (ABA/Bakong)</b> របស់អ្នកទៅកាន់ Admin តាម Telegram ដើម្បីទទួលការវេរប្រាក់សងត្រឡប់ទៅវិញភ្លាមៗ!`;
             } else {
-              // Public / other users view -> zero credentials shown
-              rfDesc.innerHTML = `ការកុម្ម៉ង់នេះត្រូវបានបដិសេធ និងសងប្រាក់វិញ (Order Refunded)។ ប្រសិនបើលោកអ្នកជាម្ចាស់ការកុម្ម៉ង់នេះ និងត្រូវការជំនួយ សូមទាក់ទង Admin តាម Telegram (@Rothzz3)។`;
+              rfDesc.innerHTML = `ការកុម្ម៉ង់នេះត្រូវបានបដិសេធ និងសងប្រាក់វិញ (Order Refunded)។ ប្រសិនបើលោកអ្នកជាម្ចាស់ការកុម្ម៉ង់នេះ និងត្រូវការជំនួយ សូមទាក់ទងមកកាន់ Admin តាម Telegram (@Rothzz3)។`;
             }
           }
         }

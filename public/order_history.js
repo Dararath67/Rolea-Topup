@@ -44,5 +44,10 @@
     }
     return {order_id: 'PR' + hex(12).toUpperCase(), token: hex(32)};
   }
-  window.PutiOrders = Object.freeze({ read, add, remove, secureCheckout });
+  function get(order_id) {
+    if (!order_id) return null;
+    const clean = String(order_id).trim().toUpperCase().replace(/^#/, '');
+    return read().find(r => r.order_id && r.order_id.trim().toUpperCase().replace(/^#/, '') === clean) || null;
+  }
+  window.PutiOrders = Object.freeze({ read, add, remove, get, secureCheckout });
 }());

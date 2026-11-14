@@ -901,29 +901,18 @@ function renderOrderCard(o) {
       const claimBtn = document.getElementById('btn-claim-refund');
       window._currentRefundOrder = o;
 
-      let localToken = '';
-      try {
-        if (window.PutiOrders && typeof window.PutiOrders.get === 'function') {
-          const rec = window.PutiOrders.get(o.order_id);
-          if (rec && rec.token) localToken = rec.token;
-        }
-      } catch (e) {}
-
-      // ONLY show claim and account info if server confirmed ownership AND this device has the secret order token
-      if (o.can_claim_wallet && localToken) {
-        refundDetail.innerHTML = `🎉 ការកុម្ម៉ង់ត្រូវបានបដិសេធ & សងប្រាក់វិញ! យើងបានបង្កើត Rolea Account & Wallet (<code>@${o.refunded_username || 'Your Account'}</code>) ជូនអ្នកជាមួយទឹកប្រាក់ <b>$${Number(o.amount || 0).toFixed(2)} USD</b> រួចរាល់។ លោកអ្នកអាចចុច Claim យកលុយនេះដើម្បីទិញកញ្ចប់ផ្សេងទៀតបានភ្លាមៗ!`;
+      if (o.can_claim_wallet) {
+        const uLabel = o.refunded_username ? `@${o.refunded_username}` : (o.roblox_username ? `@${o.roblox_username}` : 'គណនីរបស់អ្នក');
+        refundDetail.innerHTML = `🎉 <b>ការកុម្ម៉ង់ត្រូវបានបដិសេធ & សងប្រាក់វិញ!</b> យើងបានបង្កើត Rolea Account & Wallet (<code>${uLabel}</code>) ជូនអ្នកជាមួយទឹកប្រាក់ <b>$${Number(o.amount || 0).toFixed(2)} USD</b> រួចរាល់។ លោកអ្នកអាចចុច Auto Login ខាងក្រោមដើម្បីចូលគណនី និងយកលុយនេះទៅទិញកញ្ចប់ផ្សេងទៀតបានភ្លាមៗ!`;
         if (claimBox) claimBox.style.display = 'block';
-        if (claimBtn) claimBtn.textContent = `🎁 ចុច Claim យកលុយ $${Number(o.amount || 0).toFixed(2)} USD ចូល Wallet ឥឡូវនេះ`;
+        if (claimBtn) claimBtn.innerHTML = `🎁 ចុច Auto Login យកលុយ $${Number(o.amount || 0).toFixed(2)} USD ចូល Wallet ឥឡូវនេះ`;
       } else {
         if (claimBox) claimBox.style.display = 'none';
         const isWallet = (o.payment_method || '').toLowerCase().includes('wallet') || !!o.wallet_refunded;
-        if (isWallet && (localToken || o.is_owner)) {
+        if (isWallet) {
           refundDetail.innerHTML = `ទឹកប្រាក់ <b>$${Number(o.amount || 0).toFixed(2)} USD</b> ត្រូវបានបង្វិលសងត្រឡប់ចូលទៅក្នុង <b>Rolea Wallet</b> របស់អ្នកវិញរួចរាល់ហើយ។ លោកអ្នកអាចចូលទៅកាន់ Wallet ដើម្បីប្រើប្រាស់បាន។`;
-        } else if (localToken || o.is_owner) {
-          refundDetail.innerHTML = `ការកុម្ម៉ង់នេះត្រូវបាន Admin បដិសេធ និងសងប្រាក់វិញ។ ដោយសារលោកអ្នកបានស្កេនទូទាត់តាម <b>ABA KHQR</b> សូមផ្ញើ <b>Order ID (<code>${o.order_id || '-'}</code>)</b> ព្រមទាំង <b>QR ធនាគារ (ABA/Bakong)</b> របស់អ្នកទៅកាន់ Admin តាម Telegram ដើម្បីទទួលការវេរប្រាក់សងត្រឡប់ទៅវិញភ្លាមៗ!`;
         } else {
-          // Public / third-party view (user ដទៃ) -> zero sensitive data shown
-          refundDetail.innerHTML = `ការកុម្ម៉ង់នេះត្រូវបានបដិសេធ និងសងប្រាក់វិញ (Order Refunded)។ ប្រសិនបើលោកអ្នកជាម្ចាស់ការកុម្ម៉ង់នេះ និងត្រូវការជំនួយ សូមទាក់ទងមក Admin តាម Telegram (@Rothzz3)។`;
+          refundDetail.innerHTML = `ការកុម្ម៉ង់នេះត្រូវបាន Admin បដិសេធ និងសងប្រាក់វិញ (Order Refunded)។ ប្រសិនបើលោកអ្នកជាម្ចាស់ការកុម្ម៉ង់នេះ និងត្រូវការជំនួយ សូមទាក់ទងមក Admin តាម Telegram (@Rothzz3)។`;
         }
       }
     }
