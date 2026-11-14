@@ -2508,7 +2508,7 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         else:
             await send_telegram_direct_message(token, chat_id, "❌ <b>ការផ្ញើ Backup បរាជ័យ។</b>")
 
-    elif sub in ("spin", "spin_tog", "spin_slices") or sub.startswith("spin_p") or sub.startswith("spin_pre:") or sub.startswith("spw_ed:"):
+    elif sub in ("spin", "spin_tog", "spin_slices", "spin_pre", "spw_ed") or sub.startswith("spin_p"):
         status_note = ""
         if sub == "spin_tog":
             spin_data["enabled"] = not bool(spin_data.get("enabled", True))
@@ -2525,18 +2525,18 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
                     await answer_callback_query(token, query_id, status_note)
             except ValueError:
                 await answer_callback_query(token, query_id, "តម្លៃមិនត្រឹមត្រូវ។")
-        elif sub.startswith("spin_pre:") and len(parts) >= 3:
+        elif sub == "spin_pre" and len(parts) >= 3:
             pre = parts[2]
             slices = spin_data.get("slices", [])
             if pre == "hard":
-                preset_weights = {"sl_1": 70.0, "sl_2": 18.0, "sl_3": 8.0, "sl_4": 3.0, "sl_5": 0.8, "sl_6": 0.2, "sl_7": 0.05, "sl_8": 0.01}
-                status_note = "🛡️ បានកំណត់ Thank You 70% (កម្រិតតឹង/ការពារការខាត) ជោគជ័យ!"
+                preset_weights = {"sl_1": 80.0, "sl_2": 12.0, "sl_3": 5.0, "sl_4": 2.0, "sl_5": 0.7, "sl_6": 0.2, "sl_7": 0.08, "sl_8": 0.02}
+                status_note = "🛡️ បានកំណត់ Thank You 80% (កម្រិតតឹង/ការពារការខាត) ជោគជ័យ!"
             elif pre == "mid":
-                preset_weights = {"sl_1": 50.0, "sl_2": 28.0, "sl_3": 14.0, "sl_4": 6.0, "sl_5": 1.5, "sl_6": 0.4, "sl_7": 0.08, "sl_8": 0.02}
-                status_note = "⚖️ បានកំណត់ Thank You 50% (កម្រិតមធ្យម) ជោគជ័យ!"
+                preset_weights = {"sl_1": 60.0, "sl_2": 22.0, "sl_3": 11.0, "sl_4": 5.0, "sl_5": 1.4, "sl_6": 0.4, "sl_7": 0.15, "sl_8": 0.05}
+                status_note = "⚖️ បានកំណត់ Thank You 60% (កម្រិតមធ្យម) ជោគជ័យ!"
             else:
-                preset_weights = {"sl_1": 40.0, "sl_2": 35.0, "sl_3": 18.0, "sl_4": 8.0, "sl_5": 2.8, "sl_6": 0.9, "sl_7": 0.1, "sl_8": 0.02}
-                status_note = "🎁 បានកំណត់ Thank You 38% (កម្រិតងាយឈ្នះ) ជោគជ័យ!"
+                preset_weights = {"sl_1": 40.0, "sl_2": 32.0, "sl_3": 17.0, "sl_4": 7.0, "sl_5": 2.5, "sl_6": 1.0, "sl_7": 0.4, "sl_8": 0.1}
+                status_note = "🎁 បានកំណត់ Thank You 40% (កម្រិតងាយឈ្នះ) ជោគជ័យ!"
 
             for s in slices:
                 sid = s.get("id")
@@ -2550,7 +2550,7 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
             if msg_id:
                 await edit_telegram_message(token, chat_id, msg_id, st_txt, st_markup)
             return
-        elif sub.startswith("spw_ed:") and len(parts) >= 3:
+        elif sub == "spw_ed" and len(parts) >= 3:
             sid = parts[2]
             slices = spin_data.get("slices", [])
             target = next((s for s in slices if s.get("id") == sid), None)

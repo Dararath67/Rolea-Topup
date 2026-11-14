@@ -5496,6 +5496,43 @@ async function submitCookie(e) {
   }
 }
 
+function openAddBotModal() {
+  const m = document.getElementById('modal-add-bot');
+  if (m) m.classList.add('open');
+}
+function closeAddBotModal() {
+  const m = document.getElementById('modal-add-bot');
+  if (m) m.classList.remove('open');
+}
+async function submitAddBot(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  const name = (document.getElementById('bot-name')?.value || '').trim();
+  const group_id = (document.getElementById('bot-group-id')?.value || '').trim();
+  const cookie = (document.getElementById('bot-cookie')?.value || '').trim();
+  const btn = document.getElementById('btn-save-bot');
+  if (btn) btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/admin/inventory/bot/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, group_id, cookie })
+    });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      toast(`Bot ${name || 'Bot'} connected!`);
+      closeAddBotModal();
+      loadInventoryData();
+    } else {
+      toast(j.error || 'Failed to connect bot');
+    }
+  } catch (err) {
+    toast('Network error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 let _isSyncingRobux = false;
 async function syncCookieBalance(silent = false) {
   if (_isSyncingRobux) return;
