@@ -4393,6 +4393,7 @@ function renderOrders() {
           <div style="display:flex;gap:4px">
             ${!o.paid ? `<button class="btn-top primary" style="padding:4px 8px;font-size:11px" onclick="orderAction('${escJsArg(o.order_id)}', 'mark_paid')">Pay</button>` : ''}
             ${(!o.delivered && !isUnclaimedSpin) ? `<button class="btn-top" style="padding:4px 8px;font-size:11px" onclick="orderAction('${escJsArg(o.order_id)}', 'deliver')">Send</button>` : ''}
+            ${o.status !== 'refunded' ? `<button class="btn-top" style="padding:4px 7px;font-size:11px;background:#fef2f2;color:#dc2626;border-color:#fecaca" title="Refund order & auto-credit to customer wallet" onclick="orderAction('${escJsArg(o.order_id)}', 'refund')">Refund</button>` : ''}
             <button class="btn-top" style="padding:4px 8px;font-size:11px" onclick="orderAction('${escJsArg(o.order_id)}', 'hold')">Hold</button>
             <button class="btn-top" style="padding:4px 7px;font-size:11px;background:#f0fdf4;color:#15803d;border-color:#bbf7d0" title="View & Print Official Receipt" onclick="openInvoiceModal('${escJsArg(o.order_id)}')">Receipt</button>
             <button class="btn-top" style="padding:4px 7px;font-size:11px;background:#fef2f2;color:#b91c1c;border-color:#fecaca" title="Blacklist User" onclick="quickBlacklist('${escJsArg(o.roblox_username || o.player_id)}')">Block</button>
@@ -4448,7 +4449,7 @@ async function orderAction(orderId, action) {
     });
     const j = await res.json();
     if (res.ok && j.ok) {
-      toast(`Order updated: ${action}`);
+      toast(j.message || `Order updated: ${action}`);
       loadData();
     } else {
       toast(j.error || 'Failed to update order');

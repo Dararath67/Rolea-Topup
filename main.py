@@ -2757,6 +2757,84 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, text, markup)
 
+def process_order_refund(order: Dict[str, Any]) -> tuple[bool, str, Optional[Dict[str, Any]]]:
+    """
+    Marks order as refunded.
+    If order was paid by an existing user: credits their existing wallet.
+    If order was paid by a guest (no user_id): automatically creates a Rolea User Account & Wallet,
+    deposits the refunded amount into it, and links the order so the guest can 1-click claim it!
+    """
+    global users, wallet_transactions, orders
+    if order.get("status") == "refunded" and order.get("wallet_refunded"):
+        return False, "Order ត្រូវបានសងប្រាក់វិញរួចហើយ។", None
+    if order.get("delivered") or order.get("status") == "completed":
+        return False, "Order បានបាញ់រួចរាល់ហើយ មិនអាចបដិសេធបានទេ។", None
+
+    order["status"] = "refunded"
+    order["step"] = "refunded"
+    order["delivered"] = False
+    order["label"] = "Order rejected and refunded to customer by Admin"
+
+    amount = float(order.get("amount") or 0.0)
+    target_user = None
+
+    # Check if order already has a registered user
+    user_id = order.get("user_id")
+    if user_id:
+        target_user = next((u for u in users if u.get("id") == user_id), None)
+
+    # If no registered user found (Guest order), auto-create one!
+    if not target_user and amount > 0 and order.get("paid"):
+        raw_name = str(order.get("roblox_username") or order.get("player_id") or order.get("buyer_account") or f"Guest_{order.get('order_id', '')[-4:]}").strip()
+        base_uname = re.sub(r"[^a-zA-Z0-9_]", "", raw_name) or "RoleaGuest"
+        candidate_uname = base_uname
+        counter = 1
+        while any(u.get("username", "").lower() == candidate_uname.lower() for u in users):
+            candidate_uname = f"{base_uname}_{counter}"
+            counter += 1
+
+        new_uid = "usr_" + secrets.token_hex(6)
+        avatar = order.get("avatar") or "/media/rolea-logo.webp"
+        if (order.get("game") or "roblox") == "roblox" and order.get("player_id"):
+            pid = order.get("player_id")
+            if str(pid).isdigit():
+                avatar = f"https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds={pid}&size=150x150&format=Png&isCircular=true"
+
+        target_user = {
+            "id": new_uid,
+            "username": candidate_uname,
+            "email": "",
+            "balance": 0.0,
+            "avatar": avatar,
+            "role": "user",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "auto_created_from_refund": True,
+            "origin_order_id": order.get("order_id"),
+            "claim_token": secrets.token_urlsafe(32)
+        }
+        users.append(target_user)
+        order["user_id"] = new_uid
+        order["auto_created_user"] = True
+
+    # Credit the target user's wallet
+    if target_user and amount > 0 and not order.get("wallet_refunded"):
+        target_user["balance"] = round(float(target_user.get("balance", 0.0)) + amount, 2)
+        order["wallet_refunded"] = True
+        wallet_transactions.insert(0, {
+            "id": "wtx_" + secrets.token_hex(4),
+            "user_id": target_user["id"],
+            "type": "deposit",
+            "amount": amount,
+            "order_id": order.get("order_id"),
+            "product": f"Refund for Order #{order.get('order_id')}",
+            "date": datetime.now(timezone.utc).isoformat()
+        })
+        save_users()
+        save_wallet_tx()
+
+    save_orders()
+    return True, "Order refunded and credited to wallet", target_user
+
 async def handle_telegram_callback_query(query: Dict[str, Any], token: str):
     query_id = query.get("id")
     data = query.get("data", "")
@@ -2842,36 +2920,14 @@ async def handle_telegram_callback_query(query: Dict[str, Any], token: str):
                 await edit_telegram_message(token, msg["chat"]["id"], msg["message_id"], updated_text)
 
         elif action == "reject":
-            if order.get("status") == "refunded" or order.get("wallet_refunded"):
-                await answer_callback_query(token, query_id, f"⚠️ Order #{order_id} ត្រូវបានសងប្រាក់វិញរួចហើយ។")
+            ok_ref, ref_msg, ref_user = process_order_refund(order)
+            if not ok_ref:
+                await answer_callback_query(token, query_id, f"⚠️ {ref_msg}")
                 return
-            if order.get("delivered") or order.get("status") == "completed":
-                await answer_callback_query(token, query_id, f"⚠️ Order #{order_id} បានបាញ់រួចរាល់ហើយ មិនអាចបដិសេធបានទេ។")
-                return
-            order["status"] = "refunded"
-            order["step"] = "refunded"
-            order["delivered"] = False
-            order["label"] = "Order rejected and refunded to customer by Admin"
-            if order.get("payment_method") == "Rolea Wallet" and order.get("user_id") and order.get("paid") and not order.get("wallet_refunded"):
-                order["wallet_refunded"] = True
-                u = next((usr for usr in users if usr.get("id") == order.get("user_id")), None)
-                if u:
-                    u["balance"] = round(float(u.get("balance", 0.0)) + float(order["amount"]), 2)
-                    save_users()
-                    wallet_transactions.insert(0, {
-                        "id": "wtx_" + secrets.token_hex(4),
-                        "user_id": u["id"],
-                        "type": "deposit",
-                        "amount": float(order["amount"]),
-                        "order_id": order["order_id"],
-                        "product": f"Refund for Order #{order['order_id']}",
-                        "date": datetime.now(timezone.utc).isoformat()
-                    })
-                    save_wallet_tx()
-            save_orders()
             asyncio.create_task(notify_customer_order_refunded(order))
 
-            await answer_callback_query(token, query_id, f"⚠️ Order #{order_id} បានបដិសេធ & សងប្រាក់វិញ!")
+            uname_note = f" (@{ref_user['username']})" if ref_user else ""
+            await answer_callback_query(token, query_id, f"⚠️ Order #{order_id} បានបដិសេធ & សងប្រាក់ចូល Wallet{uname_note}!")
 
             updated_text = (
                 f"❌ <b>[ការកុម្ម៉ង់ត្រូវបានបដិសេធ & សងប្រាក់វិញ]</b>\n"
@@ -2881,6 +2937,7 @@ async def handle_telegram_callback_query(query: Dict[str, Any], token: str):
                 f"👤 <b>ឈ្មោះក្នុងហ្គេម (ចុច Copy)៖</b> <code>{html.escape(raw_cust_acc, quote=False)}</code>\n"
                 f"📦 <b>កញ្ចប់៖</b> {pkg_name}\n"
                 f"💵 <b>តម្លៃ៖</b> ${amount} USD\n"
+                f"💰 <b>បង្វិលសងចូល៖</b> Rolea Wallet{uname_note}\n"
                 f"🚫 <b>ស្ថានភាព៖</b> បដិសេធ និងសងប្រាក់វិញ (REFUNDED)\n"
                 f"👮 <b>រៀបចំដោយ Admin៖</b> {admin_name}\n"
                 f"🕒 <b>ពេលវេលា៖</b> {now_ict}"
@@ -5854,6 +5911,8 @@ async def get_order_status(order_id: str):
         except Exception:
             pass
 
+    ref_usr = next((u for u in users if u.get("id") == order.get("user_id")), None) if order.get("user_id") else None
+
     return {
         "ok": True,
         "order_id": order.get("order_id"),
@@ -5875,8 +5934,93 @@ async def get_order_status(order_id: str):
         "aba_deeplink": order.get("aba_deeplink"),
         "expires_at": order.get("expires_at"),
         "server_now": datetime.now(timezone.utc).isoformat(),
-        "label": order.get("label")
+        "label": order.get("label"),
+        "is_refunded": bool(order.get("status") == "refunded"),
+        "wallet_refunded": bool(order.get("wallet_refunded")),
+        "can_claim_wallet": bool(order.get("status") == "refunded" and order.get("wallet_refunded") and order.get("user_id")),
+        "refunded_username": (ref_usr.get("username") if ref_usr else None),
+        "refunded_balance": (float(ref_usr.get("balance", 0.0)) if ref_usr else None)
     }
+
+@app.post("/api/orders/claim-refund-wallet")
+async def claim_refund_wallet(request: Request):
+    """
+    1-Click Claim for Auto-Created Wallet Account after Guest ABA/KHQR Refund.
+    Issues session token so customer is instantly logged in with their refunded balance.
+    """
+    global users, sessions, orders
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    order_id = str(body.get("order_id") or "").strip().upper()
+    receipt_token = str(body.get("receipt_token") or body.get("token") or "").strip()
+
+    if not order_id:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Order ID is required"})
+
+    clean_id = order_id.lstrip("#")
+    order = next((o for o in orders if str(o.get("order_id", "")).strip().upper() in (clean_id, f"ORD-{clean_id}", clean_id.replace("ORD-", ""))), None)
+    if not order:
+        return JSONResponse(status_code=404, content={"ok": False, "error": "Order not found"})
+
+    if order.get("status") != "refunded" or not order.get("wallet_refunded"):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "This order does not have a refundable wallet balance."})
+
+    user_id = order.get("user_id")
+    if not user_id:
+        return JSONResponse(status_code=404, content={"ok": False, "error": "Refunded wallet account not found."})
+
+    target_user = next((u for u in users if u.get("id") == user_id), None)
+    if not target_user:
+        return JSONResponse(status_code=404, content={"ok": False, "error": "User account not found."})
+
+    # Validate receipt token for guest security
+    exp_tok = str(order.get("token") or "")
+    usr_tok = str(target_user.get("claim_token") or "")
+    if receipt_token:
+        valid_tok = False
+        if exp_tok and hmac.compare_digest(exp_tok, receipt_token):
+            valid_tok = True
+        elif usr_tok and hmac.compare_digest(usr_tok, receipt_token):
+            valid_tok = True
+        if not valid_tok:
+            return JSONResponse(status_code=403, content={"ok": False, "error": "Invalid receipt token."})
+
+    token = secrets.token_hex(32)
+    sessions[token] = {
+        "userId": target_user["id"],
+        "expiresAt": int((time.time() + 30 * 24 * 3600) * 1000)
+    }
+
+    safe_user = {
+        "id": target_user["id"],
+        "username": target_user["username"],
+        "email": target_user.get("email", ""),
+        "balance": float(target_user.get("balance", 0.0)),
+        "avatar": target_user.get("avatar", "/media/rolea-logo.webp"),
+        "role": target_user.get("role", "user")
+    }
+
+    resp = JSONResponse(content={
+        "ok": True,
+        "token": token,
+        "user": safe_user,
+        "balance": safe_user["balance"],
+        "message": f"Successfully logged in as {safe_user['username']}! Balance: ${safe_user['balance']:.2f} USD."
+    })
+    resp.set_cookie(
+        key="rolea_token",
+        value=token,
+        httponly=True,
+        samesite="lax",
+        secure=_is_https_request(request),
+        path="/",
+        max_age=30 * 24 * 3600
+    )
+    return resp
+
 
 @app.post("/api/webhook/khqrpay")
 @app.post("/api/khqrpay/callback")
@@ -6663,6 +6807,13 @@ async def admin_order_action(request: Request):
                     save_wallet_tx()
             save_orders()
             asyncio.create_task(send_telegram_paid_alert(order))
+
+        elif action in ("refund", "reject"):
+            ok_ref, ref_msg, ref_user = process_order_refund(order)
+            if not ok_ref:
+                return JSONResponse(status_code=400, content={"ok": False, "error": ref_msg})
+            asyncio.create_task(notify_customer_order_refunded(order))
+            return {"ok": True, "order": order, "user": ref_user, "message": f"Order refunded. Credited ${float(order.get('amount') or 0):.2f} USD to wallet."}
 
         elif action == "hold":
             order["step"] = "hold"
