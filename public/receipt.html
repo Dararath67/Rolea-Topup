@@ -167,6 +167,21 @@
         </div>
       </div>
 
+      <!-- Refund Alert Banner -->
+      <div id="rc-refund-box" style="display:none;margin:14px 0;padding:12px 14px;border-radius:12px;background:#fef2f2;border:1.5px solid #fecaca;color:#991b1b;font-size:12.5px;line-height:1.5;text-align:left">
+        <div style="font-weight:800;font-size:13px;display:flex;align-items:center;gap:6px;margin-bottom:4px">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.3"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>Order ត្រូវបានបដិសេធ & សងប្រាក់វិញ</span>
+        </div>
+        <div id="rc-refund-desc" style="color:#7f1d1d;font-size:12px"></div>
+        <div style="margin-top:8px">
+          <a href="https://t.me/Rothzz3" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px;background:#dc2626;color:#ffffff;padding:6px 12px;border-radius:7px;font-weight:700;font-size:11.5px;text-decoration:none">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 3L10 14"/><path d="M21 3l-7 18-4-7-7-4z"/></svg>
+            ទាក់ទង Admin តាម Telegram (@Rothzz3)
+          </a>
+        </div>
+      </div>
+
       <div class="receipt-actions">
         <a id="rc-tg-btn" href="/check-order" class="btn" style="background:#2563eb;color:#ffffff;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700;border-radius:12px;padding:12px;text-decoration:none;font-size:13px">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>
@@ -224,6 +239,17 @@
         step3El.style.color = '#dc2626';
         fillEl.style.width = '100%';
         fillEl.style.background = '#dc2626';
+        const rfBox = document.getElementById('rc-refund-box');
+        const rfDesc = document.getElementById('rc-refund-desc');
+        if (rfBox && rfDesc) {
+          rfBox.style.display = 'block';
+          const isWallet = (data.payment_method || '').toLowerCase().includes('wallet') || !!data.wallet_refunded;
+          if (isWallet) {
+            rfDesc.innerHTML = `ទឹកប្រាក់ <b>$${Number(data.amount || 0).toFixed(2)} USD</b> ត្រូវបានបង្វិលសងចូលទៅក្នុង <b>Rolea Wallet</b> របស់អ្នករួចរាល់ហើយ។`;
+          } else {
+            rfDesc.innerHTML = `ការកុម្ម៉ង់នេះត្រូវបាន Admin បដិសេធ និងសងប្រាក់វិញ។ ដោយសារលោកអ្នកបានស្កេនទូទាត់តាម <b>ABA KHQR</b> សូមផ្ញើ Order ID នេះ និង <b>QR ធនាគារ (ABA/Bakong)</b> របស់អ្នកទៅកាន់ Admin តាម Telegram ដើម្បីទទួលការវេរប្រាក់សងត្រឡប់ទៅវិញភ្លាមៗ!`;
+          }
+        }
       } else {
         statusEl.textContent = 'PAID · WAITING FOR ADMIN';
         statusEl.style.color = '#0284c7';

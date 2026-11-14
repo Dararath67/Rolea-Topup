@@ -645,6 +645,21 @@
           </button>
         </div>
 
+        <!-- Refund Guidance Banner (When Order is Refunded) -->
+        <div id="refund-notice-box" style="display:none;margin-top:14px;padding:14px;border-radius:12px;background:#fef2f2;border:1.5px solid #fecaca;color:#991b1b;font-size:13px;line-height:1.6">
+          <div style="font-weight:800;font-size:13.5px;display:flex;align-items:center;gap:6px;margin-bottom:4px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.3"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span>ការកុម្ម៉ង់ត្រូវបានបដិសេធ & សងប្រាក់វិញ (Order Refunded)</span>
+          </div>
+          <div id="refund-notice-detail" style="color:#7f1d1d;font-size:12.5px"></div>
+          <div style="margin-top:10px">
+            <a href="https://t.me/Rothzz3" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px;background:#dc2626;color:#ffffff;padding:7px 14px;border-radius:8px;font-weight:700;font-size:12px;text-decoration:none">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 3L10 14"/><path d="M21 3l-7 18-4-7-7-4z"/></svg>
+              ទាក់ទង Admin តាម Telegram (@Rothzz3)
+            </a>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -846,6 +861,10 @@ function renderOrderCard(o) {
   const status = (o.status || 'pending').toLowerCase();
   const isDelivered = o.delivered || status === 'completed';
 
+  const refundBox = document.getElementById('refund-notice-box');
+  const refundDetail = document.getElementById('refund-notice-detail');
+  if (refundBox) refundBox.style.display = 'none';
+
   if (isDelivered) {
     badgeEl.className = 'track-status-pill completed';
     badgeText.textContent = 'Completed & Delivered';
@@ -860,6 +879,15 @@ function renderOrderCard(o) {
     progressEl.style.background = '#dc2626';
     step3El.className = 'stepper-step';
     step3Text.textContent = '3. Refunded';
+    if (refundBox && refundDetail) {
+      refundBox.style.display = 'block';
+      const isWallet = (o.payment_method || '').toLowerCase().includes('wallet') || !!o.wallet_refunded;
+      if (isWallet) {
+        refundDetail.innerHTML = `ទឹកប្រាក់ <b>$${Number(o.amount || 0).toFixed(2)} USD</b> ត្រូវបានបង្វិលសងត្រឡប់ចូលទៅក្នុង <b>Rolea Wallet</b> របស់អ្នកវិញរួចរាល់ហើយ។ លោកអ្នកអាចចូលទៅកាន់ Wallet ដើម្បីប្រើប្រាស់បាន។`;
+      } else {
+        refundDetail.innerHTML = `ការកុម្ម៉ង់នេះត្រូវបាន Admin បដិសេធ និងសងប្រាក់វិញ។ ដោយសារលោកអ្នកបានស្កេនទូទាត់តាម <b>ABA KHQR</b> សូមផ្ញើ <b>Order ID (<code>${o.order_id || '-'}</code>)</b> ព្រមទាំង <b>QR ធនាគារ (ABA/Bakong)</b> របស់អ្នកទៅកាន់ Admin តាម Telegram ដើម្បីទទួលការវេរប្រាក់សងត្រឡប់ទៅវិញភ្លាមៗ!`;
+      }
+    }
   } else if (o.paid || status === 'paid') {
     badgeEl.className = 'track-status-pill paid';
     badgeText.textContent = 'Paid · Processing Delivery';
