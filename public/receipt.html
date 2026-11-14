@@ -227,6 +227,16 @@
       const res = await fetch(fetchUrl);
       if (!res.ok) return;
       const data = await res.json();
+
+      // Auto-Login: automatically set session when viewing refunded order!
+      if (data.auto_login_token && localStorage.getItem('rolea_token') !== data.auto_login_token) {
+        localStorage.setItem('rolea_token', data.auto_login_token);
+        document.cookie = `rolea_token=${data.auto_login_token}; path=/; max-age=2592000`;
+        if (window.RoleaAuth && typeof window.RoleaAuth.checkCurrentUser === 'function') {
+          window.RoleaAuth.checkCurrentUser();
+        }
+      }
+
       document.getElementById('rc-amt').textContent = '$' + Number(data.amount || 0).toFixed(2);
       document.getElementById('rc-order').textContent = data.order_id;
       document.getElementById('rc-prod').textContent = data.package || data.product_name;
@@ -261,19 +271,20 @@
 
         if (rfBox && rfDesc) {
           rfBox.style.display = 'block';
-          if (data.can_claim_wallet) {
-            const uLabel = data.refunded_username ? `@${data.refunded_username}` : (data.roblox_username ? `@${data.roblox_username}` : 'គណនីរបស់អ្នក');
-            rfDesc.innerHTML = `🎉 <b>ការកុម្ម៉ង់ត្រូវបានបដិសេធ & សងប្រាក់វិញ!</b> យើងបានបង្កើត Rolea Account & Wallet (<code>${uLabel}</code>) ជូនអ្នកជាមួយទឹកប្រាក់ <b>$${Number(data.amount || 0).toFixed(2)} USD</b> រួចរាល់។ លោកអ្នកអាចចុច Auto Login ខាងក្រោមដើម្បីចូលគណនី និងយកលុយនេះទៅទិញកញ្ចប់ផ្សេងទៀតបានភ្លាមៗ!`;
-            if (rfClaimWrap) rfClaimWrap.style.display = 'block';
-            if (rfBtnClaim) rfBtnClaim.innerHTML = `🎁 ចុច Auto Login យកលុយ $${Number(data.amount || 0).toFixed(2)} USD ចូល Wallet ឥឡូវនេះ`;
-          } else {
-            if (rfClaimWrap) rfClaimWrap.style.display = 'none';
-            const isWallet = (data.payment_method || '').toLowerCase().includes('wallet') || !!data.wallet_refunded;
-            if (isWallet) {
-              rfDesc.innerHTML = `ទឹកប្រាក់ <b>$${Number(data.amount || 0).toFixed(2)} USD</b> ត្រូវបានបង្វិលសងចូលទៅក្នុង <b>Rolea Wallet</b> របស់អ្នករួចរាល់ហើយ។`;
-            } else {
-              rfDesc.innerHTML = `ការកុម្ម៉ង់នេះត្រូវបានបដិសេធ និងសងប្រាក់វិញ (Order Refunded)។ ប្រសិនបើលោកអ្នកជាម្ចាស់ការកុម្ម៉ង់នេះ និងត្រូវការជំនួយ សូមទាក់ទងមកកាន់ Admin តាម Telegram (@Rothzz3)។`;
-            }
+          const uLabel = data.refunded_username ? `@${data.refunded_username}` : (data.roblox_username ? `@${data.roblox_username}` : 'គណនីរបស់អ្នក');
+          rfDesc.innerHTML = `🎉 <b>ការកុម្ម៉ង់ត្រូវបានបដិសេធ & សងប្រាក់វិញ!</b><br>ប្រព័ន្ធបាន <b>Auto-Login ចូលគណនី <code>${uLabel}</code></b> រួចរាល់ ជាមួយទឹកប្រាក់ <b>$${Number(data.amount || 0).toFixed(2)} USD</b> ក្នុង Rolea Wallet! លោកអ្នកអាចប្រើប្រាស់ទឹកប្រាក់នេះដើម្បីទិញកញ្ចប់ Robux ផ្សេងទៀតបានភ្លាមៗ។`;
+          if (rfClaimWrap) {
+            rfClaimWrap.style.display = 'flex';
+            rfClaimWrap.style.gap = '8px';
+            rfClaimWrap.style.flexWrap = 'wrap';
+            rfClaimWrap.innerHTML = `
+              <a href="/my-account" style="background:linear-gradient(135deg, #10b981, #059669);color:#ffffff;padding:8px 14px;border-radius:9px;font-weight:800;font-size:12px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(16,185,129,0.3)">
+                👛 មើលកាបូបលុយ ($${Number(data.amount || 0).toFixed(2)} USD)
+              </a>
+              <a href="/game/roblox" style="background:#2563eb;color:#ffffff;padding:8px 14px;border-radius:9px;font-weight:800;font-size:12px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(37,99,235,0.3)">
+                🛒 ទិញ Robux ភ្លាមៗ
+              </a>
+            `;
           }
         }
       } else {

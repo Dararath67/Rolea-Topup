@@ -2779,12 +2779,30 @@ def process_order_refund(order: Dict[str, Any]) -> tuple[bool, str, Optional[Dic
     amount = float(order.get("amount") or 0.0)
     target_user = None
 
-    # Check if order already has a registered user
+    # 1. Check if order already has an explicitly linked registered user
     user_id = order.get("user_id")
     if user_id:
         target_user = next((u for u in users if u.get("id") == user_id), None)
 
-    # If no registered user found (Guest order), auto-create one!
+    # 2. Check if player has an existing account in Rolea (by Roblox username, player_id, or buyer email)
+    # "if user have account dont create account auto just add balance money"
+    if not target_user and amount > 0 and order.get("paid"):
+        raw_name = str(order.get("roblox_username") or order.get("player_id") or order.get("buyer_account") or "").strip()
+        clean_uname = re.sub(r"[^a-zA-Z0-9_]", "", raw_name).lower()
+        raw_email = str(order.get("email") or "").strip().lower()
+
+        if clean_uname:
+            target_user = next((u for u in users if u.get("username", "").strip().lower() == clean_uname), None)
+
+        if not target_user and raw_email:
+            target_user = next((u for u in users if u.get("email", "").strip().lower() == raw_email), None)
+
+        if target_user:
+            # Re-use existing account and credit the money directly
+            order["user_id"] = target_user["id"]
+            order["auto_created_user"] = False
+
+    # 3. ONLY if player has NO existing account anywhere in Rolea -> auto-create a brand new account!
     if not target_user and amount > 0 and order.get("paid"):
         raw_name = str(order.get("roblox_username") or order.get("player_id") or order.get("buyer_account") or f"Guest_{order.get('order_id', '')[-4:]}").strip()
         base_uname = re.sub(r"[^a-zA-Z0-9_]", "", raw_name) or "RoleaGuest"
@@ -5924,7 +5942,7 @@ async def get_order_status(order_id: str, request: Request):
 
     ref_usr = next((u for u in users if u.get("id") == order.get("user_id")), None) if order.get("user_id") else None
 
-    return {
+    order_status_payload = {
         "ok": True,
         "order_id": order.get("order_id"),
         "khqrpay_id": order.get("khqrpay_id"),
@@ -5953,6 +5971,34 @@ async def get_order_status(order_id: str, request: Request):
         "refunded_username": (ref_usr.get("username") if ref_usr else None),
         "refunded_balance": (float(ref_usr.get("balance", 0.0)) if ref_usr else None)
     }
+
+    # Auto-Login token generation: instantly authenticate user when viewing refunded order!
+    auto_login_token = None
+    if order.get("status") == "refunded" and order.get("wallet_refunded") and ref_usr:
+        now_ms = int(time.time() * 1000)
+        existing_tok = next((tok for tok, s in sessions.items() if s.get("userId") == ref_usr["id"] and s.get("expiresAt", 0) > now_ms), None)
+        if existing_tok:
+            auto_login_token = existing_tok
+        else:
+            auto_login_token = secrets.token_hex(32)
+            sessions[auto_login_token] = {
+                "userId": ref_usr["id"],
+                "expiresAt": int((time.time() + 30 * 24 * 3600) * 1000)
+            }
+        order_status_payload["auto_login_token"] = auto_login_token
+
+    resp = JSONResponse(content=order_status_payload)
+    if auto_login_token:
+        resp.set_cookie(
+            key="rolea_token",
+            value=auto_login_token,
+            httponly=False,
+            samesite="lax",
+            secure=_is_https_request(request),
+            path="/",
+            max_age=30 * 24 * 3600
+        )
+    return resp
 
 @app.post("/api/orders/claim-refund-wallet")
 async def claim_refund_wallet(request: Request):
