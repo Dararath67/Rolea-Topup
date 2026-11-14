@@ -1562,8 +1562,9 @@
             <div class="kpi-value" id="inv-stat-bot-name" style="font-size:18px;font-weight:800;color:#1e293b">-</div>
             <div class="kpi-sub" id="inv-stat-bot-sub">Not connected</div>
           </div>
-          <div class="kpi-icon blue">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+          <div class="kpi-icon blue" id="inv-stat-bot-icon-box" style="padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center;border-radius:12px;background:#eef5ff;cursor:pointer" title="Click to view bot photo" onclick="if (window._currentPrimaryBot) previewBotPhoto(window._currentPrimaryBot.avatar_url, window._currentPrimaryBot.name, window._currentPrimaryBot.roblox_username, window._currentPrimaryBot.roblox_user_id)">
+            <img id="inv-stat-bot-avatar-img" src="" alt="Bot Avatar" style="width:100%;height:100%;object-fit:cover;border-radius:12px;display:none">
+            <svg id="inv-stat-bot-avatar-svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
           </div>
         </div>
 
@@ -1598,7 +1599,7 @@
             <div class="panel-title">
               <h3 style="display:flex;align-items:center;gap:8px">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.3"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                ➕ Add / Connect Roblox Bot (.ROBLOSECURITY)
+                Add / Connect Roblox Bot (.ROBLOSECURITY)
               </h3>
               <span>Add multiple bot cookies (Bot A, Bot B, Bot C) to your balance pool</span>
             </div>
@@ -5216,6 +5217,7 @@ async function loadInventoryData() {
       }
     }
 
+    window._currentPrimaryBot = primaryBot;
     const elBotName = document.getElementById('inv-stat-bot-name');
     if (elBotName) {
       elBotName.textContent = primaryBot ? (primaryBot.roblox_username ? '@' + primaryBot.roblox_username : primaryBot.name) : '-';
@@ -5223,6 +5225,19 @@ async function loadInventoryData() {
     const elBotSub = document.getElementById('inv-stat-bot-sub');
     if (elBotSub) {
       elBotSub.textContent = primaryBot ? `ID: ${primaryBot.roblox_user_id || '-'}` : 'Not connected';
+    }
+    const elBotImg = document.getElementById('inv-stat-bot-avatar-img');
+    const elBotSvg = document.getElementById('inv-stat-bot-avatar-svg');
+    if (elBotImg && elBotSvg) {
+      const avatarUrl = primaryBot ? (primaryBot.avatar_url || (primaryBot.roblox_user_id ? `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${primaryBot.roblox_user_id}&size=150x150&format=Png&isCircular=true` : '')) : '';
+      if (avatarUrl) {
+        elBotImg.src = avatarUrl;
+        elBotImg.style.display = 'block';
+        elBotSvg.style.display = 'none';
+      } else {
+        elBotImg.style.display = 'none';
+        elBotSvg.style.display = 'block';
+      }
     }
 
     const elGroupId = document.getElementById('inv-stat-group-id');
@@ -5278,31 +5293,40 @@ function renderCookieBotStatus(bots) {
     const isEnabled = b.enabled !== false;
     const bid = b.id || `bot_${idx+1}`;
     const bname = b.name || `Bot ${String.fromCharCode(65 + idx)}`;
+    const avatar = b.avatar_url || (b.roblox_user_id ? `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${b.roblox_user_id}&size=150x150&format=Png&isCircular=true` : '/media/rolea-logo.webp');
+    const profileUrl = b.roblox_user_id ? `https://www.roblox.com/users/${b.roblox_user_id}/profile` : '#';
     const statusBg = isOk ? (isEnabled ? '#dcfce7' : '#f1f5f9') : '#fee2e2';
     const statusColor = isOk ? (isEnabled ? '#15803d' : '#64748b') : '#dc2626';
-    const statusText = !isOk ? '✕ Cookie Expired' : (isEnabled ? '● Active (In Stock)' : '⛔ Disabled (Excluded)');
+    const statusText = !isOk ? 'Cookie Expired' : (isEnabled ? 'Active (In Stock)' : 'Disabled (Excluded)');
     const toggleBg = isEnabled ? '#10b981' : '#cbd5e1';
     const toggleDotPos = isEnabled ? '22px' : '3px';
 
     return `
       <div style="background:#fff;border:1.5px solid ${isEnabled ? '#e2e8f0' : '#f1f5f9'};border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:14px;box-shadow:0 1px 4px rgba(0,0,0,0.03);opacity:${isEnabled ? '1' : '0.85'};transition:all 0.2s">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid #f1f5f9;padding-bottom:12px">
-          <div style="display:flex;align-items:center;gap:12px">
-            <img src="${b.avatar_url || '/media/rolea-logo.webp'}" alt="Roblox Bot" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid ${isEnabled ? '#2563eb' : '#94a3b8'};background:#f8fafc">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;border-bottom:1px solid #f1f5f9;padding-bottom:14px">
+          <div style="display:flex;align-items:center;gap:14px">
+            <div onclick="previewBotPhoto('${avatar}', '${bname}', '${b.roblox_username || ''}', '${b.roblox_user_id || ''}')" title="Click to view full photo" style="display:block;position:relative;flex-shrink:0;cursor:pointer">
+              <img src="${avatar}" alt="Roblox Bot Photo" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2.5px solid ${isEnabled ? '#2563eb' : '#94a3b8'};background:#f8fafc;box-shadow:0 2px 8px rgba(0,0,0,0.08);transition:transform 0.15s" onmouseover="this.style.transform='scale(1.06)'" onmouseout="this.style.transform='scale(1)'">
+            </div>
             <div>
               <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                <span style="font-weight:800;font-size:15px;color:#0f172a">${bname}</span>
+                <span style="font-weight:800;font-size:16px;color:#0f172a">${bname}</span>
                 <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:${statusBg};color:${statusColor}">${statusText}</span>
               </div>
               <div style="font-size:12px;color:#64748b;margin-top:2px">
-                <span>Username: <b style="color:#0f172a">@${b.roblox_username || '-'}</b> (ID: ${b.roblox_user_id || '-'})</span>
+                <span>Username: <b style="color:#0f172a">@${b.roblox_username || '-'}</b> (ID: <code>${b.roblox_user_id || '-'}</code>)</span>
               </div>
-              ${b.group_id ? `<div style="font-size:11.5px;color:#2563eb;margin-top:2px;font-weight:600">Group: ${b.group_name || b.group_id} (#${b.group_id})</div>` : ''}
+              <div style="display:flex;align-items:center;gap:10px;margin-top:3px;flex-wrap:wrap">
+                <a href="${profileUrl}" target="_blank" rel="noopener noreferrer" style="font-size:11.5px;color:#2563eb;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:4px">
+                  View Profile ↗
+                </a>
+                ${b.group_id ? `<span style="font-size:11.5px;color:#059669;font-weight:600">Group: ${b.group_name || b.group_id} (#${b.group_id})</span>` : ''}
+              </div>
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:10px">
             <div style="text-align:right">
-              <div style="font-size:11px;font-weight:700;color:${isEnabled ? '#059669' : '#64748b'}">${isEnabled ? 'STORE STOCK: ON' : 'STORE STOCK: OFF'}</div>
+              <div style="font-size:11px;font-weight:700;color:${isEnabled ? '#059669' : '#64748b'}">${isEnabled ? 'STOCK: ON' : 'STOCK: OFF'}</div>
               <div style="font-size:10px;color:#94a3b8">${isEnabled ? 'Counted in shop' : 'Excluded from shop'}</div>
             </div>
             <button onclick="toggleBotStatus('${bid}')" title="Toggle Bot ON/OFF" style="position:relative;width:46px;height:26px;background:${toggleBg};border-radius:999px;border:none;cursor:pointer;padding:0;transition:background 0.2s">
@@ -5339,9 +5363,10 @@ function renderCookieBotStatus(bots) {
   container.innerHTML = `
     <div style="display:flex;flex-direction:column;gap:14px">
       <div style="display:flex;align-items:center;justify-content:space-between;background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:10px 14px;font-size:12px">
-        <span style="color:#1e40af;font-weight:700">Multi-Cookie Bot Pool: <b>${bots.length} Bot(s)</b> (🟢 Active: ${activeCount} | ⛔ Off: ${offCount})</span>
-        <button class="btn-top" onclick="syncCookieBalance(false)" style="background:#2563eb;color:#fff;border:none;font-weight:700;font-size:11.5px;padding:4px 10px;border-radius:6px">
-          🔄 Sync All Bots
+        <span style="color:#1e40af;font-weight:700">Multi-Cookie Bot Pool: <b>${bots.length} Bot(s)</b> (Active: ${activeCount} | Off: ${offCount})</span>
+        <button class="btn-top" onclick="syncCookieBalance(false)" style="background:#2563eb;color:#fff;border:none;font-weight:700;font-size:11.5px;padding:5px 12px;border-radius:6px;display:flex;align-items:center;gap:5px">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Sync All Bots
         </button>
       </div>
       ${cardsHtml}
@@ -5388,6 +5413,34 @@ async function deleteSingleBot(botId) {
   } catch (e) {
     toast('Network error removing bot');
   }
+}
+
+function previewBotPhoto(url, name, uname, uid) {
+  let modal = document.getElementById('bot-photo-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'bot-photo-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.7);backdrop-filter:blur(6px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeIn 0.2s ease';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    document.body.appendChild(modal);
+  }
+  const cleanUrl = url || (uid ? `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${uid}&size=150x150&format=Png&isCircular=true` : '/media/rolea-logo.webp');
+  const profileUrl = uid ? `https://www.roblox.com/users/${uid}/profile` : '#';
+
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:20px;max-width:380px;width:100%;padding:24px;text-align:center;box-shadow:0 25px 60px rgba(0,0,0,0.3);position:relative;animation:up 0.25s ease-out" onclick="event.stopPropagation()">
+      <button onclick="document.getElementById('bot-photo-modal').remove()" style="position:absolute;top:14px;right:14px;background:#f1f5f9;border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#64748b;font-weight:800;font-size:16px">&times;</button>
+      <div style="width:130px;height:130px;margin:0 auto 16px;border-radius:50%;overflow:hidden;border:4px solid #2563eb;box-shadow:0 8px 24px rgba(37,99,235,0.2);background:#f8fafc">
+        <img src="${cleanUrl}" alt="${name || 'Bot'}" style="width:100%;height:100%;object-fit:cover">
+      </div>
+      <h3 style="margin:0 0 4px;font-size:18px;font-weight:800;color:#0f172a">${name || 'Roblox Bot'}</h3>
+      <p style="margin:0 0 16px;font-size:13px;color:#64748b">@${uname || '-'} (User ID: <code>${uid || '-'}</code>)</p>
+      <div style="display:flex;gap:10px;justify-content:center">
+        ${uid ? `<a href="${profileUrl}" target="_blank" rel="noopener noreferrer" style="background:#2563eb;color:#fff;font-weight:700;font-size:12.5px;padding:9px 16px;border-radius:10px;text-decoration:none;display:inline-flex;align-items:center;gap:6px">View on Roblox ↗</a>` : ''}
+        <button onclick="document.getElementById('bot-photo-modal').remove()" style="background:#f1f5f9;color:#334155;border:none;font-weight:700;font-size:12.5px;padding:9px 16px;border-radius:10px;cursor:pointer">Close</button>
+      </div>
+    </div>
+  `;
 }
 
 function toggleCookieVisibility() {

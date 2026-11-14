@@ -1954,7 +1954,7 @@ def _build_tg_stock_card(status_note: str = "") -> tuple[str, Dict[str, Any]]:
     off_cnt = len(bots) - active_cnt
 
     text = (
-        f"🤖 <b>[គ្រប់គ្រង ROBLOX BOT & MULTI-COOKIE POOL]</b>\n\n"
+        f"📦 <b>[គ្រប់គ្រង ROBLOX BOT & MULTI-COOKIE POOL]</b>\n\n"
         + (f"🔔 {status_note}\n\n" if status_note else "")
         + f"⚡ <b>ស្តុកសរុបដំណើរការក្នុងហាង៖</b> <code>{total_stock:,} R$</code>\n"
         f"📊 <b>Bot សរុប៖</b> {len(bots)} គណនី (🟢 បើក: {active_cnt} | ⛔ បិទ: {off_cnt})\n\n"
@@ -1989,7 +1989,7 @@ def _build_tg_bot_view(bot_id: str, status_note: str = "") -> tuple[str, Dict[st
     st_status = "🟢 កំពុងបើក (ON - រាប់បញ្ចូលក្នុងស្តុកហាង)" if is_on else "⛔ បានបិទ (OFF - មិនរាប់ក្នុងស្តុក)"
 
     text = (
-        f"🤖 <b>[ព័ត៌មានលម្អិតអំពី {bname}]</b>\n\n"
+        f"📦 <b>[ព័ត៌មានលម្អិតអំពី {bname}]</b>\n\n"
         + (f"🔔 {status_note}\n\n" if status_note else "")
         + f"• <b>ឈ្មោះសម្គាល់៖</b> {bname}\n"
         f"• <b>គណនី Roblox៖</b> @{buname} (ID: <code>{buid}</code>)\n"
@@ -2144,7 +2144,7 @@ def _build_tg_admin_home() -> tuple[str, Dict[str, Any]]:
                 {"text": "🎡 គ្រប់គ្រង Spin Robux", "callback_data": "adm:spin"}
             ],
             [
-                {"text": "🤖 Roblox Bot & Cookie", "callback_data": "adm:bot"},
+                {"text": "📦 Roblox Bot & Cookie", "callback_data": "adm:bot"},
                 {"text": "🎟️ កូដបញ្ចុះតម្លៃ (Promo)", "callback_data": "adm:promos:0"}
             ],
             [
@@ -7187,7 +7187,7 @@ async def check_and_send_low_stock_alert():
         )
         markup = {
             "inline_keyboard": [
-                [{"text": "🤖 ឆែកស្តុកក្នុង Bot ឥឡូវនេះ", "callback_data": "adm:bot"}],
+                [{"text": "📦 ឆែកស្តុកក្នុង Bot ឥឡូវនេះ", "callback_data": "adm:bot"}],
                 [{"text": "🔕 បិទការដាស់តឿននេះ (Mute Alert)", "callback_data": "adm:mute_stock_alert"}],
                 [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]
             ]
