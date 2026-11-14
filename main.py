@@ -1946,8 +1946,11 @@ def _build_tg_stock_card(status_note: str = "") -> tuple[str, Dict[str, Any]]:
         st_text = "បើកដំណើរការ (ON)" if is_on else "បានបិទ (OFF)"
 
         bot_lines.append(f"{st_icon} <b>{bname}</b> (@{buname}): <code>{funds:,} R$</code> — {st_text}")
-        btn_txt = f"{st_icon} {bname} (@{buname}) • {funds:,} R$"
-        inline_rows.append([{"text": btn_txt, "callback_data": f"adm:bot_view:{bid}"}])
+        tog_label = "⛔ បិទ" if is_on else "✅ បើក"
+        inline_rows.append([
+            {"text": f"{st_icon} {bname} • {funds:,} R$", "callback_data": f"adm:bot_view:{bid}"},
+            {"text": tog_label, "callback_data": f"adm:bot_tog:{bid}"}
+        ])
 
     bots_summary = "\n".join(bot_lines) if bot_lines else "<i>មិនទាន់មាន Bot Cookie នៅក្នុងប្រព័ន្ធនៅឡើយទេ។</i>"
     active_cnt = sum(1 for b in bots if b.get("enabled", True))
@@ -2596,8 +2599,10 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, text, {"inline_keyboard": rows})
 
-    elif sub in ("bot", "bot_sync", "bot_add") or sub.startswith("bot_view:") or sub.startswith("bot_tog:") or sub.startswith("bot_sync1:") or sub.startswith("bot_del:"):
+    elif sub in ("bot", "bot_sync", "bot_add", "bot_view", "bot_tog", "bot_sync1", "bot_del"):
         status_note = ""
+        bid = parts[2] if len(parts) > 2 else ""
+
         if sub == "bot_sync":
             await answer_callback_query(token, query_id, "កំពុង Sync ឆែកស្តុក Robux គ្រប់ Bot…")
             sr = await sync_all_bots_balance()
@@ -2614,12 +2619,10 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
             await answer_callback_query(token, query_id, "")
             await send_telegram_direct_message(token, chat_id, prompt, {"force_reply": True, "selective": True})
             return
-        elif sub.startswith("bot_view:"):
+        elif sub == "bot_view":
             await answer_callback_query(token, query_id, "")
-            bid = parts[2]
             text, markup = _build_tg_bot_view(bid)
-        elif sub.startswith("bot_tog:"):
-            bid = parts[2]
+        elif sub == "bot_tog":
             bots = inventory.get("bots", [])
             target = next((b for b in bots if str(b.get("id")) == str(bid)), None)
             if target:
@@ -2631,12 +2634,11 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
                 st_label = "បើកដំណើរការ (ON) 🟢" if is_on else "បិទដំណើរការ (OFF) ⛔"
                 await answer_callback_query(token, query_id, f"{bname} គឺ {st_label}")
                 status_note = f"✅ បាន{'បើក' if is_on else 'បិទ'} {bname} ({st_label}) រួចរាល់!"
-                text, markup = _build_tg_bot_view(bid, status_note)
+                text, markup = _build_tg_stock_card(status_note)
             else:
                 await answer_callback_query(token, query_id, "រកមិនឃើញ Bot នេះទេ។")
                 text, markup = _build_tg_stock_card()
-        elif sub.startswith("bot_sync1:"):
-            bid = parts[2]
+        elif sub == "bot_sync1":
             bots = inventory.get("bots", [])
             target = next((b for b in bots if str(b.get("id")) == str(bid)), None)
             if target:
@@ -2649,8 +2651,7 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
             else:
                 await answer_callback_query(token, query_id, "រកមិនឃើញ Bot នេះទេ។")
                 text, markup = _build_tg_stock_card()
-        elif sub.startswith("bot_del:"):
-            bid = parts[2]
+        elif sub == "bot_del":
             bots = inventory.get("bots", [])
             del_bot = next((b for b in bots if str(b.get("id")) == str(bid)), None)
             inventory["bots"] = [b for b in bots if str(b.get("id")) != str(bid)]
