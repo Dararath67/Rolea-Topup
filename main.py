@@ -562,10 +562,19 @@ def load_json(path: Path, default: Any) -> Any:
 
 def save_json(path: Path, data: Any):
     try:
-        with open(path, "w", encoding="utf-8") as f:
+        tmp_path = path.with_suffix(path.suffix + f".tmp_{secrets.token_hex(4)}")
+        with open(tmp_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, path)
     except Exception as e:
-        print(f"Error saving {path}: {e}")
+        print(f"Atomic save error for {path}, falling back to direct write: {e}")
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+        except Exception as ex2:
+            print(f"Error saving {path}: {ex2}")
     _mysql_set(path.stem, data)
     cache_invalidate_store(path.stem)
 
