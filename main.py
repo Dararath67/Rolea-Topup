@@ -3327,7 +3327,7 @@ def _get_rate_tier(path: str, is_authed_admin: bool = False) -> tuple[str, int, 
         "/api/admin/forgot-password", "/api/admin/verify-reset-code", "/api/admin/reset-password"
     ):
         return ("otp", 8, 60)
-    if path in ("/api/auth/login", "/api/auth/register", "/api/auth/google", "/api/admin/login"):
+    if path in ("/api/auth/login", "/api/auth/register", "/api/auth/google", "/api/admin/login", "/api/orders/claim-refund-wallet"):
         return ("auth", 15, 60)
     if path in ("/api/create-order", "/api/wallet/topup", "/api/spin/create-ticket"):
         return ("pay_create", 15, 60)
