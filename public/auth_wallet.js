@@ -1113,53 +1113,50 @@
       const st = document.createElement('style');
       st.id = 'rolea-support-styles';
       st.textContent = `
-        /* Floating Support Trigger Bubble */
+        /* Floating Support Trigger Bubble - Circular Telegram Button */
         #rolea-support-bubble {
           position: fixed;
           bottom: 24px;
           right: 22px;
           z-index: 99998;
+          width: 52px;
+          height: 52px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #2AABEE 0%, #229ED9 100%);
+          color: #ffffff;
+          box-shadow: 0 6px 20px rgba(34, 158, 217, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.25) inset;
+          cursor: pointer;
           display: flex;
           align-items: center;
-          gap: 9px;
-          padding: 10px 16px 10px 12px;
-          background: linear-gradient(135deg, #0284c7 0%, #0077b6 100%);
-          color: #ffffff;
-          border-radius: 999px;
-          box-shadow: 0 6px 22px rgba(2, 132, 199, 0.42), 0 0 0 1px rgba(255, 255, 255, 0.2) inset;
-          cursor: pointer;
-          font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-          font-size: 13.5px;
-          font-weight: 800;
-          letter-spacing: 0.2px;
+          justify-content: center;
           transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
           user-select: none;
         }
         #rolea-support-bubble:hover {
-          transform: translateY(-2.5px) scale(1.02);
-          box-shadow: 0 10px 28px rgba(2, 132, 199, 0.52);
+          transform: translateY(-3px) scale(1.08);
+          box-shadow: 0 10px 26px rgba(34, 158, 217, 0.6);
         }
         #rolea-support-bubble .tg-icon-wrap {
           position: relative;
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          background: #ffffff;
+          width: 100%;
+          height: 100%;
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #0284c7;
-          flex-shrink: 0;
-          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+        }
+        #rolea-support-bubble .tg-icon-wrap svg {
+          width: 27px;
+          height: 27px;
+          transform: translate(-1.5px, 0.5px);
         }
         #rolea-support-bubble .online-dot {
           position: absolute;
-          top: -2px;
-          right: -2px;
-          width: 10px;
-          height: 10px;
+          top: 1px;
+          right: 1px;
+          width: 12px;
+          height: 12px;
           background: #10b981;
-          border: 2px solid #ffffff;
+          border: 2.5px solid #ffffff;
           border-radius: 50%;
           box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.4);
           animation: rSupportPulse 2s infinite;
@@ -1173,12 +1170,18 @@
           #rolea-support-bubble {
             bottom: 78px;
             right: 16px;
-            padding: 8px 14px 8px 10px;
-            font-size: 12.5px;
+            width: 48px;
+            height: 48px;
           }
-          #rolea-support-bubble .tg-icon-wrap {
-            width: 28px;
-            height: 28px;
+          #rolea-support-bubble .tg-icon-wrap svg {
+            width: 24px;
+            height: 24px;
+          }
+          #rolea-support-bubble .online-dot {
+            width: 11px;
+            height: 11px;
+            top: 0px;
+            right: 0px;
           }
         }
 
@@ -1375,14 +1378,13 @@
       const tgUrl = `https://t.me/${safeHandle}?text=${greeting}`;
 
       return `
-        <div id="rolea-support-bubble" onclick="window.RoleaSupport.openSupport()" title="Click to chat with Support">
+        <div id="rolea-support-bubble" onclick="window.RoleaSupport.openSupport()" title="Telegram Support 24/7" aria-label="Telegram Support">
           <div class="tg-icon-wrap">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21.5 2L2 9.5l7 3.5 3.5 7 2-6 7-12z"/>
+            <svg width="27" height="27" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20.665 3.717l-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42 10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701h-.002l-.313 4.674c.458 0 .66-.21.916-.457l2.199-2.138 4.574 3.379c.843.464 1.45.225 1.66-.782l2.996-14.116c.307-1.23-.47-1.787-1.208-1.527z"/>
             </svg>
             <span class="online-dot"></span>
           </div>
-          <span>Support 24/7</span>
         </div>
 
         <div id="rolea-support-overlay" onclick="if(event.target===this) window.RoleaSupport.closeSupport()">
