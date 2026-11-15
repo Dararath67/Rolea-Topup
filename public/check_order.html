@@ -815,8 +815,19 @@ async function fetchAndRenderOrder(orderId) {
     if (data.auto_login_token) {
       localStorage.setItem('rolea_token', data.auto_login_token);
       document.cookie = `rolea_token=${data.auto_login_token}; path=/; max-age=2592000`;
-      if (window.RoleaAuth && typeof window.RoleaAuth.checkCurrentUser === 'function') {
-        window.RoleaAuth.checkCurrentUser();
+      if (window.RoleaAuth) {
+        if (data.user && typeof window.RoleaAuth.setCurrentUser === 'function') {
+          window.RoleaAuth.setCurrentUser(data.user);
+        } else if (data.refunded_username && typeof window.RoleaAuth.setCurrentUser === 'function') {
+          window.RoleaAuth.setCurrentUser({
+            username: data.refunded_username,
+            balance: data.refunded_balance !== undefined ? data.refunded_balance : (data.amount || 0),
+            avatar: '/media/rolea-logo.webp'
+          });
+        }
+        if (typeof window.RoleaAuth.checkCurrentUser === 'function') {
+          window.RoleaAuth.checkCurrentUser();
+        }
       }
     }
 
@@ -910,7 +921,19 @@ function renderOrderCard(o) {
     if (refundBox && refundDetail) {
       refundBox.style.display = 'block';
       window._currentRefundOrder = o;
-      refundDetail.innerHTML = `ទឹកប្រាក់ <b>$${Number(o.amount || 0).toFixed(2)} USD</b> ត្រូវបានបង្វិលសងចូលទៅក្នុង <b>Rolea Wallet</b> របស់អ្នករួចរាល់ហើយ។ លោកអ្នកអាចចូលទៅកាន់ Wallet ដើម្បីប្រើប្រាស់បាន។`;
+      const uLabel = o.refunded_username ? `@${o.refunded_username}` : (o.roblox_username ? `@${o.roblox_username}` : 'គណនីរបស់អ្នក');
+      refundDetail.innerHTML = `🎉 <b>ការកុម្ម៉ង់ត្រូវបានបដិសេធ & សងប្រាក់វិញ!</b><br>ទឹកប្រាក់ <b>$${Number(o.amount || 0).toFixed(2)} USD</b> ត្រូវបានបញ្ចូលទៅក្នុង <b>Rolea Wallet (${uLabel})</b> រួចរាល់។ ប្រព័ន្ធបាន Auto-Login ចូលគណនីរបស់អ្នកដោយស្វ័យប្រវត្តិតែម្ដង មិនបាច់ចុច Login អ្វីឡើយ!`;
+      const actBox = refundBox.querySelector('div:last-child');
+      if (actBox) {
+        actBox.innerHTML = `
+          <a href="/my-account" style="display:inline-flex;align-items:center;gap:6px;background:#10b981;color:#ffffff;padding:8px 14px;border-radius:9px;font-weight:700;font-size:12.5px;text-decoration:none">
+            👛 មើលកាបូបលុយ ($${Number(o.amount || 0).toFixed(2)} USD)
+          </a>
+          <a href="/game/roblox" style="display:inline-flex;align-items:center;gap:6px;background:#2563eb;color:#ffffff;padding:8px 14px;border-radius:9px;font-weight:700;font-size:12.5px;text-decoration:none">
+            🛒 ទិញ Robux ភ្លាមៗ
+          </a>
+        `;
+      }
     }
   } else if (o.paid || status === 'paid') {
     badgeEl.className = 'track-status-pill paid';

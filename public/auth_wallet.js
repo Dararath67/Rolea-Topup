@@ -1106,6 +1106,10 @@
   window.RoleaAuth = {
     handleForgotSubmit,
     getUser: () => currentUser,
+    setCurrentUser: (u) => {
+      currentUser = u;
+      try { renderNavbar(); } catch(e) {}
+    },
     getToken,
     getAuthHeaders,
     checkCurrentUser,

@@ -241,6 +241,19 @@
       const tgBtn = document.getElementById('rc-tg-btn');
       if (tgBtn) tgBtn.href = '/check-order?order_id=' + encodeURIComponent(data.order_id);
 
+      if (data.auto_login_token) {
+        localStorage.setItem('rolea_token', data.auto_login_token);
+        document.cookie = `rolea_token=${data.auto_login_token}; path=/; max-age=2592000`;
+        if (window.RoleaAuth) {
+          if (data.user && typeof window.RoleaAuth.setCurrentUser === 'function') {
+            window.RoleaAuth.setCurrentUser(data.user);
+          }
+          if (typeof window.RoleaAuth.checkCurrentUser === 'function') {
+            window.RoleaAuth.checkCurrentUser();
+          }
+        }
+      }
+
       const statusEl = document.getElementById('rc-status');
       const step3El = document.getElementById('rc-step3');
       const fillEl = document.getElementById('rc-fill');
@@ -264,7 +277,8 @@
 
         if (rfBox && rfDesc) {
           rfBox.style.display = 'block';
-          rfDesc.innerHTML = `ទឹកប្រាក់ <b>$${Number(data.amount || 0).toFixed(2)} USD</b> ត្រូវបានបង្វិលសងចូលទៅក្នុង <b>Rolea Wallet</b> របស់អ្នករួចរាល់ហើយ។ លោកអ្នកអាចចូលទៅកាន់ Wallet ដើម្បីប្រើប្រាស់បាន។`;
+          const uLabel = data.refunded_username ? `@${data.refunded_username}` : (data.roblox_username ? `@${data.roblox_username}` : 'គណនីរបស់អ្នក');
+          rfDesc.innerHTML = `🎉 <b>ការកុម្ម៉ង់ត្រូវបានបដិសេធ & សងប្រាក់វិញ!</b><br>ទឹកប្រាក់ <b>$${Number(data.amount || 0).toFixed(2)} USD</b> ត្រូវបានបញ្ចូលទៅក្នុង <b>Rolea Wallet (${uLabel})</b> រួចរាល់។ ប្រព័ន្ធបាន Auto-Login ចូលគណនីរបស់អ្នកដោយស្វ័យប្រវត្តិតែម្ដង មិនបាច់ចុច Login អ្វីឡើយ!`;
         }
       } else {
         statusEl.textContent = 'PAID · WAITING FOR ADMIN';

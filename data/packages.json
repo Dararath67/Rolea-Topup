@@ -41,7 +41,7 @@
     "ok": 1,
     "badge": "",
     "icon": "/media/rolea-logo.webp",
-    "in_stock": false
+    "in_stock": true
   },
   {
     "id": "6af086a373d46597668e1216",
@@ -52,7 +52,7 @@
     "ok": 1,
     "badge": "",
     "icon": "/media/rolea-logo.webp",
-    "in_stock": false
+    "in_stock": true
   },
   {
     "id": "6aeecd78ad6c8e40c695d3f5",
@@ -63,7 +63,7 @@
     "ok": 1,
     "badge": "BEST VALUE",
     "icon": "/media/rolea-logo.webp",
-    "in_stock": false
+    "in_stock": true
   },
   {
     "id": "6aeecd78ad6c8e40c695d3f6",
@@ -74,7 +74,7 @@
     "ok": 1,
     "badge": "VIP SAVER",
     "icon": "/media/rolea-logo.webp",
-    "in_stock": false
+    "in_stock": true
   },
   {
     "id": "6aeecd78ad6c8e40c695d3f7",
@@ -85,39 +85,39 @@
     "ok": 1,
     "badge": "MEGA PACK",
     "icon": "/media/rolea-logo.webp",
-    "in_stock": false
+    "in_stock": true
   },
   {
     "id": "tiktok_100",
     "game": "tiktok",
-    "robux": 100,
-    "price": 0.8,
-    "name": "100 Followers",
+    "robux": 1.0,
+    "price": 0.99,
+    "name": "500-1k Like + 1.2k-2.5k View",
     "ok": 1,
     "badge": "STARTER",
     "icon": "/media/tiktok-thumb.svg",
-    "in_stock": false
+    "in_stock": true
   },
   {
     "id": "tiktok_500",
     "game": "tiktok",
-    "robux": 500,
-    "price": 3.5,
-    "name": "500 Followers",
+    "robux": 1.0,
+    "price": 1.99,
+    "name": "1k-2k Like + 2.5k-4.5k View",
     "ok": 1,
     "badge": "POPULAR",
     "icon": "/media/tiktok-thumb.svg",
-    "in_stock": false
+    "in_stock": true
   },
   {
     "id": "tiktok_1000",
     "game": "tiktok",
-    "robux": 1000,
-    "price": 6,
-    "name": "1000 Followers",
+    "robux": 1.0,
+    "price": 2.99,
+    "name": "2.5-5k Like + 7k-12k View",
     "ok": 1,
     "badge": "HOT",
     "icon": "/media/tiktok-thumb.svg",
-    "in_stock": false
+    "in_stock": true
   }
 ]
