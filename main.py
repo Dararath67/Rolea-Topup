@@ -125,6 +125,7 @@ games: Dict[str, Dict[str, Any]] = {
 }
 settings: Dict[str, Any] = {
     "store_name": "Rolea Topup",
+    "store_logo": "/media/logo.webp",
     "telegram_handle": "Rothzz3",
     "khqr_merchant_name": "Rolea",
     "khqr_account": "bakong@rolea",
@@ -3875,7 +3876,7 @@ class MaxBodySizeMiddleware:
 
         norm_path, _ = _normalize_request_path(scope.get("path", "/"))
         method = str(scope.get("method") or "GET").upper()
-        is_upload = norm_path in ("/api/admin/upload-banner", "/api/admin/games/upload-logo")
+        is_upload = norm_path in ("/api/admin/upload-banner", "/api/admin/games/upload-logo", "/api/admin/upload-store-logo")
         max_bytes = MAX_UPLOAD_BODY_BYTES if is_upload else MAX_JSON_BODY_BYTES
 
         content_type = ""
@@ -4140,7 +4141,7 @@ async def security_and_no_cache_middleware(request: Request, call_next):
     if cl_hdr:
         try:
             cl_val = int(cl_hdr)
-            is_upload = norm_path in ("/api/admin/upload-banner", "/api/admin/games/upload-logo")
+            is_upload = norm_path in ("/api/admin/upload-banner", "/api/admin/games/upload-logo", "/api/admin/upload-store-logo")
             max_bytes = MAX_UPLOAD_BODY_BYTES if is_upload else MAX_JSON_BODY_BYTES
             if cl_val > max_bytes or cl_val < 0:
                 return JSONResponse(status_code=413, content={"ok": False, "error": "Payload too large"})
@@ -7516,6 +7517,40 @@ async def admin_upload_game_logo(request: Request):
 
     return JSONResponse(status_code=400, content={"ok": False, "error": "No image provided"})
 
+@app.post("/api/admin/upload-store-logo")
+async def admin_upload_store_logo(request: Request):
+    body = await request.json() if (await request.body()) else {}
+    image_url = body.get("image_url")
+    image_base64 = body.get("image_base64")
+
+    if image_url:
+        url = str(image_url).strip()
+        if not _is_safe_url(url):
+            return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid image URL"})
+        settings["store_logo"] = url
+        save_settings()
+        return {"ok": True, "logo": url}
+
+    if image_base64:
+        try:
+            m = re.match(r"^data:image/([a-zA-Z0-9+]+);base64,(.+)$", str(image_base64).strip())
+            data = m.group(2) if m else str(image_base64).strip()
+            buf = base64.b64decode(data, validate=True)
+            ext = _validate_image_magic(buf)
+            if not ext:
+                return JSONResponse(status_code=400, content={"ok": False, "error": "Unsupported or invalid image format (PNG, JPG, WEBP, GIF only)"})
+            filename = f"logo_store_{int(time.time() * 1000)}.{ext}"
+            with open(MEDIA_DIR / filename, "wb") as f:
+                f.write(buf)
+            final_logo_url = f"/media/{filename}"
+            settings["store_logo"] = final_logo_url
+            save_settings()
+            return {"ok": True, "logo": final_logo_url}
+        except Exception:
+            return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid image upload payload"})
+
+    return JSONResponse(status_code=400, content={"ok": False, "error": "No image provided"})
+
 # Packages Admin
 @app.get("/api/admin/packages")
 async def admin_get_packages(game: Optional[str] = None):
@@ -7601,7 +7636,7 @@ async def admin_get_settings():
 @app.post("/api/admin/settings")
 async def admin_save_settings(request: Request):
     body = await request.json() if (await request.body()) else {}
-    for key in ["store_name", "telegram_handle", "khqr_merchant_name", "khqr_account", "khqrpay_base_url", "home_banner", "roblox_banner", "google_client_id", "turnstile_site_key"]:
+    for key in ["store_name", "store_logo", "telegram_handle", "khqr_merchant_name", "khqr_account", "khqrpay_base_url", "home_banner", "roblox_banner", "google_client_id", "turnstile_site_key"]:
         if key in body and body[key] is not None:
             settings[key] = str(body[key]).strip()
     for sk_key in _SETTINGS_SECRET_KEYS:

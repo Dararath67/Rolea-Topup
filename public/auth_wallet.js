@@ -1494,6 +1494,19 @@
           const j = await res.json();
           if (j.telegram_handle) settingsCache.telegram_handle = j.telegram_handle;
           if (j.support_widget_enabled !== undefined) settingsCache.support_widget_enabled = !!j.support_widget_enabled;
+
+          // Real-time Store Logo & Branding Sync across all pages
+          const logoUrl = j.store_logo || j.logo;
+          if (logoUrl) {
+            document.querySelectorAll('.brand-logo').forEach(img => {
+              if (img.getAttribute('src') !== logoUrl) img.src = logoUrl;
+            });
+          }
+          if (j.store_name) {
+            document.querySelectorAll('.brand-name').forEach(el => {
+              el.textContent = j.store_name;
+            });
+          }
         }
       } catch (e) {}
 

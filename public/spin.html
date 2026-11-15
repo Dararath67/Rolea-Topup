@@ -475,7 +475,13 @@
           <div id="daily-free-spin-ready" style="display:none">
             <button type="button" class="btn-daily-free-spin" id="btn-daily-free-spin" onclick="claimDailyFreeSpin()">
               <span style="display:flex;align-items:center;gap:8px">
-                <span style="font-size:18px">🎁</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 12 20 22 4 22 4 12"/>
+                  <rect x="2" y="7" width="20" height="5"/>
+                  <line x1="12" y1="22" x2="12" y2="7"/>
+                  <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/>
+                  <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
+                </svg>
                 <span style="font-weight:800;font-size:13.5px" id="lbl-daily-spin-btn">Claim 1 Free Spin Today!</span>
               </span>
               <span class="daily-badge">FREE</span>
@@ -483,7 +489,10 @@
           </div>
           <div id="daily-free-spin-cooldown" style="display:none;background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:14px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px">
             <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:18px">⏳</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
               <div>
                 <div style="font-size:11.5px;color:#64748b;font-weight:700">Daily Free Spin Claimed</div>
                 <div style="font-size:13px;font-weight:800;color:#0f172a" id="daily-countdown-text">Next spin in --:--:--</div>
@@ -693,11 +702,12 @@ async function claimDailyFreeSpin() {
       }
     });
     const j = await res.json();
+    const giftSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>';
     if (!res.ok || !j.ok) {
       showSpinError(j.error || 'Failed to claim daily free spin.');
       if (btn) {
         btn.disabled = false;
-        btn.innerHTML = '<span style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">🎁</span><span style="font-weight:800;font-size:13.5px">Claim 1 Free Spin Today!</span></span><span class="daily-badge">FREE</span>';
+        btn.innerHTML = `<span style="display:flex;align-items:center;gap:8px">${giftSvg}<span style="font-weight:800;font-size:13.5px">Claim 1 Free Spin Today!</span></span><span class="daily-badge">FREE</span>`;
       }
       return;
     }
@@ -720,8 +730,9 @@ async function claimDailyFreeSpin() {
   } catch (err) {
     showSpinError('Network error. Please try again.');
     if (btn) {
+      const giftSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>';
       btn.disabled = false;
-      btn.innerHTML = '<span style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">🎁</span><span style="font-weight:800;font-size:13.5px">Claim 1 Free Spin Today!</span></span><span class="daily-badge">FREE</span>';
+      btn.innerHTML = `<span style="display:flex;align-items:center;gap:8px">${giftSvg}<span style="font-weight:800;font-size:13.5px">Claim 1 Free Spin Today!</span></span><span class="daily-badge">FREE</span>`;
     }
   }
 }
@@ -748,6 +759,23 @@ async function loadSpinConfig() {
     renderDailyFreeSpin(j.daily_free_spin);
     drawWheel(j.slices || []);
     renderWinners(j.recent_winners || []);
+
+    // Sync real-time store logo & wheel center logo
+    try {
+      const sRes = await fetch('/api/settings');
+      if (sRes.ok) {
+        const s = await sRes.json();
+        const logoUrl = s.store_logo || s.logo;
+        if (logoUrl) {
+          document.querySelectorAll('.brand-logo').forEach(img => { img.src = logoUrl; });
+          const centerImg = document.querySelector('.wheel-center-hub img');
+          if (centerImg) centerImg.src = logoUrl;
+        }
+        if (s.store_name) {
+          document.querySelectorAll('.brand-name').forEach(el => { el.textContent = s.store_name; });
+        }
+      }
+    } catch (eLogo) {}
   } catch (e) {}
 }
 

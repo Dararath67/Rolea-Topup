@@ -2019,6 +2019,18 @@
               <input type="text" id="set-store-name" value="Rolea Topup" required>
             </div>
             <div class="form-group-modern">
+              <label>Store Logo (Real-time Site Branding)</label>
+              <div style="display:flex;align-items:center;gap:10px">
+                <img id="store-logo-preview" src="/media/logo.webp" alt="Store Logo" style="width:38px;height:38px;border-radius:10px;object-fit:contain;background:#fff;border:1px solid #cbd5e1;flex-shrink:0">
+                <input type="text" id="set-store-logo" value="/media/logo.webp" placeholder="/media/logo.webp or https://..." oninput="document.getElementById('store-logo-preview').src=this.value" style="flex:1">
+                <label class="btn-top" style="cursor:pointer;font-size:12px;padding:9px 12px;white-space:nowrap;display:flex;align-items:center;gap:6px;margin:0">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  <span>Upload</span>
+                  <input type="file" id="file-store-logo" accept="image/*" style="display:none" onchange="uploadStoreLogoFile(this)">
+                </label>
+              </div>
+            </div>
+            <div class="form-group-modern">
               <label>Telegram Support Username</label>
               <input type="text" id="set-telegram" value="Rothzz3" required>
             </div>
@@ -4092,6 +4104,10 @@ async function loadData() {
       const isFocusedInSettings = document.activeElement && document.activeElement.closest && document.activeElement.closest('#store-settings-form');
       if (!settingsLoaded || !isFocusedInSettings) {
         document.getElementById('set-store-name').value = st.store_name || 'Rolea Topup';
+        if (document.getElementById('set-store-logo')) {
+          document.getElementById('set-store-logo').value = st.store_logo || '/media/logo.webp';
+          if (document.getElementById('store-logo-preview')) document.getElementById('store-logo-preview').src = st.store_logo || '/media/logo.webp';
+        }
         document.getElementById('set-telegram').value = st.telegram_handle || 'Rothzz3';
         if (document.getElementById('set-support-enabled')) document.getElementById('set-support-enabled').checked = st.support_widget_enabled !== false;
         document.getElementById('set-khqr-merchant').value = st.khqr_merchant_name || 'Rolea';
@@ -4499,10 +4515,41 @@ async function orderAction(orderId, action) {
   }
 }
 
+// Upload Store Logo
+async function uploadStoreLogoFile(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { toast('Please select an image file (PNG, JPG, WEBP)'); return; }
+  const reader = new FileReader();
+  reader.onload = async e => {
+    const b64 = e.target.result;
+    try {
+      const res = await fetch('/api/admin/upload-store-logo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_base64: b64 })
+      });
+      const j = await res.json();
+      if (res.ok && j.ok) {
+        if (document.getElementById('set-store-logo')) document.getElementById('set-store-logo').value = j.logo;
+        if (document.getElementById('store-logo-preview')) document.getElementById('store-logo-preview').src = j.logo;
+        document.querySelectorAll('.apl-logo, .side-brand img').forEach(img => { img.src = j.logo; });
+        toast('Store logo uploaded & updated in real-time!');
+      } else {
+        toast(j.error || 'Upload failed');
+      }
+    } catch (err) {
+      toast('Upload failed: ' + err.message);
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
 // Settings Form
 document.getElementById('store-settings-form').addEventListener('submit', async e => {
   e.preventDefault();
   const store_name = document.getElementById('set-store-name').value.trim();
+  const store_logo = document.getElementById('set-store-logo') ? document.getElementById('set-store-logo').value.trim() : '';
   const raw_telegram = document.getElementById('set-telegram').value.trim();
   const telegram_handle = raw_telegram.replace(/^https?:\/\/(t\.me\/)?/, '').replace(/^@/, '').trim();
   const support_widget_enabled = document.getElementById('set-support-enabled') ? document.getElementById('set-support-enabled').checked : true;
@@ -4525,12 +4572,15 @@ document.getElementById('store-settings-form').addEventListener('submit', async 
     const res = await fetch('/api/admin/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ store_name, telegram_handle, support_widget_enabled, khqr_merchant_name, khqr_account, auto_deliver, khqrpay_base_url, khqrpay_api_key, telegram_bot_token, telegram_chat_id, smtp_host, smtp_port, smtp_email, smtp_password, admin_recovery_email, turnstile_site_key, turnstile_secret_key })
+      body: JSON.stringify({ store_name, store_logo, telegram_handle, support_widget_enabled, khqr_merchant_name, khqr_account, auto_deliver, khqrpay_base_url, khqrpay_api_key, telegram_bot_token, telegram_chat_id, smtp_host, smtp_port, smtp_email, smtp_password, admin_recovery_email, turnstile_site_key, turnstile_secret_key })
     });
     const j = await res.json();
     if (res.ok && j.ok) {
       toast('Store settings saved successfully!');
       document.getElementById('set-telegram').value = telegram_handle;
+      if (store_logo) {
+        document.querySelectorAll('.apl-logo, .side-brand img').forEach(img => { img.src = store_logo; });
+      }
     } else {
       toast(j.error || 'Failed to save settings');
     }
