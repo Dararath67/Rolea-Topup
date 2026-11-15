@@ -831,9 +831,7 @@ def sync_package_stock_with_inventory() -> bool:
     if changed:
         save_packages()
         cache_invalidate_store("packages")
-        cache_invalidate("rolea:packages:roblox")
-        cache_invalidate("rolea:packages:all")
-        cache_invalidate("rolea:game:roblox")
+        cache_delete("rolea:packages:roblox", "rolea:packages:all", "rolea:game:roblox")
     return changed
 
 def save_inventory():
@@ -3346,7 +3344,7 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                 for o_it in orders:
                     if o_it.get("customer_telegram_chat_id"):
                         targets.add(str(o_it["customer_telegram_chat_id"]).strip())
-                targets.discard(target_chat_id)
+                targets.discard(str(chat_id).strip())
                 async def _do_bcast(tg_list, msg_body):
                     sent_cnt = 0
                     for tc in tg_list:
@@ -7902,7 +7900,7 @@ async def check_and_send_low_stock_alert():
                 [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]
             ]
         }
-        await send_telegram_direct_message(token, chat_id, msg, markup)
+        await send_telegram_direct_message(token, admin_chat, msg, markup)
 
 def deduct_inventory_on_deliver(order: dict):
     global inventory
