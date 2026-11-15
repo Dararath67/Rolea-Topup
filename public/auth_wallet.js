@@ -1391,8 +1391,10 @@
           <div id="rolea-support-drawer">
             <div class="rsd-header">
               <div style="display:flex;align-items:center;gap:11px">
-                <div style="width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:20px">
-                  💬
+                <div style="width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;color:#ffffff">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </svg>
                 </div>
                 <div>
                   <div style="font-weight:800;font-size:15px;letter-spacing:0.2px">Rolea Support 24/7</div>
@@ -1418,7 +1420,7 @@
 
               <!-- Quick Order Tracker -->
               <div class="rsd-quick-order">
-                <div style="font-size:12.5px;font-weight:800;color:#0f172a">🔍 ពិនិត្យស្ថានភាពកុម្ម៉ង់ (Track Order)</div>
+                <div style="font-size:12.5px;font-weight:800;color:#0f172a">ពិនិត្យស្ថានភាពកុម្ម៉ង់ (Track Order)</div>
                 <div class="rsd-order-input-wrap">
                   <input type="text" id="rsd-order-query" class="rsd-order-input" placeholder="ឧ. PR1234567..." onkeydown="if(event.key==='Enter') window.RoleaSupport.trackOrderFromDrawer()">
                   <button type="button" class="rsd-order-btn" onclick="window.RoleaSupport.trackOrderFromDrawer()">ពិនិត្យ</button>
@@ -1427,7 +1429,7 @@
 
               <!-- FAQs -->
               <div>
-                <div style="font-size:13px;font-weight:800;color:#0f172a;margin-bottom:10px">❓ សំណួរដែលសួរញឹកញាប់ (FAQs)</div>
+                <div style="font-size:13px;font-weight:800;color:#0f172a;margin-bottom:10px">សំណួរដែលសួរញឹកញាប់ (FAQs)</div>
                 <div style="display:flex;flex-direction:column;gap:8px">
                   <div class="rsd-faq-item active" onclick="this.classList.toggle('active')">
                     <div class="rsd-faq-q">
@@ -1473,7 +1475,7 @@
 
               <!-- Trust footer -->
               <div style="margin-top:auto;padding-top:12px;border-top:1px solid #f1f5f9;text-align:center;font-size:11.5px;color:#94a3b8">
-                ⚡ ដំណើរការស្វ័យប្រវត្ត ២៤ ម៉ោង / ៧ ថ្ងៃ • ទំនុកចិត្ត ១០០%
+                ដំណើរការស្វ័យប្រវត្ត ២៤ ម៉ោង / ៧ ថ្ងៃ • ទំនុកចិត្ត ១០០%
               </div>
             </div>
           </div>
