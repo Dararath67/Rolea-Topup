@@ -1518,6 +1518,44 @@ def _check_telegram_rate_limit(from_id: str, username: str = "") -> bool:
     return True
 
 
+_tg_unauthorized_attempts: Dict[str, List[float]] = {}
+_tg_conflict_alert_cooldown: float = 0.0
+
+async def record_unauthorized_bot_attempt(from_id: str, from_uname: str, chat_id: str, command: str):
+    """Logs and alerts about unauthorized attempts to run admin commands on the Telegram Bot."""
+    now = time.time()
+    attempts = _tg_unauthorized_attempts.setdefault(from_id, [])
+    attempts[:] = [t for t in attempts if now - t < 3600.0]
+    attempts.append(now)
+
+    count = len(attempts)
+    is_banned = False
+
+    if count >= 3:
+        blocked_users = blacklist.setdefault("blocked_tg_users", [])
+        if from_id not in blocked_users:
+            blocked_users.append(from_id)
+            save_blacklist()
+        is_banned = True
+
+    now_ict = datetime.now(timezone(timedelta(hours=7))).strftime("%Y-%m-%d %H:%M:%S ICT")
+    alert_text = (
+        "<b>[SECURITY ALERT - BOT ACCESS DENIED]</b>\n\n"
+        "<b>Event:</b> Unauthorized attempt to execute admin bot command\n"
+        f"<b>Command:</b> <code>{html.escape(command, quote=False)}</code>\n"
+        f"<b>User ID:</b> <code>{html.escape(from_id, quote=False)}</code>\n"
+        f"<b>Username:</b> @{html.escape(from_uname or 'N/A', quote=False)}\n"
+        f"<b>Chat ID:</b> <code>{html.escape(chat_id, quote=False)}</code>\n"
+        f"<b>Attempt Count:</b> {count}/3\n"
+        f"<b>Action Taken:</b> {'Permanently Blocked / Blacklisted' if is_banned else 'Command Rejected & Logged'}\n"
+        f"<b>Time:</b> {now_ict}"
+    )
+
+    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    if token:
+        await send_telegram_direct_message(token, BUG_ALERT_CHAT_ID, alert_text)
+
+
 async def send_telegram_admin_alert(text: str, reply_markup: Optional[Dict] = None) -> bool:
     """Send an HTML alert message to the configured admin Telegram chat."""
     token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
@@ -3091,15 +3129,23 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
     if not update or not isinstance(update, dict):
         return
 
-    # Anti-Flood / Rate Limiting per Telegram User ID (Admin has NO LIMIT)
+    # Extract sender info early for security checks
     from_u = (update.get("message") or update.get("callback_query", {})).get("from", {})
     sender_id = str(from_u.get("id") or "")
     sender_uname = str(from_u.get("username") or "")
+
+    # Security: check if sender or username is blacklisted
+    blocked_tg = set(str(x).strip().lower() for x in blacklist.get("blocked_tg_users", []))
+    if sender_id and (sender_id.lower() in blocked_tg or sender_uname.lower() in blocked_tg):
+        # Silent drop: don't respond to blacklisted attacker
+        return
+
+    # Anti-Flood / Rate Limiting per Telegram User ID (Admin has NO LIMIT)
     if sender_id and not _check_telegram_rate_limit(sender_id, sender_uname):
         if "callback_query" in update:
             cb_id = update["callback_query"].get("id")
             if cb_id:
-                asyncio.create_task(answer_callback_query(token, cb_id, "⚠️ សូមកុំចុចញាប់ពេក! (Please slow down)", show_alert=False))
+                asyncio.create_task(answer_callback_query(token, cb_id, "Please slow down.", show_alert=False))
         return
 
     if "callback_query" in update:
@@ -3115,15 +3161,16 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
 
         if text == "/admin" or text.startswith("/admin ") or text.startswith("/admin@"):
             if not is_telegram_admin(from_id, from_uname, chat_id):
-                asyncio.create_task(send_telegram_direct_message(token, chat_id, "⛔ Unauthorized: Admin only."))
+                asyncio.create_task(record_unauthorized_bot_attempt(from_id, from_uname, chat_id, text))
+                asyncio.create_task(send_telegram_direct_message(token, chat_id, "Access Denied: Admin authentication required."))
             elif chat_type != "private":
                 # Security: prevent exposing admin console and customer data in public/shared groups
                 warn_msg = (
-                    "🔒 <b>[សុវត្ថិភាព / SECURITY NOTICE]</b>\n\n"
+                    "<b>[SECURITY NOTICE / សុវត្ថិភាព]</b>\n\n"
                     "ដើម្បីសុវត្ថិភាពទិន្នន័យអតិថិជន និងស្តុក ផ្ទាំងបញ្ជា <b>Admin Console</b> អាចដំណើរការបានតែក្នុង <b>Private Chat (សារផ្ទាល់ខ្លួន)</b> ជាមួយ Bot តែប៉ុណ្ណោះ។\n\n"
-                    "👉 សូមចុចប៊ូតុងខាងក្រោមដើម្បីបើកផ្ទាំងបញ្ជា Admin ក្នុង Private Chat៖"
+                    "សូមចុចប៊ូតុងខាងក្រោមដើម្បីបើកផ្ទាំងបញ្ជា Admin ក្នុង Private Chat៖"
                 )
-                markup = {"inline_keyboard": [[{"text": "🔐 បើក Admin ក្នុង Private Chat", "url": "https://t.me/RothzStore_bot?start=admin"}]]}
+                markup = {"inline_keyboard": [[{"text": "បើក Admin ក្នុង Private Chat", "url": "https://t.me/RothzStore_bot?start=admin"}]]}
                 asyncio.create_task(send_telegram_direct_message(token, chat_id, warn_msg, markup))
             else:
                 _tg_admin_state.pop(chat_id, None)
@@ -3131,7 +3178,8 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                 asyncio.create_task(send_telegram_direct_message(token, chat_id, adm_text, adm_markup))
         elif text in ("/testbug", "/test_bug", "/bugtest") or text.startswith("/testbug"):
             if not is_telegram_admin(from_id, from_uname, chat_id):
-                asyncio.create_task(send_telegram_direct_message(token, chat_id, "⛔ Unauthorized: Admin only."))
+                asyncio.create_task(record_unauthorized_bot_attempt(from_id, from_uname, chat_id, text))
+                asyncio.create_task(send_telegram_direct_message(token, chat_id, "Access Denied: Admin authentication required."))
             else:
                 asyncio.create_task(send_telegram_direct_message(token, chat_id, "⏳ <i>កំពុងផ្ញើសារសាកល្បង Bug Alert ទៅកាន់គ្រុប Monitor log Rolea (-1004361070205)…</i>"))
                 ok = await send_bug_alert_telegram(
@@ -3377,7 +3425,7 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
 
 
 async def telegram_polling_loop():
-    global telegram_offset, _last_daily_report_date, _last_daily_backup_date
+    global telegram_offset, _last_daily_report_date, _last_daily_backup_date, _tg_conflict_alert_cooldown
     while True:
         sleep_sec = 0.5
         try:
@@ -3402,8 +3450,25 @@ async def telegram_polling_loop():
                 client = _get_tg_client()
                 resp = await client.get(url, timeout=25.0)
                 if resp.status_code == 409:
-                    # Webhook is currently active on Telegram; polling backs off gracefully
-                    sleep_sec = 15.0
+                    # 409 Conflict: Another polling instance or rogue webhook is active
+                    now_c = time.time()
+                    if now_c - _tg_conflict_alert_cooldown > 300.0:
+                        _tg_conflict_alert_cooldown = now_c
+                        now_str = datetime.now(timezone(timedelta(hours=7))).strftime("%Y-%m-%d %H:%M:%S ICT")
+                        conflict_alert = (
+                            "<b>[CRITICAL SECURITY ALERT - TELEGRAM BOT 409 CONFLICT]</b>\n\n"
+                            "<b>Event:</b> Telegram getUpdates returned HTTP 409 Conflict.\n"
+                            "<b>Cause:</b> Another process or unauthorized runner is polling this bot token, or a rogue webhook was registered.\n"
+                            "<b>Action Taken:</b> Auto-purging rogue webhook and maintaining recovery loop.\n"
+                            f"<b>Time:</b> {now_str}"
+                        )
+                        asyncio.create_task(send_telegram_direct_message(token, BUG_ALERT_CHAT_ID, conflict_alert))
+                        try:
+                            # Auto-purge any rogue webhook
+                            await client.post(f"https://api.telegram.org/bot{token}/deleteWebhook?drop_pending_updates=False", timeout=10.0)
+                        except Exception:
+                            pass
+                    sleep_sec = 10.0
                 elif resp.status_code == 200:
                     j = resp.json()
                     if j and j.get("ok") and isinstance(j.get("result"), list):
