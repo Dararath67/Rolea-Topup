@@ -137,6 +137,7 @@ settings: Dict[str, Any] = {
     "telegram_chat_id": "-5315869838",
     "bug_alert_chat_id": "-1004361070205",
     "bug_alert_enabled": True,
+    "support_widget_enabled": True,
     "smtp_host": "smtp.gmail.com",
     "smtp_port": 587,
     "smtp_email": "",
@@ -4303,6 +4304,7 @@ async def get_public_settings():
             "khqr_merchant_name": settings.get("khqr_merchant_name"),
             "home_banner": settings.get("home_banner", "/media/banner1.webp"),
             "roblox_banner": settings.get("roblox_banner", "/media/roblox-banner.webp"),
+            "support_widget_enabled": bool(settings.get("support_widget_enabled", True)),
             "google_client_id": settings.get("google_client_id", "220196407393-n5m72vbjquni5g4uuo9bfpdrmmn41c24.apps.googleusercontent.com"),
             "turnstile_site_key": _get_turnstile_config()[0] if _get_turnstile_config()[1] else ""
         },
@@ -7616,6 +7618,8 @@ async def admin_save_settings(request: Request):
         settings["bug_alert_chat_id"] = str(body["bug_alert_chat_id"]).strip()
     if "bug_alert_enabled" in body and isinstance(body["bug_alert_enabled"], bool):
         settings["bug_alert_enabled"] = body["bug_alert_enabled"]
+    if "support_widget_enabled" in body and isinstance(body["support_widget_enabled"], bool):
+        settings["support_widget_enabled"] = body["support_widget_enabled"]
     for sm_key in ["smtp_host", "smtp_email", "admin_recovery_email"]:
         if sm_key in body and body[sm_key] is not None:
             settings[sm_key] = str(body[sm_key]).strip()

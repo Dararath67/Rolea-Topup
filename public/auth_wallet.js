@@ -1102,6 +1102,437 @@
 
   window.RoleaDialog = RoleaDialog;
 
+  // ==========================================
+  // FLOATING LIVE SUPPORT & FAQ DRAWER WIDGET
+  // ==========================================
+  const RoleaSupport = (() => {
+    let settingsCache = { telegram_handle: 'Rothzz3', support_widget_enabled: true };
+
+    function ensureSupportStyles() {
+      if (document.getElementById('rolea-support-styles')) return;
+      const st = document.createElement('style');
+      st.id = 'rolea-support-styles';
+      st.textContent = `
+        /* Floating Support Trigger Bubble */
+        #rolea-support-bubble {
+          position: fixed;
+          bottom: 24px;
+          right: 22px;
+          z-index: 99998;
+          display: flex;
+          align-items: center;
+          gap: 9px;
+          padding: 10px 16px 10px 12px;
+          background: linear-gradient(135deg, #0284c7 0%, #0077b6 100%);
+          color: #ffffff;
+          border-radius: 999px;
+          box-shadow: 0 6px 22px rgba(2, 132, 199, 0.42), 0 0 0 1px rgba(255, 255, 255, 0.2) inset;
+          cursor: pointer;
+          font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          font-size: 13.5px;
+          font-weight: 800;
+          letter-spacing: 0.2px;
+          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+          user-select: none;
+        }
+        #rolea-support-bubble:hover {
+          transform: translateY(-2.5px) scale(1.02);
+          box-shadow: 0 10px 28px rgba(2, 132, 199, 0.52);
+        }
+        #rolea-support-bubble .tg-icon-wrap {
+          position: relative;
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: #ffffff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #0284c7;
+          flex-shrink: 0;
+          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+        }
+        #rolea-support-bubble .online-dot {
+          position: absolute;
+          top: -2px;
+          right: -2px;
+          width: 10px;
+          height: 10px;
+          background: #10b981;
+          border: 2px solid #ffffff;
+          border-radius: 50%;
+          box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.4);
+          animation: rSupportPulse 2s infinite;
+        }
+        @keyframes rSupportPulse {
+          0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
+          70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+        @media (max-width: 640px) {
+          #rolea-support-bubble {
+            bottom: 78px;
+            right: 16px;
+            padding: 8px 14px 8px 10px;
+            font-size: 12.5px;
+          }
+          #rolea-support-bubble .tg-icon-wrap {
+            width: 28px;
+            height: 28px;
+          }
+        }
+
+        /* Drawer Overlay */
+        #rolea-support-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 999999;
+          background: rgba(15, 23, 42, 0.48);
+          backdrop-filter: blur(5px);
+          -webkit-backdrop-filter: blur(5px);
+          opacity: 0;
+          visibility: hidden;
+          transition: opacity 0.26s ease, visibility 0.26s;
+          display: flex;
+          justify-content: flex-end;
+          align-items: flex-end;
+          font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        #rolea-support-overlay.open {
+          opacity: 1;
+          visibility: visible;
+        }
+
+        /* Drawer Panel */
+        #rolea-support-drawer {
+          width: 100%;
+          max-width: 410px;
+          height: 100%;
+          max-height: 100vh;
+          background: #ffffff;
+          display: flex;
+          flex-direction: column;
+          transform: translateX(100%);
+          transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+          box-shadow: -10px 0 35px rgba(15, 23, 42, 0.2);
+          overflow: hidden;
+        }
+        #rolea-support-overlay.open #rolea-support-drawer {
+          transform: translateX(0);
+        }
+        @media (max-width: 640px) {
+          #rolea-support-drawer {
+            max-width: 100%;
+            height: 88vh;
+            border-top-left-radius: 24px;
+            border-top-right-radius: 24px;
+            transform: translateY(100%);
+          }
+          #rolea-support-overlay.open #rolea-support-drawer {
+            transform: translateY(0);
+          }
+        }
+
+        /* Drawer Components */
+        .rsd-header {
+          padding: 20px 22px;
+          background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+          color: #ffffff;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          position: relative;
+        }
+        .rsd-close-btn {
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: rgba(255, 255, 255, 0.18);
+          border: none;
+          color: #ffffff;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 16px;
+          transition: background 0.15s;
+        }
+        .rsd-close-btn:hover { background: rgba(255, 255, 255, 0.3); }
+
+        .rsd-body {
+          flex: 1;
+          overflow-y: auto;
+          padding: 20px 22px;
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+
+        .rsd-contact-card {
+          background: #f8fafc;
+          border: 1.5px solid #e2e8f0;
+          border-radius: 16px;
+          padding: 16px;
+          text-align: center;
+        }
+        .rsd-tg-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 9px;
+          width: 100%;
+          padding: 12px 18px;
+          background: linear-gradient(135deg, #0088cc 0%, #0077b6 100%);
+          color: #ffffff;
+          border-radius: 12px;
+          font-weight: 800;
+          font-size: 13.5px;
+          text-decoration: none;
+          box-shadow: 0 4px 14px rgba(0, 136, 204, 0.35);
+          transition: transform 0.15s;
+          box-sizing: border-box;
+          margin-top: 10px;
+        }
+        .rsd-tg-btn:hover { transform: translateY(-1.5px); }
+
+        .rsd-quick-order {
+          background: #f1f5f9;
+          border-radius: 14px;
+          padding: 14px;
+        }
+        .rsd-order-input-wrap {
+          display: flex;
+          gap: 8px;
+          margin-top: 8px;
+        }
+        .rsd-order-input {
+          flex: 1;
+          padding: 9px 12px;
+          border: 1.5px solid #cbd5e1;
+          border-radius: 10px;
+          font-size: 13px;
+          font-family: inherit;
+          outline: none;
+          background: #ffffff;
+          box-sizing: border-box;
+        }
+        .rsd-order-btn {
+          padding: 9px 14px;
+          background: #0f172a;
+          color: #ffffff;
+          border: none;
+          border-radius: 10px;
+          font-weight: 700;
+          font-size: 12.5px;
+          cursor: pointer;
+        }
+
+        /* FAQ Accordion */
+        .rsd-faq-item {
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          overflow: hidden;
+          background: #ffffff;
+          transition: border-color 0.15s;
+        }
+        .rsd-faq-item.active {
+          border-color: #0284c7;
+        }
+        .rsd-faq-q {
+          padding: 12px 14px;
+          font-weight: 700;
+          font-size: 13px;
+          color: #0f172a;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          user-select: none;
+          background: #fcfcfd;
+        }
+        .rsd-faq-a {
+          display: none;
+          padding: 10px 14px 14px;
+          font-size: 12.5px;
+          color: #475569;
+          line-height: 1.55;
+          border-top: 1px solid #f1f5f9;
+          background: #ffffff;
+        }
+        .rsd-faq-item.active .rsd-faq-a {
+          display: block;
+        }
+      `;
+      document.head.appendChild(st);
+    }
+
+    function buildSupportHtml(handle, user) {
+      const safeHandle = (handle || 'Rothzz3').replace(/^@/, '');
+      const greeting = user && user.username
+        ? encodeURIComponent(`សួស្តី Admin @${safeHandle}! ខ្ញុំឈ្មោះ @${user.username} ពី Rolea Topup។ ខ្ញុំត្រូវការជំនួយទាក់ទងនឹង៖ `)
+        : encodeURIComponent(`សួស្តី Admin @${safeHandle}! ខ្ញុំជាភ្ញៀវ Rolea Topup ត្រូវការជំនួយទាក់ទងនឹង៖ `);
+      const tgUrl = `https://t.me/${safeHandle}?text=${greeting}`;
+
+      return `
+        <div id="rolea-support-bubble" onclick="window.RoleaSupport.openSupport()" title="Click to chat with Support">
+          <div class="tg-icon-wrap">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.5 2L2 9.5l7 3.5 3.5 7 2-6 7-12z"/>
+            </svg>
+            <span class="online-dot"></span>
+          </div>
+          <span>Support 24/7</span>
+        </div>
+
+        <div id="rolea-support-overlay" onclick="if(event.target===this) window.RoleaSupport.closeSupport()">
+          <div id="rolea-support-drawer">
+            <div class="rsd-header">
+              <div style="display:flex;align-items:center;gap:11px">
+                <div style="width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:20px">
+                  💬
+                </div>
+                <div>
+                  <div style="font-weight:800;font-size:15px;letter-spacing:0.2px">Rolea Support 24/7</div>
+                  <div style="font-size:11.5px;opacity:0.9;display:flex;align-items:center;gap:5px">
+                    <span style="width:7px;height:7px;border-radius:50%;background:#4ade80;display:inline-block"></span>
+                    <span>Admin Online (ឆ្លើយតបរហ័ស)</span>
+                  </div>
+                </div>
+              </div>
+              <button class="rsd-close-btn" onclick="window.RoleaSupport.closeSupport()" aria-label="Close">✕</button>
+            </div>
+
+            <div class="rsd-body">
+              <!-- Contact Card -->
+              <div class="rsd-contact-card">
+                <div style="font-size:13px;font-weight:700;color:#0f172a">ត្រូវការជំនួយផ្ទាល់?</div>
+                <div style="font-size:12px;color:#64748b;margin:3px 0 10px">ឆាតមកកាន់ក្រុមការងារ Admin តាម Telegram ឆ្លើយតបក្នុង ១-៥ នាទី</div>
+                <a href="${tgUrl}" target="_blank" rel="noopener noreferrer" class="rsd-tg-btn">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 3L10 14"/><path d="M21 3l-7 18-4-7-7-4z"/></svg>
+                  <span>ឆាតជាមួយ Admin (@${safeHandle})</span>
+                </a>
+              </div>
+
+              <!-- Quick Order Tracker -->
+              <div class="rsd-quick-order">
+                <div style="font-size:12.5px;font-weight:800;color:#0f172a">🔍 ពិនិត្យស្ថានភាពកុម្ម៉ង់ (Track Order)</div>
+                <div class="rsd-order-input-wrap">
+                  <input type="text" id="rsd-order-query" class="rsd-order-input" placeholder="ឧ. PR1234567..." onkeydown="if(event.key==='Enter') window.RoleaSupport.trackOrderFromDrawer()">
+                  <button type="button" class="rsd-order-btn" onclick="window.RoleaSupport.trackOrderFromDrawer()">ពិនិត្យ</button>
+                </div>
+              </div>
+
+              <!-- FAQs -->
+              <div>
+                <div style="font-size:13px;font-weight:800;color:#0f172a;margin-bottom:10px">❓ សំណួរដែលសួរញឹកញាប់ (FAQs)</div>
+                <div style="display:flex;flex-direction:column;gap:8px">
+                  <div class="rsd-faq-item active" onclick="this.classList.toggle('active')">
+                    <div class="rsd-faq-q">
+                      <span>តើទិញ Robux រួចរង់ចាំប៉ុន្មាននាទី?</span>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    <div class="rsd-faq-a">
+                      ប្រព័ន្ធនឹងធ្វើការបាញ់ Robux ជូនភ្លាមៗក្នុងរយៈពេល <b>១ ទៅ ៥ នាទី</b> បន្ទាប់ពីលោកអ្នកបានស្កេនទូទាត់ជោគជ័យ។
+                    </div>
+                  </div>
+
+                  <div class="rsd-faq-item" onclick="this.classList.toggle('active')">
+                    <div class="rsd-faq-q">
+                      <span>តើបង្វិលកង់ Daily Free Spin យ៉ាងដូចម្តេច?</span>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    <div class="rsd-faq-a">
+                      គ្រាន់តែចុះឈ្មោះគណនី Rolea Account និង Sign In ចូល លោកអ្នកអាចចុចបង្វិលយករង្វាន់ Robux ដោយឥតគិតថ្លៃបាន <b>១ ដងរៀងរាល់ ២៤ ម៉ោង</b>!
+                    </div>
+                  </div>
+
+                  <div class="rsd-faq-item" onclick="this.classList.toggle('active')">
+                    <div class="rsd-faq-q">
+                      <span>ចុះប្រសិនបើ Order ត្រូវបាន Refund?</span>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    <div class="rsd-faq-a">
+                      ទឹកប្រាក់នឹងត្រូវបាន <b>បង្វិលសងចូលក្នុង Rolea Wallet របស់អ្នក ១០០% ដោយស្វ័យប្រវត្តិភ្លាមៗ</b> ហើយប្រព័ន្ធនឹង Auto-Login ចូលគណនីជូនអ្នកតែម្ដង។
+                    </div>
+                  </div>
+
+                  <div class="rsd-faq-item" onclick="this.classList.toggle('active')">
+                    <div class="rsd-faq-q">
+                      <span>តើត្រូវបញ្ចូលលុយចូល Wallet យ៉ាងដូចម្តេច?</span>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    <div class="rsd-faq-a">
+                      ចុចលើរូបកាបូបលុយនៅខាងលើជ្រើសរើសចំនួនទឹកប្រាក់ ហើយស្កេន ABA KHQR នោះលុយនឹងចូលក្នុង Rolea Wallet ភ្លាមៗតែម្ដង។
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Trust footer -->
+              <div style="margin-top:auto;padding-top:12px;border-top:1px solid #f1f5f9;text-align:center;font-size:11.5px;color:#94a3b8">
+                ⚡ ដំណើរការស្វ័យប្រវត្ត ២៤ ម៉ោង / ៧ ថ្ងៃ • ទំនុកចិត្ត ១០០%
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function init() {
+      // Don't mount in admin panel
+      if (window.location.pathname.startsWith('/admin')) return;
+
+      ensureSupportStyles();
+      try {
+        const res = await fetch('/api/settings');
+        if (res.ok) {
+          const j = await res.json();
+          if (j.telegram_handle) settingsCache.telegram_handle = j.telegram_handle;
+          if (j.support_widget_enabled !== undefined) settingsCache.support_widget_enabled = !!j.support_widget_enabled;
+        }
+      } catch (e) {}
+
+      if (!settingsCache.support_widget_enabled) return;
+
+      let el = document.getElementById('rolea-support-container');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'rolea-support-container';
+        document.body.appendChild(el);
+      }
+      el.innerHTML = buildSupportHtml(settingsCache.telegram_handle, currentUser);
+    }
+
+    function openSupport() {
+      const ov = document.getElementById('rolea-support-overlay');
+      if (ov) ov.classList.add('open');
+    }
+
+    function closeSupport() {
+      const ov = document.getElementById('rolea-support-overlay');
+      if (ov) ov.classList.remove('open');
+    }
+
+    function trackOrderFromDrawer() {
+      const inp = document.getElementById('rsd-order-query');
+      if (!inp) return;
+      const val = inp.value.trim().lstrip ? inp.value.trim().lstrip('#') : inp.value.trim().replace(/^#/, '');
+      if (val) {
+        window.location.assign('/check-order?order_id=' + encodeURIComponent(val));
+      }
+    }
+
+    return {
+      init,
+      openSupport,
+      closeSupport,
+      trackOrderFromDrawer
+    };
+  })();
+
+  window.RoleaSupport = RoleaSupport;
+
   // Export API
   window.RoleaAuth = {
     handleForgotSubmit,
@@ -1132,8 +1563,12 @@
 
   // Auto initialize on DOM ready
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', checkCurrentUser);
+    document.addEventListener('DOMContentLoaded', () => {
+      checkCurrentUser();
+      try { RoleaSupport.init(); } catch(e) {}
+    });
   } else {
     checkCurrentUser();
+    try { RoleaSupport.init(); } catch(e) {}
   }
 })();
