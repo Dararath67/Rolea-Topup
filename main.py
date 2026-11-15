@@ -1101,7 +1101,7 @@ def verify_admin_session(request: Request) -> Optional[str]:
 async def send_admin_security_telegram(message_text: str):
     if not admin_security.get("telegram_login_alert", True):
         return
-    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "") or "8603328924:AAEkH7DeU2Yp7FaBhuBvEzYiGBAhzWlGOgE"
+    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
     # Admin security alerts must ONLY go to private admin chat, NEVER to group -5315869838
     admin_chat = str(settings.get("admin_telegram_chat_id") or "8710759437").strip()
     if token and admin_chat:
@@ -1242,7 +1242,7 @@ async def send_telegram_paid_alert(order: Dict[str, Any]):
     if order.get("type") == "wallet_topup" or order.get("product_type") == "wallet" or str(order.get("order_id", "")).startswith("WLT"):
         return
 
-    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "") or "8603328924:AAEkH7DeU2Yp7FaBhuBvEzYiGBAhzWlGOgE"
+    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
     chat_id = settings.get("telegram_chat_id") or os.environ.get("TELEGRAM_CHAT_ID", "") or "-5315869838"
     if not token or not chat_id:
         return
@@ -1520,7 +1520,7 @@ def _check_telegram_rate_limit(from_id: str, username: str = "") -> bool:
 
 async def send_telegram_admin_alert(text: str, reply_markup: Optional[Dict] = None) -> bool:
     """Send an HTML alert message to the configured admin Telegram chat."""
-    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "") or "8603328924:AAEkH7DeU2Yp7FaBhuBvEzYiGBAhzWlGOgE"
+    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
     chat_id = settings.get("telegram_chat_id") or os.environ.get("TELEGRAM_CHAT_ID", "") or "-5315869838"
     if not token or not chat_id or not text:
         print(f"[Telegram] Skipped admin alert (token_present={bool(token)}, chat_id={chat_id!r})")
@@ -1548,7 +1548,7 @@ async def send_bug_alert_telegram(
     if not settings.get("bug_alert_enabled", True):
         return False
 
-    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "") or "8603328924:AAEkH7DeU2Yp7FaBhuBvEzYiGBAhzWlGOgE"
+    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
     chat_id = str(settings.get("bug_alert_chat_id") or os.environ.get("BUG_ALERT_CHAT_ID") or BUG_ALERT_CHAT_ID).strip()
     if not token or not chat_id:
         return False
@@ -3381,7 +3381,7 @@ async def telegram_polling_loop():
     while True:
         sleep_sec = 0.5
         try:
-            token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "") or "8603328924:AAEkH7DeU2Yp7FaBhuBvEzYiGBAhzWlGOgE"
+            token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
             if token:
                 admin_private_chat = str(settings.get("admin_telegram_chat_id") or "8710759437").strip()
 
@@ -4278,7 +4278,7 @@ def _cached_json_response(payload: Any, cache_state: str) -> JSONResponse:
 async def telegram_webhook(request: Request):
     try:
         body = await request.json()
-        token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "") or "8603328924:AAEkH7DeU2Yp7FaBhuBvEzYiGBAhzWlGOgE"
+        token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
         if body and isinstance(body, dict):
             asyncio.create_task(process_telegram_update(body, token))
         return {"ok": True}
@@ -7915,7 +7915,7 @@ async def check_and_send_low_stock_alert():
     inventory["last_alert_sent_at"] = now_ts
     save_inventory()
 
-    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "") or "8603328924:AAEkH7DeU2Yp7FaBhuBvEzYiGBAhzWlGOgE"
+    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
     # Low stock alert must ONLY go to private admin chat, NEVER to group -5315869838
     admin_chat = str(settings.get("admin_telegram_chat_id") or "8710759437").strip()
     if token and admin_chat:
