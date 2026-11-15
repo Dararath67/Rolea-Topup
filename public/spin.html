@@ -237,6 +237,41 @@
       opacity: 0.6;
       cursor: not-allowed;
     }
+    .btn-daily-free-spin {
+      width: 100%;
+      padding: 13px 18px;
+      border: none;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #ffffff;
+      font-family: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
+      transition: all 0.2s ease;
+      position: relative;
+    }
+    .btn-daily-free-spin:hover {
+      transform: translateY(-1.5px);
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
+    }
+    .btn-daily-free-spin:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .daily-badge {
+      background: #facc15;
+      color: #713f12;
+      font-size: 11px;
+      font-weight: 900;
+      padding: 3px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+    }
     .spin-err {
       display: none;
       margin-top: 12px;
@@ -435,6 +470,29 @@
 
         <div class="spin-err" id="spin-err-box"></div>
 
+        <!-- Daily Free Spin Box -->
+        <div id="daily-free-spin-container" style="display:none;margin-bottom:14px">
+          <div id="daily-free-spin-ready" style="display:none">
+            <button type="button" class="btn-daily-free-spin" id="btn-daily-free-spin" onclick="claimDailyFreeSpin()">
+              <span style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:18px">🎁</span>
+                <span style="font-weight:800;font-size:13.5px" id="lbl-daily-spin-btn">Claim 1 Free Spin Today!</span>
+              </span>
+              <span class="daily-badge">FREE</span>
+            </button>
+          </div>
+          <div id="daily-free-spin-cooldown" style="display:none;background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:14px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:18px">⏳</span>
+              <div>
+                <div style="font-size:11.5px;color:#64748b;font-weight:700">Daily Free Spin Claimed</div>
+                <div style="font-size:13px;font-weight:800;color:#0f172a" id="daily-countdown-text">Next spin in --:--:--</div>
+              </div>
+            </div>
+            <span style="font-size:11px;font-weight:700;color:#059669;background:#ecfdf5;padding:4px 8px;border-radius:6px">Come back tomorrow</span>
+          </div>
+        </div>
+
         <div class="spin-pay-btns">
           <button type="button" class="btn-spin-pay wallet" id="btn-spin-wallet" onclick="buyAndSpin('wallet')">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 3H8a2 2 0 0 0-2 2v2h12V5a2 2 0 0 0-2-2z"/></svg>
@@ -541,10 +599,139 @@ let verifiedUser = null;
 let currentAngleDeg = 0;
 let isSpinning = false;
 let khqrPollTimer = null;
+let dailyCountdownTimer = null;
+
+function renderDailyFreeSpin(dfs) {
+  const container = document.getElementById('daily-free-spin-container');
+  const readyBox = document.getElementById('daily-free-spin-ready');
+  const cooldownBox = document.getElementById('daily-free-spin-cooldown');
+  const btn = document.getElementById('btn-daily-free-spin');
+  const lbl = document.getElementById('lbl-daily-spin-btn');
+  const countText = document.getElementById('daily-countdown-text');
+
+  if (!container || !readyBox || !cooldownBox) return;
+
+  if (!dfs || !dfs.enabled) {
+    container.style.display = 'none';
+    return;
+  }
+
+  container.style.display = 'block';
+
+  const token = localStorage.getItem('rolea_token') || '';
+  if (!token) {
+    readyBox.style.display = 'block';
+    cooldownBox.style.display = 'none';
+    if (lbl) lbl.textContent = 'Sign In to Claim 1 Free Spin Today!';
+    if (btn) {
+      btn.onclick = () => {
+        if (window.RoleaAuth) window.RoleaAuth.openAuthModal('login');
+        else window.location.assign('/signin?redirect=/spin');
+      };
+      btn.disabled = false;
+    }
+    return;
+  }
+
+  if (dfs.can_spin) {
+    readyBox.style.display = 'block';
+    cooldownBox.style.display = 'none';
+    if (lbl) lbl.textContent = 'Claim 1 Free Spin Today!';
+    if (btn) {
+      btn.onclick = claimDailyFreeSpin;
+      btn.disabled = false;
+    }
+  } else {
+    readyBox.style.display = 'none';
+    cooldownBox.style.display = 'flex';
+
+    if (dailyCountdownTimer) clearInterval(dailyCountdownTimer);
+    let remSec = dfs.remaining_seconds || 0;
+
+    const tick = () => {
+      if (remSec <= 0) {
+        clearInterval(dailyCountdownTimer);
+        readyBox.style.display = 'block';
+        cooldownBox.style.display = 'none';
+        if (btn) btn.disabled = false;
+        return;
+      }
+      const hh = String(Math.floor(remSec / 3600)).padStart(2, '0');
+      const mm = String(Math.floor((remSec % 3600) / 60)).padStart(2, '0');
+      const ss = String(remSec % 60).padStart(2, '0');
+      if (countText) countText.textContent = `Next spin in ${hh}:${mm}:${ss}`;
+      remSec--;
+    };
+    tick();
+    dailyCountdownTimer = setInterval(tick, 1000);
+  }
+}
+
+async function claimDailyFreeSpin() {
+  if (isSpinning) return;
+  hideSpinError();
+
+  const token = localStorage.getItem('rolea_token') || '';
+  if (!token) {
+    if (window.RoleaAuth) window.RoleaAuth.openAuthModal('login');
+    else window.location.assign('/signin?redirect=/spin');
+    return;
+  }
+
+  const btn = document.getElementById('btn-daily-free-spin');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span style="display:flex;align-items:center;gap:8px"><span class="qr-spinner" style="width:14px;height:14px;border-width:2px;display:inline-block"></span><span>Rolling Daily Free Spin…</span></span><span class="daily-badge">FREE</span>';
+  }
+
+  try {
+    const res = await fetch('/api/spin/daily-free-spin', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      }
+    });
+    const j = await res.json();
+    if (!res.ok || !j.ok) {
+      showSpinError(j.error || 'Failed to claim daily free spin.');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<span style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">🎁</span><span style="font-weight:800;font-size:13.5px">Claim 1 Free Spin Today!</span></span><span class="daily-badge">FREE</span>';
+      }
+      return;
+    }
+
+    if (j.order_id && j.receipt_token) {
+      saveSpinOrderLocally(j.order_id, j.receipt_token, Number(j.slice?.robux || 0));
+    }
+
+    animateWheelToSlice(j.slice_index, j.slice, j.order_id, j.receipt_token);
+
+    renderDailyFreeSpin({
+      enabled: true,
+      can_spin: false,
+      remaining_seconds: j.remaining_seconds || 86400
+    });
+
+    if (window.RoleaAuth && typeof window.RoleaAuth.checkCurrentUser === 'function') {
+      window.RoleaAuth.checkCurrentUser();
+    }
+  } catch (err) {
+    showSpinError('Network error. Please try again.');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">🎁</span><span style="font-weight:800;font-size:13.5px">Claim 1 Free Spin Today!</span></span><span class="daily-badge">FREE</span>';
+    }
+  }
+}
 
 async function loadSpinConfig() {
   try {
-    const res = await fetch('/api/spin/config');
+    const headers = {};
+    const token = localStorage.getItem('rolea_token') || '';
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    const res = await fetch('/api/spin/config', { headers });
     const j = await res.json();
     if (!res.ok || !j.ok) return;
     spinConfig = j;
@@ -558,6 +745,7 @@ async function loadSpinConfig() {
       document.getElementById('btn-spin-khqr').disabled = true;
     }
 
+    renderDailyFreeSpin(j.daily_free_spin);
     drawWheel(j.slices || []);
     renderWinners(j.recent_winners || []);
   } catch (e) {}

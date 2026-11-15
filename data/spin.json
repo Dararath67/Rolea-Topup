@@ -244,5 +244,8 @@
       "order_id": null,
       "created_at": "2026-11-11T04:13:42.740183+00:00"
     }
-  ]
+  ],
+  "daily_free_spin_enabled": true,
+  "daily_free_spin_cooldown_hours": 24,
+  "daily_free_spin_max_robux": 10
 }

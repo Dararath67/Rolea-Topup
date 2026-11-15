@@ -2244,6 +2244,35 @@
           </div>
         </div>
 
+        <!-- Daily Free Spin Setting Box -->
+        <div style="background:#ecfdf5;border:1.5px solid #a7f3d0;border-radius:14px;padding:16px;margin-bottom:18px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:22px">🎁</span>
+              <div>
+                <div style="font-weight:800;font-size:14px;color:#065f46">Daily Free Spin &amp; Check-in System</div>
+                <div style="font-size:12px;color:#047857">Allow registered customers to spin 1 time for free every 24 hours</div>
+              </div>
+            </div>
+            <label class="toggle-switch-label">
+              <input type="checkbox" id="spin-set-daily-enabled" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:14px">
+            <div class="form-group-modern" style="margin:0">
+              <label style="color:#065f46">Cooldown (Hours)</label>
+              <input type="number" step="1" min="1" max="168" id="spin-set-daily-cooldown" value="24">
+              <div style="font-size:11px;color:#047857;margin-top:4px">Default: 24h between free spins</div>
+            </div>
+            <div class="form-group-modern" style="margin:0">
+              <label style="color:#065f46">Max Robux Prize on Free Spin (R$)</label>
+              <input type="number" step="1" min="0" max="100" id="spin-set-daily-maxrobux" value="10">
+              <div style="font-size:11px;color:#047857;margin-top:4px">Safe guard: prevents jackpot wins on free spins</div>
+            </div>
+          </div>
+        </div>
+
         <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(210px, 1fr));gap:14px">
           <div class="form-group-modern" style="margin:0">
             <label>Wheel Title</label>
@@ -6210,6 +6239,9 @@ async function loadAdminSpinData() {
 
     document.getElementById('spin-set-enabled').checked = !!sp.enabled;
     document.getElementById('spin-set-reserve').checked = !!sp.require_profit_reserve;
+    document.getElementById('spin-set-daily-enabled').checked = sp.daily_free_spin_enabled !== false;
+    document.getElementById('spin-set-daily-cooldown').value = sp.daily_free_spin_cooldown_hours || 24;
+    document.getElementById('spin-set-daily-maxrobux').value = sp.daily_free_spin_max_robux !== undefined ? sp.daily_free_spin_max_robux : 10;
     document.getElementById('spin-set-title').value = sp.title || 'Lucky Robux Wheel';
     document.getElementById('spin-set-price').value = sp.spin_price_usd ?? 0.50;
     document.getElementById('spin-set-cost1k').value = sp.cost_per_1k_robux_usd ?? 4.00;
@@ -6323,6 +6355,9 @@ async function saveSpinConfig() {
     const payload = {
       enabled: document.getElementById('spin-set-enabled').checked,
       require_profit_reserve: document.getElementById('spin-set-reserve').checked,
+      daily_free_spin_enabled: document.getElementById('spin-set-daily-enabled').checked,
+      daily_free_spin_cooldown_hours: parseInt(document.getElementById('spin-set-daily-cooldown').value, 10) || 24,
+      daily_free_spin_max_robux: parseInt(document.getElementById('spin-set-daily-maxrobux').value, 10) || 10,
       title: document.getElementById('spin-set-title').value.trim(),
       spin_price_usd: parseFloat(document.getElementById('spin-set-price').value),
       cost_per_1k_robux_usd: parseFloat(document.getElementById('spin-set-cost1k').value),

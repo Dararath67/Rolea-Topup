@@ -683,14 +683,31 @@ pending_spin_tickets: Dict[str, Dict[str, Any]] = {}
 def save_spin_data():
     save_json(SPIN_PATH, spin_data)
 
-def perform_spin_roll(sim_state: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """Weighted server-side spin roll with Anti-Big-Prize Guard (មិនឲ្យងាយត្រូវអាធំៗ)."""
+def perform_spin_roll(sim_state: Optional[Dict[str, Any]] = None, is_daily_free: bool = False, max_free_robux: int = 10) -> Dict[str, Any]:
+    """Weighted server-side spin roll with Anti-Big-Prize Guard (មិនឲ្យងាយត្រូវអាធំៗ) and Daily Free Spin filter."""
     state = sim_state if sim_state is not None else spin_data
     slices = state.get("slices", [])
     if not slices:
         return {"slice_index": 0, "slice": {"id": "sl_0", "label": "Thank You", "robux": 0, "weight": 100, "color": "#475569", "text_color": "#ffffff"}, "guard_triggered": False}
 
     sys_rng = secrets.SystemRandom()
+
+    if is_daily_free:
+        # Safe filter for daily free spins: only allow Thank You (0 R$) or small prizes <= max_free_robux
+        free_indices = [i for i, s in enumerate(slices) if int(s.get("robux", 0)) <= max_free_robux]
+        if free_indices:
+            free_weights = [max(0.1, float(slices[i].get("weight", 0))) for i in free_indices]
+            fw_total = sum(free_weights)
+            fr = sys_rng.uniform(0.0, fw_total)
+            fupto = 0.0
+            chosen_idx = free_indices[0]
+            for fi, fw in zip(free_indices, free_weights):
+                fupto += fw
+                if fr <= fupto:
+                    chosen_idx = fi
+                    break
+            return {"slice_index": chosen_idx, "slice": slices[chosen_idx], "guard_triggered": False}
+
     weights = [max(0.0, float(s.get("weight", 0))) for s in slices]
     total_w = sum(weights)
     if total_w <= 0:
@@ -4500,43 +4517,202 @@ def _finalize_spin_win_order(username: str, roblox_id: Optional[str], avatar: st
     return order_id, receipt_token
 
 @app.get("/api/spin/config")
-async def get_public_spin_config():
-    def _build_spin_config():
-        public_slices = [
-            {
-                "id": s.get("id"),
-                "label": s.get("label"),
-                "robux": int(s.get("robux", 0)),
-                "color": s.get("color", "#2563eb"),
-                "text_color": s.get("text_color", "#ffffff")
-            }
-            for s in spin_data.get("slices", [])
-        ]
-        recent_winners = []
-        for h in spin_data.get("history", []):
-            if int(h.get("robux", 0)) > 0:
-                u = str(h.get("username") or "Player")
-                masked = (u[:3] + "***") if len(u) > 3 else (u + "***")
-                recent_winners.append({
-                    "username": masked,
-                    "robux": int(h.get("robux", 0)),
-                    "label": h.get("label"),
-                    "created_at": h.get("created_at")
-                })
-                if len(recent_winners) >= 12:
-                    break
-        return {
-            "ok": True,
-            "enabled": bool(spin_data.get("enabled", True)),
-            "title": spin_data.get("title", "Lucky Robux Wheel"),
-            "subtitle": spin_data.get("subtitle", "Spin to win instant Robux up to 1,000 R$!"),
-            "spin_price_usd": float(spin_data.get("spin_price_usd", 0.50)),
-            "slices": public_slices,
-            "recent_winners": recent_winners
+async def get_public_spin_config(request: Request):
+    public_slices = [
+        {
+            "id": s.get("id"),
+            "label": s.get("label"),
+            "robux": int(s.get("robux", 0)),
+            "color": s.get("color", "#2563eb"),
+            "text_color": s.get("text_color", "#ffffff")
         }
+        for s in spin_data.get("slices", [])
+    ]
+    recent_winners = []
+    for h in spin_data.get("history", []):
+        if int(h.get("robux", 0)) > 0:
+            u = str(h.get("username") or "Player")
+            masked = (u[:3] + "***") if len(u) > 3 else (u + "***")
+            recent_winners.append({
+                "username": masked,
+                "robux": int(h.get("robux", 0)),
+                "label": h.get("label"),
+                "created_at": h.get("created_at")
+            })
+            if len(recent_winners) >= 12:
+                break
 
-    data, state = cache_aside_get("rolea:spin:config", 120, _build_spin_config)
-    return _cached_json_response(data, state)
+    # Calculate user's daily free spin status
+    daily_enabled = bool(spin_data.get("daily_free_spin_enabled", True))
+    cooldown_hours = max(1, int(spin_data.get("daily_free_spin_cooldown_hours", 24)))
+    can_daily_spin = False
+    remaining_seconds = 0
+    cur_u = get_user_from_req(request)
+
+    if cur_u:
+        last_spin = cur_u.get("last_daily_spin_at")
+        if not last_spin:
+            can_daily_spin = True
+            remaining_seconds = 0
+        else:
+            try:
+                last_dt = datetime.fromisoformat(str(last_spin).replace("Z", "+00:00"))
+                elapsed = (datetime.now(timezone.utc) - last_dt).total_seconds()
+                total_cd = cooldown_hours * 3600
+                if elapsed >= total_cd:
+                    can_daily_spin = True
+                    remaining_seconds = 0
+                else:
+                    can_daily_spin = False
+                    remaining_seconds = max(0, int(total_cd - elapsed))
+            except Exception:
+                can_daily_spin = True
+                remaining_seconds = 0
+    else:
+        can_daily_spin = True
+        remaining_seconds = 0
+
+    return {
+        "ok": True,
+        "enabled": bool(spin_data.get("enabled", True)),
+        "title": spin_data.get("title", "Lucky Robux Wheel"),
+        "subtitle": spin_data.get("subtitle", "Spin to win instant Robux up to 1,000 R$!"),
+        "spin_price_usd": float(spin_data.get("spin_price_usd", 0.50)),
+        "slices": public_slices,
+        "recent_winners": recent_winners,
+        "daily_free_spin": {
+            "enabled": daily_enabled,
+            "cooldown_hours": cooldown_hours,
+            "max_robux": int(spin_data.get("daily_free_spin_max_robux", 10)),
+            "can_spin": can_daily_spin,
+            "remaining_seconds": remaining_seconds,
+            "is_logged_in": bool(cur_u)
+        }
+    }
+
+@app.post("/api/spin/daily-free-spin")
+async def claim_daily_free_spin(request: Request):
+    if not spin_data.get("enabled", True):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Lucky Spin Robux is temporarily disabled by Admin."})
+
+    if not spin_data.get("daily_free_spin_enabled", True):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Daily Free Spin is temporarily disabled by Admin."})
+
+    current_user = get_user_from_req(request)
+    if not current_user:
+        return JSONResponse(status_code=401, content={"ok": False, "error": "Please sign in to claim your Daily Free Spin!"})
+
+    cooldown_hours = max(1, int(spin_data.get("daily_free_spin_cooldown_hours", 24)))
+    total_cd = cooldown_hours * 3600
+
+    last_spin = current_user.get("last_daily_spin_at")
+    if last_spin:
+        try:
+            last_dt = datetime.fromisoformat(str(last_spin).replace("Z", "+00:00"))
+            elapsed = (datetime.now(timezone.utc) - last_dt).total_seconds()
+            if elapsed < total_cd:
+                rem_sec = int(total_cd - elapsed)
+                hh = rem_sec // 3600
+                mm = (rem_sec % 3600) // 60
+                return JSONResponse(status_code=400, content={
+                    "ok": False,
+                    "error": f"Daily Free Spin already claimed! Next spin available in {hh}h {mm}m.",
+                    "remaining_seconds": rem_sec
+                })
+        except Exception:
+            pass
+
+    client_ip = get_admin_effective_ip(request)
+    blocked, b_reason = is_blacklisted(username=current_user.get("username"), ip=client_ip)
+    if blocked:
+        return JSONResponse(status_code=403, content={"ok": False, "error": f"Account blocked: {b_reason}"})
+
+    max_free_r = max(1, int(spin_data.get("daily_free_spin_max_robux", 10)))
+    roll = perform_spin_roll(is_daily_free=True, max_free_robux=max_free_r)
+    sl = roll["slice"]
+    robux_won = int(sl.get("robux", 0))
+
+    spin_id = "SPIN" + secrets.token_hex(4).upper()
+    now_iso = datetime.now(timezone.utc).isoformat()
+    current_user["last_daily_spin_at"] = now_iso
+    current_user["daily_spin_count"] = int(current_user.get("daily_spin_count", 0)) + 1
+    save_users()
+
+    username = current_user.get("username", "Lucky Player")
+    avatar = current_user.get("avatar") or "/media/robux-coin.svg"
+    display_name = current_user.get("username")
+
+    order_id = None
+    receipt_token = None
+    if robux_won > 0:
+        order_id = spin_id
+        receipt_token = secrets.token_hex(16)
+        new_order = {
+            "order_id": order_id,
+            "token": receipt_token,
+            "user_id": current_user["id"],
+            "buyer_account": username,
+            "game": "roblox",
+            "product_name": "Daily Free Spin Robux",
+            "product_type": "roblox",
+            "package": f"Daily Free Spin: {robux_won} Robux",
+            "package_id": "spin_reward",
+            "robux_amount": robux_won,
+            "original_amount": 0.0,
+            "discount": 0.0,
+            "promo_code": None,
+            "amount": 0.0,
+            "payment_method": "Daily Free Spin",
+            "player_id": username,
+            "roblox_username": username,
+            "display_name": display_name,
+            "avatar": avatar,
+            "status": "paid",
+            "step": "unclaimed",
+            "paid": True,
+            "delivered": False,
+            "claim_submitted": False,
+            "telegram_alerted": False,
+            "claim_note": "",
+            "created_at": now_iso,
+            "label": f"Daily Free Spin Winner ({robux_won} R$) — Waiting user claim"
+        }
+        orders.insert(0, new_order)
+        _prune_orders_safe(500)
+        save_orders()
+
+    hist_entry = {
+        "spin_id": spin_id,
+        "username": username,
+        "label": sl.get("label", "Thank You"),
+        "robux": robux_won,
+        "price_usd": 0.0,
+        "payment_method": "Daily Free Spin",
+        "guard_triggered": False,
+        "order_id": order_id,
+        "created_at": now_iso
+    }
+    spin_data.setdefault("history", []).insert(0, hist_entry)
+    if len(spin_data["history"]) > 300:
+        spin_data["history"] = spin_data["history"][:300]
+    save_spin_data()
+
+    return {
+        "ok": True,
+        "paid": True,
+        "spin_id": spin_id,
+        "slice_index": roll["slice_index"],
+        "slice": {
+            "id": sl.get("id"),
+            "label": sl.get("label"),
+            "robux": robux_won,
+            "color": sl.get("color")
+        },
+        "order_id": order_id,
+        "receipt_token": receipt_token,
+        "remaining_seconds": total_cd,
+        "message": f"🎉 Congratulations! You won {robux_won} Robux from your Daily Free Spin!" if robux_won > 0 else "🎁 Thank you for playing your Daily Free Spin! Come back tomorrow for another chance."
+    }
 
 @app.post("/api/spin/create-ticket")
 async def create_spin_ticket(request: Request):
@@ -4906,6 +5082,12 @@ async def admin_save_spin(request: Request):
         spin_data["min_spins_between_big_wins"] = max(0, int(body["min_spins_between_big_wins"]))
     if "require_profit_reserve" in body:
         spin_data["require_profit_reserve"] = bool(body["require_profit_reserve"])
+    if "daily_free_spin_enabled" in body:
+        spin_data["daily_free_spin_enabled"] = bool(body["daily_free_spin_enabled"])
+    if "daily_free_spin_cooldown_hours" in body:
+        spin_data["daily_free_spin_cooldown_hours"] = max(1, int(body["daily_free_spin_cooldown_hours"]))
+    if "daily_free_spin_max_robux" in body:
+        spin_data["daily_free_spin_max_robux"] = max(1, int(body["daily_free_spin_max_robux"]))
 
     if "slices" in body and isinstance(body["slices"], list) and len(body["slices"]) >= 2:
         cleaned = []
