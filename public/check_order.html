@@ -12,6 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+Khmer:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
+  <script src="/receipt_slip.js"></script>
   <style>
     :root {
       --font-main: 'Plus Jakarta Sans', 'Inter', 'Noto Sans Khmer', system-ui, -apple-system, sans-serif;
@@ -633,8 +634,16 @@
           </div>
         </div>
 
-        <!-- Action Links (View Receipt & Print) -->
+        <!-- Action Links (Download Slip, View Receipt & Print) -->
         <div class="track-actions">
+          <button type="button" id="btn-receipt-slip-download" onclick="downloadSlipFromCheckOrder()" class="btn-track-action" style="background:linear-gradient(135deg, #10b981 0%, #059669 100%);color:#ffffff;border:none;box-shadow:0 4px 12px rgba(16,185,129,0.3);font-weight:800;cursor:pointer">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span id="lbl-slip-check-order">Download Slip</span>
+          </button>
           <a id="btn-receipt-view" href="#" class="btn-track-action primary">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
             View Official Receipt
@@ -884,6 +893,8 @@ function renderOrderCard(o) {
     document.getElementById('res-account').textContent = '@' + accVal;
   }
 
+  window._currentTrackedOrder = o;
+
   document.getElementById('res-amount').textContent = '$' + Number(o.amount || 0).toFixed(2) + ' USD';
   document.getElementById('res-payment').textContent = o.payment_method || 'ABA KHQR';
 
@@ -991,7 +1002,7 @@ async function claimRefundWallet() {
       localStorage.setItem('rolea_token', d.token);
       if (window.RoleaDialog) {
         RoleaDialog.alert({
-          title: '🎉 Claim ជោគជ័យ!',
+          title: 'Claim ជោគជ័យ!',
           message: `គណនី @${d.user.username} ទទួលបាន $${Number(d.balance).toFixed(2)} USD រួចរាល់! ប្រព័ន្ធកំពុងនាំអ្នកទៅកាន់កាបូបលុយ...`,
           type: 'success',
           confirmText: 'ទៅកាន់កាបូបលុយ',
@@ -1005,15 +1016,42 @@ async function claimRefundWallet() {
       alert(d.error || 'មិនអាច Claim បានទេ សូមទាក់ទងមក Admin Telegram');
       if (btn) {
         btn.disabled = false;
-        btn.textContent = '🎁 ចុច Claim យកលុយចូល Wallet ម្តងទៀត';
+        btn.textContent = 'ចុច Claim យកលុយចូល Wallet ម្តងទៀត';
       }
     }
   } catch (err) {
     alert('Network error. Please try again or contact Telegram Admin.');
     if (btn) {
       btn.disabled = false;
-      btn.textContent = '🎁 ចុច Claim យកលុយចូល Wallet ម្តងទៀត';
+      btn.textContent = 'ចុច Claim យកលុយចូល Wallet ម្តងទៀត';
     }
+  }
+}
+
+async function downloadSlipFromCheckOrder() {
+  const o = window._currentTrackedOrder;
+  if (!o || !o.order_id) {
+    alert('សូមស្វែងរក ឬជ្រើសរើស Order ជាមុនសិន!');
+    return;
+  }
+  const btn = document.getElementById('btn-receipt-slip-download');
+  const lbl = document.getElementById('lbl-slip-check-order');
+  if (btn) btn.disabled = true;
+  if (lbl) lbl.textContent = 'Generating...';
+
+  try {
+    let settings = { store_name: 'Rolea Topup', telegram_handle: 'Rothzz3' };
+    try {
+      const sRes = await fetch('/api/settings');
+      if (sRes.ok) settings = await sRes.json();
+    } catch (e) {}
+
+    await window.RoleaSlip.download(o, settings);
+  } catch (err) {
+    alert('បរាជ័យក្នុងការទាញយក Slip: ' + err.message);
+  } finally {
+    if (btn) btn.disabled = false;
+    if (lbl) lbl.textContent = 'Download Slip';
   }
 }
 

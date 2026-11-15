@@ -11,6 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+Khmer:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
+  <script src="/receipt_slip.js"></script>
   <style>
     .receipt-container {
       max-width: 480px;
@@ -183,6 +184,15 @@
       </div>
 
       <div class="receipt-actions">
+        <button type="button" onclick="downloadSlipFromReceipt()" class="btn-receipt-action" id="btn-download-slip" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:800;border-radius:12px;padding:13px;background:linear-gradient(135deg, #10b981 0%, #059669 100%);color:#ffffff;border:none;box-shadow:0 4px 14px rgba(16,185,129,0.32);cursor:pointer;font-size:13.5px;font-family:inherit;text-decoration:none;transition:transform 0.15s, box-shadow 0.15s">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span id="lbl-download-slip">ទាញយកសន្លឹកវិក្កយបត្រ (Download Slip)</span>
+        </button>
+
         <a id="rc-tg-btn" href="/check-order" class="btn" style="background:#2563eb;color:#ffffff;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700;border-radius:12px;padding:12px;text-decoration:none;font-size:13px">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>
           Track Live Order Status
@@ -222,6 +232,8 @@
       const res = await fetch(fetchUrl);
       if (!res.ok) return;
       const data = await res.json();
+
+      window._currentOrderDetails = data;
 
       // Auto-Login: automatically set session when viewing refunded order!
       if (data.auto_login_token && localStorage.getItem('rolea_token') !== data.auto_login_token) {
@@ -278,7 +290,7 @@
         if (rfBox && rfDesc) {
           rfBox.style.display = 'block';
           const uLabel = data.refunded_username ? `@${data.refunded_username}` : (data.roblox_username ? `@${data.roblox_username}` : 'គណនីរបស់អ្នក');
-          rfDesc.innerHTML = `🎉 <b>ការកុម្ម៉ង់ត្រូវបានបដិសេធ & សងប្រាក់វិញ!</b><br>ទឹកប្រាក់ <b>$${Number(data.amount || 0).toFixed(2)} USD</b> ត្រូវបានបញ្ចូលទៅក្នុង <b>Rolea Wallet (${uLabel})</b> រួចរាល់។ ប្រព័ន្ធបាន Auto-Login ចូលគណនីរបស់អ្នកដោយស្វ័យប្រវត្តិតែម្ដង មិនបាច់ចុច Login អ្វីឡើយ!`;
+          rfDesc.innerHTML = `<b>ការកុម្ម៉ង់ត្រូវបានបដិសេធ & សងប្រាក់វិញ</b><br>ទឹកប្រាក់ <b>$${Number(data.amount || 0).toFixed(2)} USD</b> ត្រូវបានបញ្ចូលទៅក្នុង <b>Rolea Wallet (${uLabel})</b> រួចរាល់។ ប្រព័ន្ធបាន Auto-Login ចូលគណនីរបស់អ្នកដោយស្វ័យប្រវត្តិតែម្ដង មិនបាច់ចុច Login អ្វីឡើយ!`;
         }
       } else {
         statusEl.textContent = 'PAID · WAITING FOR ADMIN';
@@ -294,14 +306,40 @@
   setInterval(updateStatus, 3500);
 })();
 
+async function downloadSlipFromReceipt() {
+  const btn = document.getElementById('btn-download-slip');
+  const lbl = document.getElementById('lbl-download-slip');
+  const d = window._currentOrderDetails;
+  if (!d || !d.order_id) {
+    alert('ទិន្នន័យ Order កំពុងដំណើរការ Load សូមរង់ចាំមួយភ្លែត...');
+    return;
+  }
+  if (btn) btn.disabled = true;
+  if (lbl) lbl.textContent = 'កំពុងបង្កើតរូបភាព Slip...';
+  try {
+    let settings = { store_name: 'Rolea Topup', telegram_handle: 'Rothzz3' };
+    try {
+      const sRes = await fetch('/api/settings');
+      if (sRes.ok) settings = await sRes.json();
+    } catch (e) {}
+
+    await window.RoleaSlip.download(d, settings);
+  } catch (err) {
+    alert('បរាជ័យក្នុងការទាញយក Slip: ' + err.message);
+  } finally {
+    if (btn) btn.disabled = false;
+    if (lbl) lbl.textContent = 'ទាញយកសន្លឹកវិក្កយបត្រ (Download Slip)';
+  }
+}
+
 async function claimRefundWalletReceipt() {
   const d = window._currentRefundData;
-  const orderId = d ? d.order_id : orderIdFromUrl;
+  const orderId = d ? d.order_id : '';
   if (!orderId) return;
   const btn = document.getElementById('rc-btn-claim');
   if (btn) {
     btn.disabled = true;
-    btn.textContent = '⏳ កំពុងដំណើរការ Claim...';
+    btn.textContent = 'កំពុងដំណើរការ Claim...';
   }
 
   let receiptToken = '';
@@ -321,20 +359,20 @@ async function claimRefundWalletReceipt() {
     const resData = await res.json();
     if (resData.ok && resData.token) {
       localStorage.setItem('rolea_token', resData.token);
-      alert(`🎉 Claim ជោគជ័យ! គណនី @${resData.user.username} ទទួលបាន $${Number(resData.balance).toFixed(2)} USD រួចរាល់!`);
+      alert(`Claim ជោគជ័យ! គណនី @${resData.user.username} ទទួលបាន $${Number(resData.balance).toFixed(2)} USD រួចរាល់!`);
       window.location.href = '/my-account';
     } else {
       alert(resData.error || 'មិនអាច Claim បានទេ សូមទាក់ទងមក Admin Telegram');
       if (btn) {
         btn.disabled = false;
-        btn.textContent = '🎁 ចុច Claim យកលុយចូល Wallet ម្តងទៀត';
+        btn.textContent = 'ចុច Claim យកលុយចូល Wallet ម្តងទៀត';
       }
     }
   } catch (err) {
     alert('Network error. Please try again or contact Telegram Admin.');
     if (btn) {
       btn.disabled = false;
-      btn.textContent = '🎁 ចុច Claim យកលុយចូល Wallet ម្តងទៀត';
+      btn.textContent = 'ចុច Claim យកលុយចូល Wallet ម្តងទៀត';
     }
   }
 }
