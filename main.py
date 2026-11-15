@@ -8173,6 +8173,14 @@ async def sync_single_bot(b: Dict[str, Any]) -> Dict[str, Any]:
                 )
                 if r_auth.status_code != 200:
                     b["status"] = "error"
+                    bname = b.get("name") or "Roblox Bot"
+                    buname = b.get("roblox_username") or "Unknown"
+                    asyncio.create_task(send_bug_alert_telegram(
+                        title=f"Roblox Bot Cookie Expired ({bname})",
+                        error_msg=f"Bot @{buname} ({bname}) cookie returned HTTP {r_auth.status_code} from Roblox. Payouts and balance sync will fail until updated.",
+                        path="/sync-bots",
+                        severity="ERROR"
+                    ))
                     return {"ok": False, "error": "Cookie expired or invalid on Roblox", "bot": b}
 
                 user_data = r_auth.json()
