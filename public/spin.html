@@ -642,7 +642,14 @@ function renderDailyFreeSpin(dfs) {
     return;
   }
 
-  if (dfs.can_spin) {
+  // Check client-side cooldown fallback from localStorage
+  const nextAt = parseInt(localStorage.getItem('rolea_daily_spin_next_at') || '0', 10);
+  const nowMs = Date.now();
+  let localRemaining = Math.max(0, Math.floor((nextAt - nowMs) / 1000));
+  let effectiveRemaining = Math.max(Number(dfs.remaining_seconds || 0), localRemaining);
+  let canSpin = Boolean(dfs.can_spin) && effectiveRemaining <= 0;
+
+  if (canSpin) {
     readyBox.style.display = 'block';
     cooldownBox.style.display = 'none';
     if (lbl) lbl.textContent = 'Claim 1 Free Spin Today!';
@@ -655,11 +662,12 @@ function renderDailyFreeSpin(dfs) {
     cooldownBox.style.display = 'flex';
 
     if (dailyCountdownTimer) clearInterval(dailyCountdownTimer);
-    let remSec = dfs.remaining_seconds || 0;
+    let remSec = effectiveRemaining || 86400;
 
     const tick = () => {
       if (remSec <= 0) {
         clearInterval(dailyCountdownTimer);
+        localStorage.removeItem('rolea_daily_spin_next_at');
         readyBox.style.display = 'block';
         cooldownBox.style.display = 'none';
         if (btn) btn.disabled = false;
@@ -704,6 +712,18 @@ async function claimDailyFreeSpin() {
     const j = await res.json();
     const giftSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>';
     if (!res.ok || !j.ok) {
+      const isAlreadyClaimed = (j.remaining_seconds > 0) || (j.error && j.error.toLowerCase().includes('already claimed'));
+      if (isAlreadyClaimed) {
+        const rem = Number(j.remaining_seconds) || 86400;
+        localStorage.setItem('rolea_daily_spin_next_at', String(Date.now() + rem * 1000));
+        renderDailyFreeSpin({
+          enabled: true,
+          can_spin: false,
+          remaining_seconds: rem
+        });
+        showSpinError(j.error || 'Daily Free Spin already claimed! Please come back tomorrow.');
+        return;
+      }
       showSpinError(j.error || 'Failed to claim daily free spin.');
       if (btn) {
         btn.disabled = false;
@@ -711,6 +731,10 @@ async function claimDailyFreeSpin() {
       }
       return;
     }
+
+    // Success: Lock cooldown immediately
+    const remSec = Number(j.remaining_seconds) || 86400;
+    localStorage.setItem('rolea_daily_spin_next_at', String(Date.now() + remSec * 1000));
 
     if (j.order_id && j.receipt_token) {
       saveSpinOrderLocally(j.order_id, j.receipt_token, Number(j.slice?.robux || 0));
@@ -721,7 +745,7 @@ async function claimDailyFreeSpin() {
     renderDailyFreeSpin({
       enabled: true,
       can_spin: false,
-      remaining_seconds: j.remaining_seconds || 86400
+      remaining_seconds: remSec
     });
 
     if (window.RoleaAuth && typeof window.RoleaAuth.checkCurrentUser === 'function') {
@@ -742,7 +766,7 @@ async function loadSpinConfig() {
     const headers = {};
     const token = localStorage.getItem('rolea_token') || '';
     if (token) headers['Authorization'] = 'Bearer ' + token;
-    const res = await fetch('/api/spin/config', { headers });
+    const res = await fetch('/api/spin/config?_t=' + Date.now(), { headers, cache: 'no-store' });
     const j = await res.json();
     if (!res.ok || !j.ok) return;
     spinConfig = j;

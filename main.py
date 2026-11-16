@@ -4520,9 +4520,9 @@ async def security_and_no_cache_middleware(request: Request, call_next):
         response.headers["Cache-Control"] = "public, max-age=2592000, immutable"
     elif any(norm_path.endswith(ext) for ext in (".js", ".css")):
         response.headers["Cache-Control"] = "public, max-age=86400, stale-while-revalidate=604800"
-    elif norm_path in ("/api/settings", "/api/games", "/api/packages", "/api/flash-sale", "/api/spin/config", "/api/reviews"):
+    elif norm_path in ("/api/settings", "/api/games", "/api/packages", "/api/flash-sale", "/api/reviews"):
         response.headers["Cache-Control"] = "public, max-age=15, stale-while-revalidate=60"
-    elif norm_path.startswith("/api/admin") or norm_path.startswith("/api/auth") or norm_path.startswith("/api/order-status") or norm_path in ("/admin", "/admin/login"):
+    elif norm_path.startswith("/api/admin") or norm_path.startswith("/api/auth") or norm_path.startswith("/api/order-status") or norm_path.startswith("/api/spin") or norm_path in ("/admin", "/admin/login"):
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
