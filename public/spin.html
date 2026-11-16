@@ -1094,7 +1094,7 @@ function animateWheelToSlice(sliceIndex, sliceObj, orderId, receiptToken) {
   }, 4950);
 }
 
-function showSpinResultModal(sliceObj, orderId, receiptToken, prefillUsername, prefillNote, alreadySubmitted) {
+function showSpinResultModal(sliceObj, orderId, receiptToken, prefillUsername, prefillNote, alreadySubmitted, isRejected) {
   const wonRobux = Number(sliceObj?.robux || 0);
   const iconWrap = document.getElementById('res-icon-wrap');
   const titleEl = document.getElementById('res-title');
@@ -1113,16 +1113,17 @@ function showSpinResultModal(sliceObj, orderId, receiptToken, prefillUsername, p
 
   if (wonRobux > 0 && orderId) {
     saveSpinOrderLocally(orderId, receiptToken, wonRobux);
-    activeWinClaim = { order_id: orderId, receipt_token: receiptToken, robux: wonRobux, alreadySubmitted: !!alreadySubmitted };
-    iconWrap.style.background = '#dcfce7';
-    iconWrap.style.color = '#15803d';
+    const allowResubmit = !!isRejected;
+    activeWinClaim = { order_id: orderId, receipt_token: receiptToken, robux: wonRobux, alreadySubmitted: (!!alreadySubmitted && !allowResubmit) };
+    iconWrap.style.background = allowResubmit ? '#fee2e2' : '#dcfce7';
+    iconWrap.style.color = allowResubmit ? '#dc2626' : '#15803d';
     titleEl.textContent = `You Won ${wonRobux.toLocaleString()} Robux!`;
     orderBox.textContent = `Order ID: ${orderId}`;
     orderBox.style.display = 'block';
     trackLink.href = '/check-order?order_id=' + encodeURIComponent(orderId);
     trackLink.style.display = 'inline-flex';
 
-    if (alreadySubmitted) {
+    if (alreadySubmitted && !allowResubmit) {
       descEl.textContent = 'This prize claim has already been submitted to Admin. Robux delivery is in queue.';
       claimBox.style.display = 'none';
       laterHint.style.display = 'none';
@@ -1135,12 +1136,17 @@ function showSpinResultModal(sliceObj, orderId, receiptToken, prefillUsername, p
       `;
       claimDone.style.display = 'block';
     } else {
-      descEl.textContent = 'Confirm your Roblox account and submit your claim request directly to Admin (or close and claim later).';
+      if (allowResubmit) {
+        descEl.innerHTML = '<div style="background:#fee2e2;border:1.5px solid #fca5a5;border-radius:10px;padding:10px 12px;margin:8px 0;color:#991b1b;font-size:12.5px;font-weight:700">⚠️ សំណើមុនត្រូវបាន Admin បដិសេធ (អាចមកពីខុសឈ្មោះ Roblox ឬមិនទាន់បាន Setup Gamepass/Private Server)។ សូមផ្ទៀងផ្ទាត់ឈ្មោះ Roblox ឱ្យបានត្រឹមត្រូវ រួចចុច Submit ម្តងទៀត៖</div>';
+        btnClaim.textContent = 'Re-submit Claim to Admin ↺';
+      } else {
+        descEl.textContent = 'Confirm your Roblox account and submit your claim request directly to Admin (or close and claim later).';
+        btnClaim.textContent = 'Submit Claim to Admin →';
+      }
       document.getElementById('claim-username').value = prefillUsername || verifiedUser?.username || '';
       document.getElementById('claim-note').value = prefillNote || '';
       btnClaim.style.display = 'block';
       btnClaim.disabled = false;
-      btnClaim.textContent = 'Submit Claim to Admin →';
       btnClose.textContent = 'Claim Later / Close';
       laterHint.style.display = 'block';
       claimBox.style.display = 'block';
@@ -1274,12 +1280,23 @@ function renderMySpinRewards() {
   }
   card.style.display = 'block';
   box.innerHTML = mySpinRewards.map(r => {
+    const isRej = !!r.rejected;
     const isSub = !!r.claim_submitted;
-    const statusHtml = isSub
-      ? `<span style="display:inline-block;padding:3px 8px;border-radius:7px;background:#dcfce7;color:#15803d;font-size:11px;font-weight:800">Sent to Admin (@${escSpinHtml(r.roblox_username)})</span>`
-      : `<span style="display:inline-block;padding:3px 8px;border-radius:7px;background:#fef3c7;color:#b45309;font-size:11px;font-weight:800">Unclaimed · Ready to Claim</span>`;
+    let statusHtml = '';
+    if (isRej) {
+      statusHtml = `<span style="display:inline-block;padding:3px 8px;border-radius:7px;background:#fee2e2;color:#b91c1c;font-size:11px;font-weight:800">Rejected · Click to Re-submit</span>`;
+    } else if (isSub) {
+      statusHtml = `<span style="display:inline-block;padding:3px 8px;border-radius:7px;background:#dcfce7;color:#15803d;font-size:11px;font-weight:800">Sent to Admin (@${escSpinHtml(r.roblox_username)})</span>`;
+    } else {
+      statusHtml = `<span style="display:inline-block;padding:3px 8px;border-radius:7px;background:#fef3c7;color:#b45309;font-size:11px;font-weight:800">Unclaimed · Ready to Claim</span>`;
+    }
+    const btnText = isRej ? 'Re-submit Claim ↺' : (isSub ? 'View Status' : 'Claim Prize →');
+    const btnStyle = isRej
+      ? 'background:#ef4444;color:#fff;border-color:#dc2626;font-weight:800'
+      : (isSub ? 'background:#f1f5f9;color:#059669;border-color:#a7f3d0;font-weight:700' : '');
+
     return `
-      <div class="reward-row ${isSub ? 'submitted' : ''}">
+      <div class="reward-row ${isSub && !isRej ? 'submitted' : ''}">
         <div>
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <b style="font-size:15px;color:#0f172a">${Number(r.robux_amount).toLocaleString()} Robux</b>
@@ -1287,8 +1304,8 @@ function renderMySpinRewards() {
           </div>
           <div style="font-size:11.5px;color:#64748b;margin-top:4px;font-family:'JetBrains Mono',monospace">Order: ${escSpinHtml(r.order_id)}</div>
         </div>
-        <button type="button" class="btn-claim-open ${isSub ? 'submitted' : ''}" style="${isSub ? 'background:#f1f5f9;color:#059669;border-color:#a7f3d0;font-weight:700' : ''}" onclick="openClaimModalFromReward('${escSpinHtml(r.order_id)}')">
-          ${isSub ? 'View Status' : 'Claim Prize →'}
+        <button type="button" class="btn-claim-open ${isSub && !isRej ? 'submitted' : ''}" style="${btnStyle}" onclick="openClaimModalFromReward('${escSpinHtml(r.order_id)}')">
+          ${btnText}
         </button>
       </div>
     `;
@@ -1304,7 +1321,8 @@ function openClaimModalFromReward(orderId) {
     r.receipt_token,
     r.roblox_username || '',
     r.claim_note || '',
-    !!r.claim_submitted
+    !!r.claim_submitted,
+    !!r.rejected
   );
 }
 

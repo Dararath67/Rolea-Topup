@@ -2007,6 +2007,22 @@ async def notify_customer_order_refunded(order: Dict[str, Any]):
         return
 
     oid = str(order.get("order_id") or "")
+    if order.get("package_id") in ("spin_reward", "scratch_reward"):
+        rob_won = int(order.get("robux_amount", 0))
+        text = (
+            f"⚠️ <b>[សំណើបើករង្វាន់ត្រូវបានបដិសេធ / CLAIM REJECTED]</b>\n\n"
+            f"ការស្នើសុំបើករង្វាន់ <code>#{html.escape(oid, quote=False)}</code> (<b>+{rob_won:,} Robux</b>) ត្រូវបាន Admin បដិសេធ (អាចមកពីខុសឈ្មោះ Roblox ឬមិនទាន់បាន Setup Gamepass/Private Server)។\n\n"
+            f"🔄 <b>ដំណោះស្រាយ៖</b> លោកអ្នកអាចចូលទៅកាន់ទំព័រ Lucky Spin វិញ ដើម្បីកែប្រែឈ្មោះ Roblox និងចុច Submit សំណើម្តងទៀតបានគ្រប់ពេល!"
+        )
+        markup = {
+            "inline_keyboard": [
+                [{"text": "🎡 ចូលទៅកាន់ Lucky Spin", "url": "https://rolea-topup.vercel.app/spin"}],
+                [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]
+            ]
+        }
+        await send_telegram_direct_message(token, chat_id, text, reply_markup=markup)
+        return
+
     amount = f"{float(order.get('amount') or order.get('price') or 0):.2f}"
     text = (
         f"⚠️ <b>[ការកុម្ម៉ង់ត្រូវបានបដិសេធ & សងប្រាក់វិញ / REFUNDED]</b>\n\n"
@@ -3549,6 +3565,25 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, text, markup)
 
+def process_reward_claim_reject(order: Dict[str, Any]) -> tuple[bool, str]:
+    """
+    Rejects a spin or scratch reward claim WITHOUT refunding money into user wallet.
+    Resets the claim state so the user can re-submit their Roblox username/details.
+    """
+    if order.get("delivered") or order.get("status") == "completed":
+        return False, "រង្វាន់នេះបានបាញ់រួចរាល់ហើយ មិនអាចបដិសេធបានទេ។"
+
+    order["claim_submitted"] = False
+    order["rejected"] = True
+    order["status"] = "paid"
+    order["step"] = "rejected_resubmit"
+    order["delivered"] = False
+    order["telegram_alerted"] = False
+    order["rejected_at"] = datetime.now(timezone.utc).isoformat()
+    order["label"] = f"Claim Rejected by Admin ({order.get('robux_amount', 0)} R$) — User can re-submit (@{order.get('roblox_username', '')})"
+    save_orders()
+    return True, "បានបដិសេធសំណើ (មិនបង្វិលលុយទេ ហើយអនុញ្ញាតឱ្យអតិថិជន Submit ឈ្មោះម្តងទៀត)"
+
 def process_order_refund(order: Dict[str, Any]) -> tuple[bool, str, Optional[Dict[str, Any]]]:
     """
     Marks order as refunded.
@@ -3557,6 +3592,10 @@ def process_order_refund(order: Dict[str, Any]) -> tuple[bool, str, Optional[Dic
     deposits the refunded amount into it, and links the order so the guest can 1-click claim it!
     """
     global users, wallet_transactions, orders
+    if order.get("package_id") in ("spin_reward", "scratch_reward"):
+        ok_rej, rej_msg = process_reward_claim_reject(order)
+        return ok_rej, rej_msg, None
+
     if order.get("status") == "refunded" and order.get("wallet_refunded"):
         return False, "Order ត្រូវបានសងប្រាក់វិញរួចហើយ។", None
     if order.get("delivered") or order.get("status") == "completed":
@@ -3730,31 +3769,57 @@ async def handle_telegram_callback_query(query: Dict[str, Any], token: str):
                 await edit_telegram_message(token, msg["chat"]["id"], msg["message_id"], updated_text)
 
         elif action == "reject":
-            ok_ref, ref_msg, ref_user = process_order_refund(order)
-            if not ok_ref:
-                await answer_callback_query(token, query_id, f"⚠️ {ref_msg}")
-                return
-            asyncio.create_task(notify_customer_order_refunded(order))
+            is_reward_claim = order.get("package_id") in ("spin_reward", "scratch_reward")
+            if is_reward_claim:
+                ok_rej, rej_msg = process_reward_claim_reject(order)
+                if not ok_rej:
+                    await answer_callback_query(token, query_id, f"⚠️ {rej_msg}")
+                    return
+                asyncio.create_task(notify_customer_order_refunded(order))
+                await answer_callback_query(token, query_id, f"⚠️ បានបដិសេធសំណើបើករង្វាន់! មិនបង្វិលលុយទេ ហើយអនុញ្ញាតឱ្យអតិថិជន Submit ម្តងទៀត។")
 
-            uname_note = f" (@{ref_user['username']})" if ref_user else ""
-            await answer_callback_query(token, query_id, f"⚠️ Order #{order_id} បានបដិសេធ & សងប្រាក់ចូល Wallet{uname_note}!")
+                rob_amt = int(order.get("robux_amount", 0))
+                reward_type_name = "កងបង្វិល (Spin Reward)" if order.get("package_id") == "spin_reward" else "កាតកោស (Scratch Reward)"
+                updated_text = (
+                    f"❌ <b>[សំណើបើករង្វាន់ត្រូវបានបដិសេធ (REJECTED)]</b>\n"
+                    f"🏪 <b>ហាង៖</b> {html.escape(str(settings.get('store_name', 'Rolea Topup')), quote=False)}\n"
+                    f"🆔 <b>Order ID:</b> <code>{html.escape(str(order.get('order_id') or ''), quote=False)}</code>\n"
+                    f"🎮 <b>ប្រភេទ៖</b> {reward_type_name}\n"
+                    f"👤 <b>ឈ្មោះ Roblox ដាក់ស្នើ៖</b> <code>@{html.escape(raw_cust_acc, quote=False)}</code>\n"
+                    f"🎁 <b>រង្វាន់៖</b> <b>+{rob_amt:,} Robux</b>\n"
+                    f"🚫 <b>លទ្ធផល៖</b> បានបដិសេធ (មិនបង្វិលប្រាក់ — អនុញ្ញាតឱ្យអតិថិជន Submit ឈ្មោះម្តងទៀត)\n"
+                    f"👮 <b>រៀបចំដោយ Admin៖</b> {admin_name}\n"
+                    f"🕒 <b>ពេលវេលា៖</b> {now_ict}"
+                )
+                if query.get("message"):
+                    msg = query["message"]
+                    await edit_telegram_message(token, msg["chat"]["id"], msg["message_id"], updated_text)
+            else:
+                ok_ref, ref_msg, ref_user = process_order_refund(order)
+                if not ok_ref:
+                    await answer_callback_query(token, query_id, f"⚠️ {ref_msg}")
+                    return
+                asyncio.create_task(notify_customer_order_refunded(order))
 
-            updated_text = (
-                f"❌ <b>[ការកុម្ម៉ង់ត្រូវបានបដិសេធ & សងប្រាក់វិញ]</b>\n"
-                f"🏪 <b>ហាង៖</b> {html.escape(str(settings.get('store_name', 'Rolea Topup')), quote=False)}\n"
-                f"🆔 <b>Order ID:</b> <code>{html.escape(str(order.get('order_id') or ''), quote=False)}</code>\n"
-                f"🎮 <b>ហ្គេម៖</b> {game_name}\n"
-                f"👤 <b>ឈ្មោះក្នុងហ្គេម (ចុច Copy)៖</b> <code>{html.escape(raw_cust_acc, quote=False)}</code>\n"
-                f"📦 <b>កញ្ចប់៖</b> {pkg_name}\n"
-                f"💵 <b>តម្លៃ៖</b> ${amount} USD\n"
-                f"💰 <b>បង្វិលសងចូល៖</b> Rolea Wallet{uname_note}\n"
-                f"🚫 <b>ស្ថានភាព៖</b> បដិសេធ និងសងប្រាក់វិញ (REFUNDED)\n"
-                f"👮 <b>រៀបចំដោយ Admin៖</b> {admin_name}\n"
-                f"🕒 <b>ពេលវេលា៖</b> {now_ict}"
-            )
-            if query.get("message"):
-                msg = query["message"]
-                await edit_telegram_message(token, msg["chat"]["id"], msg["message_id"], updated_text)
+                uname_note = f" (@{ref_user['username']})" if ref_user else ""
+                await answer_callback_query(token, query_id, f"⚠️ Order #{order_id} បានបដិសេធ & សងប្រាក់ចូល Wallet{uname_note}!")
+
+                updated_text = (
+                    f"❌ <b>[ការកុម្ម៉ង់ត្រូវបានបដិសេធ & សងប្រាក់វិញ]</b>\n"
+                    f"🏪 <b>ហាង៖</b> {html.escape(str(settings.get('store_name', 'Rolea Topup')), quote=False)}\n"
+                    f"🆔 <b>Order ID:</b> <code>{html.escape(str(order.get('order_id') or ''), quote=False)}</code>\n"
+                    f"🎮 <b>ហ្គេម៖</b> {game_name}\n"
+                    f"👤 <b>ឈ្មោះក្នុងហ្គេម (ចុច Copy)៖</b> <code>{html.escape(raw_cust_acc, quote=False)}</code>\n"
+                    f"📦 <b>កញ្ចប់៖</b> {pkg_name}\n"
+                    f"💵 <b>តម្លៃ៖</b> ${amount} USD\n"
+                    f"💰 <b>បង្វិលសងចូល៖</b> Rolea Wallet{uname_note}\n"
+                    f"🚫 <b>ស្ថានភាព៖</b> បដិសេធ និងសងប្រាក់វិញ (REFUNDED)\n"
+                    f"👮 <b>រៀបចំដោយ Admin៖</b> {admin_name}\n"
+                    f"🕒 <b>ពេលវេលា៖</b> {now_ict}"
+                )
+                if query.get("message"):
+                    msg = query["message"]
+                    await edit_telegram_message(token, msg["chat"]["id"], msg["message_id"], updated_text)
 
 telegram_offset = 0
 _last_daily_report_date = ""
@@ -5812,14 +5877,14 @@ async def submit_spin_claim(request: Request):
             return JSONResponse(status_code=403, content={"ok": False, "error": "Spin ticket payment has not been verified."})
         if not hmac.compare_digest(str(order.get("token") or ""), receipt_token):
             return JSONResponse(status_code=403, content={"ok": False, "error": "Invalid claim receipt token."})
-        if order.get("delivered") or order.get("status") in ("completed", "refunded"):
+        if order.get("delivered") or order.get("status") == "completed":
             return JSONResponse(status_code=400, content={"ok": False, "error": "This spin prize order has already been finalized."})
 
         robux_won = int(order.get("robux_amount", 0))
         if robux_won <= 0:
             return JSONResponse(status_code=400, content={"ok": False, "error": "No Robux prize to claim on this spin."})
 
-        if order.get("claim_submitted"):
+        if order.get("claim_submitted") and not order.get("rejected"):
             return JSONResponse(status_code=400, content={
                 "ok": False,
                 "error": "រង្វាន់នេះបាន Submit ជូន Admin រួចរាល់ហើយ! សូមរង់ចាំ Admin ពិនិត្យ និងបាញ់ Robux ជូន (មិនអនុញ្ញាតឱ្យ Submit ម្ដងទៀតឡើយ)។"
@@ -5829,6 +5894,7 @@ async def submit_spin_claim(request: Request):
         order["player_id"] = roblox_username
         order["display_name"] = roblox_username
         order["claim_submitted"] = True
+        order["rejected"] = False
         order["telegram_alerted"] = False
         order["claim_note"] = note
         order["claimed_at"] = datetime.now(timezone.utc).isoformat()
@@ -5849,21 +5915,29 @@ async def submit_spin_claim(request: Request):
 
     claim_markup = {
         "inline_keyboard": [
-            [{"text": f"បើក Roblox Profile (@{roblox_username})", "url": f"https://www.roblox.com/search/users?keyword={quote_plus(roblox_username)}"}],
+            [{"text": f"🌐 Roblox Profile (@{roblox_username})", "url": f"https://www.roblox.com/search/users?keyword={quote_plus(roblox_username)}"}],
             [
-                {"text": "បាញ់រួចរាល់ (Complete)", "callback_data": f"complete:{order_id}"},
-                {"text": "បដិសេធ (Reject)", "callback_data": f"reject:{order_id}"}
+                {"text": "✅ បាញ់រួចរាល់ (Complete)", "callback_data": f"complete:{order_id}"},
+                {"text": "❌ បដិសេធ (Reject / ឱ្យ Submit ឡើងវិញ)", "callback_data": f"reject:{order_id}"}
             ]
         ]
     }
     async def _send_spin_claim_tg():
+        safe_store = html.escape(str(settings.get("store_name", "Rolea Topup")), quote=False)
+        time_str = format_ict_time()
+        note_str = f"\n📝 <b>សម្គាល់ពីអតិថិជន៖</b> <i>{html.escape(note, quote=False)}</i>" if note else ""
+        claim_text = (
+            f"🎡 <b>[ការស្នើសុំបើករង្វាន់កងបង្វិល (LUCKY SPIN CLAIM)]</b>\n"
+            f"🏪 <b>ហាង៖</b> {safe_store}\n"
+            f"🆔 <b>លេខកូដកុម្ម៉ង់ (Order ID)៖</b> <code>{html.escape(order_id, quote=False)}</code>\n"
+            f"👤 <b>ឈ្មោះគណនី Roblox (ចុច Copy)៖</b> <code>{html.escape(roblox_username, quote=False)}</code>\n"
+            f"🎁 <b>រង្វាន់ឈ្នះ៖</b> <b>+{robux_won:,} Robux</b>{note_str}\n"
+            f"⚡ <b>ស្ថានភាព៖</b> បង់ថ្លៃ Spin រួច - រង់ចាំ Admin បាញ់រង្វាន់ Robux\n"
+            f"🕒 <b>ពេលវេលា៖</b> {time_str}\n\n"
+            f"👉 <i>ចុច 'បាញ់រួចរាល់' នៅពេលបាញ់ជូនរួច ឬចុច 'បដិសេធ' (បើខុសឈ្មោះ/មិនទាន់ Setup Gamepass) ដើម្បីឱ្យអតិថិជន Submit ម្តងទៀត (មិនបង្វិលលុយទេ)។</i>"
+        )
         sent = await send_telegram_admin_alert(
-            "<b>[SPIN CLAIM SUBMITTED] User Requesting Robux Prize</b>\n"
-            f"Order ID: <code>{html.escape(order_id, quote=False)}</code>\n"
-            f"Roblox Account: <code>@{html.escape(roblox_username, quote=False)}</code>\n"
-            f"Prize: <b>{robux_won:,} Robux</b>\n"
-            + (f"Note: <i>{html.escape(note, quote=False)}</i>\n" if note else "")
-            + "Please send Robux in Admin Orders Queue!",
+            claim_text,
             reply_markup=claim_markup
         )
         if sent:
@@ -5897,7 +5971,9 @@ async def get_unclaimed_spin_rewards(request: Request):
     for o in orders:
         if o.get("package_id") != "spin_reward" or not o.get("paid"):
             continue
-        if o.get("delivered") or o.get("status") in ("completed", "refunded"):
+        if o.get("delivered") or o.get("status") == "completed":
+            continue
+        if o.get("status") == "refunded" and not o.get("rejected"):
             continue
         robux_amt = int(o.get("robux_amount", 0))
         if robux_amt <= 0:
@@ -5916,6 +5992,7 @@ async def get_unclaimed_spin_rewards(request: Request):
             "robux_amount": robux_amt,
             "roblox_username": o.get("roblox_username") or "",
             "claim_submitted": bool(o.get("claim_submitted")),
+            "rejected": bool(o.get("rejected")),
             "claim_note": o.get("claim_note") or "",
             "payment_method": o.get("payment_method") or "KHQR",
             "created_at": o.get("created_at") or "",
@@ -6393,6 +6470,9 @@ async def claim_scratch_reward(request: Request):
     if ord_match.get("token") != receipt_token:
         return JSONResponse(status_code=403, content={"ok": False, "error": "Unauthorized: Invalid receipt token."})
 
+    if ord_match.get("delivered") or ord_match.get("status") == "completed":
+        return JSONResponse(status_code=400, content={"ok": False, "error": "This reward has already been delivered."})
+
     cur_u = get_user_from_req(request)
     if cur_u and not ord_match.get("user_id"):
         ord_match["user_id"] = cur_u["id"]
@@ -6403,6 +6483,8 @@ async def claim_scratch_reward(request: Request):
         ord_match["roblox_id"] = roblox_id
         ord_match["profile_url"] = f"https://www.roblox.com/users/{roblox_id}/profile"
     ord_match["claim_submitted"] = True
+    ord_match["rejected"] = False
+    ord_match["status"] = "paid"
     ord_match["step"] = "pending"
     ord_match["label"] = f"Golden Scratch Winner ({ord_match.get('robux_amount', 0)} R$) — Claim submitted"
     save_orders()
