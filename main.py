@@ -1308,35 +1308,35 @@ async def send_telegram_paid_alert(order: Dict[str, Any]):
     target_link = str(order.get("target_url") or order.get("player_id") or order.get("roblox_username") or "").strip()
 
     if is_tiktok:
-        account_line = f"🔗 <b>តំណភ្ជាប់ (Video):</b> {html.escape(target_link, quote=False)}"
+        account_line = f"<b>តំណភ្ជាប់ (Video):</b> {html.escape(target_link, quote=False)}"
     else:
-        account_line = f"👤 <b>ឈ្មោះក្នុងហ្គេម (ចុច Copy):</b> <code>{html.escape(safe_raw_cust, quote=False)}</code>"
+        account_line = f"<b>ឈ្មោះក្នុងហ្គេម (ចុច Copy):</b> <code>{html.escape(safe_raw_cust, quote=False)}</code>"
 
     time_str = format_ict_time(order.get("created_at"))
 
     safe_store = html.escape(str(settings.get("store_name", "Rolea Topup")), quote=False)
     safe_oid = html.escape(str(order.get("order_id") or ""), quote=False)
     message = (
-        f"🔔 <b>[ការជូនដំណឹង៖ បានទូទាត់ប្រាក់ជោគជ័យ]</b>\n"
-        f"🏪 <b>ហាង៖</b> {safe_store}\n"
-        f"🆔 <b>លេខកូដកុម្ម៉ង់ (Order ID):</b> <code>{safe_oid}</code>\n"
-        f"🎮 <b>ហ្គេម/សេវាកម្ម៖</b> {game_name}\n"
+        f"<b>[ការជូនដំណឹង៖ បានទូទាត់ប្រាក់ជោគជ័យ]</b>\n"
+        f"<b>ហាង៖</b> {safe_store}\n"
+        f"<b>លេខកូដកុម្ម៉ង់ (Order ID):</b> <code>{safe_oid}</code>\n"
+        f"<b>ហ្គេម/សេវាកម្ម៖</b> {game_name}\n"
         f"{account_line}\n"
-        f"📦 <b>កញ្ចប់៖</b> {pkg_name}\n"
-        f"💵 <b>តម្លៃសរុប៖</b> ${amount} USD\n"
-        f"💳 <b>វិធីសាស្រ្តបង់ប្រាក់៖</b> {pay_method}\n"
-        f"⚡ <b>ស្ថានភាព៖</b> បង់ប្រាក់រួច - រង់ចាំ Admin បាញ់ទំនិញ\n"
-        f"🕒 <b>ពេលវេលា៖</b> {time_str}"
+        f"<b>កញ្ចប់៖</b> {pkg_name}\n"
+        f"<b>តម្លៃសរុប៖</b> ${amount} USD\n"
+        f"<b>វិធីសាស្រ្តបង់ប្រាក់៖</b> {pay_method}\n"
+        f"<b>ស្ថានភាព៖</b> បង់ប្រាក់រួច - រង់ចាំ Admin បាញ់ទំនិញ\n"
+        f"<b>ពេលវេលា៖</b> {time_str}"
     )
 
     inline_keyboard = []
     if is_tiktok and (target_link.startswith("https://") or target_link.startswith("http://")):
-        inline_keyboard.append([{"text": "🎬 បើកមើលវីដេអូ TikTok", "url": target_link}])
+        inline_keyboard.append([{"text": "បើកមើលវីដេអូ TikTok", "url": target_link}])
     elif not is_tiktok and safe_raw_cust and safe_raw_cust != "Customer":
-        inline_keyboard.append([{"text": f"🌐 Roblox Profile (@{safe_raw_cust})", "url": f"https://www.roblox.com/search/users?keyword={quote_plus(safe_raw_cust)}"}])
+        inline_keyboard.append([{"text": f"Roblox Profile (@{safe_raw_cust})", "url": f"https://www.roblox.com/search/users?keyword={quote_plus(safe_raw_cust)}"}])
     inline_keyboard.append([
-        {"text": "✅ បាញ់រួចរាល់ (Complete)", "callback_data": f"complete:{order.get('order_id')}"},
-        {"text": "❌ បដិសេធ & សងប្រាក់វិញ (Refund)", "callback_data": f"reject:{order.get('order_id')}"}
+        {"text": "បាញ់រួចរាល់ (Complete)", "callback_data": f"complete:{order.get('order_id')}"},
+        {"text": "បដិសេធ & សងប្រាក់វិញ (Refund)", "callback_data": f"reject:{order.get('order_id')}"}
     ])
 
     # Send auto receipt to customer
@@ -1649,39 +1649,39 @@ async def send_bug_alert_telegram(
     if len(_bug_alert_cooldowns) > 1000:
         _bug_alert_cooldowns.clear()
 
-    sev_icon = "🚨" if severity == "CRITICAL" else ("⚠️" if severity == "ERROR" else "🔔")
+    sev_icon = "" if severity == "CRITICAL" else ("️" if severity == "ERROR" else "")
     store_name = html.escape(str(settings.get("store_name", "Rolea Topup")), quote=False)
     now_ict = format_ict_time()
 
     lines = [
         f"{sev_icon} <b>[WEBSITE ERROR & BUG ALERT]</b>",
-        f"🏪 <b>ហាង៖</b> {store_name}",
-        f"🔴 <b>ប្រភេទបញ្ហា៖</b> <code>{html.escape(str(title), quote=False)}</code>",
+        f"<b>ហាង៖</b> {store_name}",
+        f"<b>ប្រភេទបញ្ហា៖</b> <code>{html.escape(str(title), quote=False)}</code>",
     ]
     if method or path:
-        lines.append(f"📍 <b>Endpoint:</b> <code>{html.escape(method or 'API', quote=False)} {html.escape(path or '-', quote=False)}</code>")
+        lines.append(f"<b>Endpoint:</b> <code>{html.escape(method or 'API', quote=False)} {html.escape(path or '-', quote=False)}</code>")
     if client_ip and client_ip != "unknown":
-        lines.append(f"🌐 <b>Client IP:</b> <code>{html.escape(client_ip, quote=False)}</code>")
-    lines.append(f"🕒 <b>ពេលវេលា៖</b> {now_ict}")
+        lines.append(f"<b>Client IP:</b> <code>{html.escape(client_ip, quote=False)}</code>")
+    lines.append(f"<b>ពេលវេលា៖</b> {now_ict}")
 
     if error_msg:
         clean_msg = html.escape(str(error_msg)[:600], quote=False)
-        lines.append(f"\n📝 <b>សារកំហុស (Error Message):</b>\n<pre>{clean_msg}</pre>")
+        lines.append(f"\n<b>សារកំហុស (Error Message):</b>\n<pre>{clean_msg}</pre>")
 
     if stack_trace:
         st_lines = [l for l in str(stack_trace).splitlines() if l.strip()]
         compact_st = "\n".join(st_lines[-12:]) if len(st_lines) > 12 else "\n".join(st_lines)
         clean_trace = html.escape(compact_st[:900], quote=False)
-        lines.append(f"\n🔍 <b>Traceback:</b>\n<pre>{clean_trace}</pre>")
+        lines.append(f"\n<b>Traceback:</b>\n<pre>{clean_trace}</pre>")
 
     if extra_info and isinstance(extra_info, dict):
         extra_lines = []
         for k, v in list(extra_info.items())[:6]:
             extra_lines.append(f"• <b>{html.escape(str(k), quote=False)}:</b> <code>{html.escape(str(v)[:100], quote=False)}</code>")
         if extra_lines:
-            lines.append("\n📌 <b>ព័ត៌មានបន្ថែម៖</b>\n" + "\n".join(extra_lines))
+            lines.append("\n<b>ព័ត៌មានបន្ថែម៖</b>\n" + "\n".join(extra_lines))
 
-    lines.append(f"\n<i>🔔 Monitor Log Group ID: <code>{chat_id}</code></i>")
+    lines.append(f"\n<i>Monitor Log Group ID: <code>{chat_id}</code></i>")
     text = "\n".join(lines)
     return await send_telegram_direct_message(token, chat_id, text)
 
@@ -1783,16 +1783,16 @@ async def notify_customer_order_refunded(order: Dict[str, Any]):
     oid = str(order.get("order_id") or "")
     amount = f"{float(order.get('amount') or order.get('price') or 0):.2f}"
     text = (
-        f"⚠️ <b>[ការកុម្ម៉ង់ត្រូវបានបដិសេធ & សងប្រាក់វិញ / REFUNDED]</b>\n\n"
+        f"️ <b>[ការកុម្ម៉ង់ត្រូវបានបដិសេធ & សងប្រាក់វិញ / REFUNDED]</b>\n\n"
         f"ការកុម្ម៉ង់ <code>#{html.escape(oid, quote=False)}</code> ត្រូវបានបដិសេធ និងសងប្រាក់វិញ។\n\n"
-        f"💵 <b>ចំនួនទឹកប្រាក់សង៖</b> ${amount} USD\n"
-        f"📌 <b>ស្ថានភាព៖</b> បានសងប្រាក់វិញ (REFUNDED)\n\n"
+        f"<b>ចំនួនទឹកប្រាក់សង៖</b> ${amount} USD\n"
+        f"<b>ស្ថានភាព៖</b> បានសងប្រាក់វិញ (REFUNDED)\n\n"
         f"ℹ️ ប្រសិនបើលោកអ្នកបានទូទាត់តាម Rolea Wallet ទឹកប្រាក់ត្រូវបានបញ្ចូលត្រឡប់ទៅក្នុង Wallet របស់អ្នកវិញរួចរាល់ហើយ។ សូមទាក់ទង Admin ប្រសិនបើត្រូវការជំនួយបន្ថែម។"
     )
     markup = {
         "inline_keyboard": [
-            [{"text": "💰 ឆែកសមតុល្យ Wallet", "callback_data": "cust:wallet"}],
-            [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]
+            [{"text": "ឆែកសមតុល្យ Wallet", "callback_data": "cust:wallet"}],
+            [{"text": "ម៉ឺនុយដើម", "callback_data": "cust:home"}]
         ]
     }
     await send_telegram_direct_message(token, chat_id, text, reply_markup=markup)
@@ -1806,18 +1806,18 @@ async def notify_customer_wallet_deposit(user: Dict[str, Any], amount: float):
     store_name = html.escape(str(settings.get("store_name", "Rolea Topup")), quote=False)
     now_ict = datetime.now(timezone(timedelta(hours=7))).strftime("%m/%d/%Y, %I:%M:%S %p")
     text = (
-        f"💰 <b>[បង្កាន់ដៃបញ្ចូលលុយ Wallet / DEPOSIT SUCCESS]</b>\n"
-        f"🏪 <b>ហាង៖</b> {store_name}\n\n"
-        f"👤 <b>គណនី៖</b> <code>{html.escape(str(user.get('username') or 'User'), quote=False)}</code>\n"
-        f"💵 <b>ទឹកប្រាក់បានបញ្ចូល៖</b> <code>+${amount:.2f} USD</code>\n"
-        f"💳 <b>សមតុល្យ Wallet ថ្មី៖</b> <code>${bal:.2f} USD</code>\n"
-        f"🕒 <b>ពេលវេលា៖</b> {now_ict}\n\n"
-        f"✨ លោកអ្នកអាចប្រើប្រាស់លុយក្នុង Wallet ដើម្បីទិញទំនិញក្នុងហាងបានភ្លាមៗ!"
+        f"<b>[បង្កាន់ដៃបញ្ចូលលុយ Wallet / DEPOSIT SUCCESS]</b>\n"
+        f"<b>ហាង៖</b> {store_name}\n\n"
+        f"<b>គណនី៖</b> <code>{html.escape(str(user.get('username') or 'User'), quote=False)}</code>\n"
+        f"<b>ទឹកប្រាក់បានបញ្ចូល៖</b> <code>+${amount:.2f} USD</code>\n"
+        f"<b>សមតុល្យ Wallet ថ្មី៖</b> <code>${bal:.2f} USD</code>\n"
+        f"<b>ពេលវេលា៖</b> {now_ict}\n\n"
+        f"លោកអ្នកអាចប្រើប្រាស់លុយក្នុង Wallet ដើម្បីទិញទំនិញក្នុងហាងបានភ្លាមៗ!"
     )
     markup = {
         "inline_keyboard": [
-            [{"text": "💰 ឆែក Wallet ឥឡូវនេះ", "callback_data": "cust:wallet"}],
-            [{"text": "🛒 ចូលទិញនៅលើ Website", "url": "https://rolea-topup.vercel.app"}]
+            [{"text": "ឆែក Wallet ឥឡូវនេះ", "callback_data": "cust:wallet"}],
+            [{"text": "ចូលទិញនៅលើ Website", "url": "https://rolea-topup.vercel.app"}]
         ]
     }
     await send_telegram_direct_message(token, chat_id, text, reply_markup=markup)
@@ -1860,17 +1860,17 @@ def build_daily_sales_report(target_date_str: Optional[str] = None) -> str:
     date_display = now_ict.strftime("%d/%m/%Y")
 
     report_text = (
-        f"📊 <b>[របាយការណ៍លក់សង្ខេបប្រចាំថ្ងៃ / DAILY SALES REPORT]</b>\n"
-        f"🏪 <b>ហាង៖</b> {store_name}\n"
-        f"📅 <b>កាលបរិច្ឆេទ៖</b> {date_display} (ម៉ោងកម្ពុជា)\n\n"
-        f"📦 <b>ការកុម្ម៉ង់សរុបថ្ងៃនេះ៖</b> <code>{total_cnt}</code> កុម្ម៉ង់\n"
-        f"✅ <b>បាញ់ទំនិញជោគជ័យ៖</b> <code>{completed_cnt}</code> កុម្ម៉ង់\n"
-        f"⏳ <b>កំពុងរង់ចាំដំណើរការ៖</b> <code>{pending_cnt}</code> កុម្ម៉ង់\n"
-        f"❌ <b>បានសងប្រាក់វិញ៖</b> <code>{refunded_cnt}</code> កុម្ម៉ង់\n\n"
-        f"💵 <b>ចំណូលសរុបថ្ងៃនេះ៖</b> <code>${revenue:.2f} USD</code>\n"
-        f"💎 <b>Robux បានបាញ់ចេញ៖</b> <code>{robux_sold:,} R$</code>\n"
-        f"👥 <b>អតិថិជនចុះឈ្មោះថ្មី៖</b> <code>{new_users}</code> នាក់\n\n"
-        f"🕒 <i>ធ្វើបច្ចុប្បន្នភាពនៅម៉ោង៖ {now_ict.strftime('%I:%M %p')}</i>"
+        f"<b>[របាយការណ៍លក់សង្ខេបប្រចាំថ្ងៃ / DAILY SALES REPORT]</b>\n"
+        f"<b>ហាង៖</b> {store_name}\n"
+        f"<b>កាលបរិច្ឆេទ៖</b> {date_display} (ម៉ោងកម្ពុជា)\n\n"
+        f"<b>ការកុម្ម៉ង់សរុបថ្ងៃនេះ៖</b> <code>{total_cnt}</code> កុម្ម៉ង់\n"
+        f"<b>បាញ់ទំនិញជោគជ័យ៖</b> <code>{completed_cnt}</code> កុម្ម៉ង់\n"
+        f"<b>កំពុងរង់ចាំដំណើរការ៖</b> <code>{pending_cnt}</code> កុម្ម៉ង់\n"
+        f"<b>បានសងប្រាក់វិញ៖</b> <code>{refunded_cnt}</code> កុម្ម៉ង់\n\n"
+        f"<b>ចំណូលសរុបថ្ងៃនេះ៖</b> <code>${revenue:.2f} USD</code>\n"
+        f"<b>Robux បានបាញ់ចេញ៖</b> <code>{robux_sold:,} R$</code>\n"
+        f"<b>អតិថិជនចុះឈ្មោះថ្មី៖</b> <code>{new_users}</code> នាក់\n\n"
+        f"<i>ធ្វើបច្ចុប្បន្នភាពនៅម៉ោង៖ {now_ict.strftime('%I:%M %p')}</i>"
     )
     return report_text
 
@@ -1897,7 +1897,7 @@ async def send_telegram_data_backup(admin_chat_id: Optional[str] = None) -> bool
     files = {"document": (f"Rolea_Backup_{date_tag}.zip", zip_buf.getvalue(), "application/zip")}
     data = {
         "chat_id": target_chat,
-        "caption": f"💾 <b>ទិន្នន័យ Backup ហាង ({now_ict.strftime('%d/%m/%Y %I:%M %p')})</b>\n\n✅ ឯកសារសុវត្ថិភាព Database រួមមាន Orders, Users, Wallet, Settings & Spin Data។",
+        "caption": f"<b>ទិន្នន័យ Backup ហាង ({now_ict.strftime('%d/%m/%Y %I:%M %p')})</b>\n\nឯកសារសុវត្ថិភាព Database រួមមាន Orders, Users, Wallet, Settings & Spin Data។",
         "parse_mode": "HTML"
     }
     try:
@@ -1958,19 +1958,19 @@ def _build_tg_cust_home(chat_id: str) -> tuple[str, Dict[str, Any]]:
     greet_name = f" <b>@{u['username']}</b>" if (u and u.get("username")) else ""
     
     text = (
-        f"👋 <b>សួស្តី{greet_name}! សូមស្វាគមន៍មកកាន់ {store_name} Bot</b>\n\n"
-        f"👇 <b>សូមចុចលើប៊ូតុងខាងក្រោមដើម្បីជ្រើសរើស៖</b>"
+        f"<b>សួស្តី{greet_name}! សូមស្វាគមន៍មកកាន់ {store_name} Bot</b>\n\n"
+        f"<b>សូមចុចលើប៊ូតុងខាងក្រោមដើម្បីជ្រើសរើស៖</b>"
     )
     markup = {
         "inline_keyboard": [
-            [{"text": "🔎 តាមដាន Order (Track Order)", "callback_data": "cust:track"}],
+            [{"text": "តាមដាន Order (Track Order)", "callback_data": "cust:track"}],
             [
-                {"text": "💰 ឆែកសមតុល្យ Wallet", "callback_data": "cust:wallet"},
-                {"text": "🏷️ តារាងតម្លៃ Robux", "callback_data": "cust:prices"}
+                {"text": "ឆែកសមតុល្យ Wallet", "callback_data": "cust:wallet"},
+                {"text": "️ តារាងតម្លៃ Robux", "callback_data": "cust:prices"}
             ],
             [
-                {"text": "🌐 ចូលទៅកាន់គេហទំព័រ", "url": "https://rolea-topup.vercel.app"},
-                {"text": "📞 ទាក់ទង Admin", "callback_data": "cust:contact"}
+                {"text": "ចូលទៅកាន់គេហទំព័រ", "url": "https://rolea-topup.vercel.app"},
+                {"text": "ទាក់ទង Admin", "callback_data": "cust:contact"}
             ]
         ]
     }
@@ -2016,15 +2016,15 @@ async def handle_telegram_customer_callback(query: Dict[str, Any], token: str, d
                 oid = str(o.get("order_id") or "")
                 pkg = str(o.get("package") or "Robux")
                 st = str(o.get("status") or "pending").upper()
-                st_icon = "✅" if st in ("COMPLETED", "DELIVERED") else ("⏳" if st in ("PENDING", "SENDING", "PAID") else "❌")
+                st_icon = "" if st in ("COMPLETED", "DELIVERED") else ("" if st in ("PENDING", "SENDING", "PAID") else "")
                 rows.append([{"text": f"{st_icon} #{oid[:8]} — {pkg} [{st}]", "callback_data": f"cust:track:{oid}"}])
 
-        rows.append([{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}])
+        rows.append([{"text": "ម៉ឺនុយដើម", "callback_data": "cust:home"}])
         
         _tg_cust_state[chat_id] = {"mode": "track"}
         prompt_text = (
-            f"🔎 <b>តាមដានស្ថានភាពការកុម្ម៉ង់ (Order Tracking)</b>\n\n"
-            + (f"👇 <i>សូមជ្រើសរើស Order ខាងក្រោម ឬ Reply សារនេះដោយបញ្ជូន <b>Order ID</b> (ឧ. <code>ORD-...</code>):</i>" if cust_orders else "👇 <i>សូម Reply សារនេះដោយបញ្ជូន <b>Order ID</b> របស់អ្នក (ឧ. <code>ORD-123456</code>):</i>")
+            f"<b>តាមដានស្ថានភាពការកុម្ម៉ង់ (Order Tracking)</b>\n\n"
+            + (f"<i>សូមជ្រើសរើស Order ខាងក្រោម ឬ Reply សារនេះដោយបញ្ជូន <b>Order ID</b> (ឧ. <code>ORD-...</code>):</i>" if cust_orders else "<i>សូម Reply សារនេះដោយបញ្ជូន <b>Order ID</b> របស់អ្នក (ឧ. <code>ORD-123456</code>):</i>")
         )
         await answer_callback_query(token, query_id, "")
         if msg_id:
@@ -2040,34 +2040,34 @@ async def handle_telegram_customer_callback(query: Dict[str, Any], token: str, d
             raw_uname = str(u.get("username") or "User")
             bal = float(u.get("balance") or 0.0)
             frozen = bool(u.get("wallet_frozen"))
-            st_wal = "❄️ បានបង្កក (FROZEN)" if frozen else "🟢 សកម្ម (ACTIVE)"
+            st_wal = "️ បានបង្កក (FROZEN)" if frozen else "សកម្ម (ACTIVE)"
             text = (
-                f"💰 <b>ព័ត៌មានសមតុល្យ Rolea Wallet</b>\n\n"
-                f"👤 <b>ឈ្មោះគណនី (ចុច Copy)៖</b> <code>{html.escape(raw_uname, quote=False)}</code>\n"
-                f"🆔 <b>User ID (ចុច Copy)៖</b> <code>{html.escape(uid, quote=False)}</code>\n"
-                f"💵 <b>សមតុល្យបច្ចុប្បន្ន៖</b> <code>${bal:.2f} USD</code>\n"
-                f"📌 <b>ស្ថានភាព Wallet៖</b> {st_wal}\n\n"
-                f"✨ លោកអ្នកអាចប្រើប្រាស់សមតុល្យនេះដើម្បីទិញទំនិញក្នុងហាងបានភ្លាមៗ!"
+                f"<b>ព័ត៌មានសមតុល្យ Rolea Wallet</b>\n\n"
+                f"<b>ឈ្មោះគណនី (ចុច Copy)៖</b> <code>{html.escape(raw_uname, quote=False)}</code>\n"
+                f"<b>User ID (ចុច Copy)៖</b> <code>{html.escape(uid, quote=False)}</code>\n"
+                f"<b>សមតុល្យបច្ចុប្បន្ន៖</b> <code>${bal:.2f} USD</code>\n"
+                f"<b>ស្ថានភាព Wallet៖</b> {st_wal}\n\n"
+                f"លោកអ្នកអាចប្រើប្រាស់សមតុល្យនេះដើម្បីទិញទំនិញក្នុងហាងបានភ្លាមៗ!"
             )
             markup = {
                 "inline_keyboard": [
-                    [{"text": "➕ ចូល Website ដើម្បីបញ្ចូលលុយ", "url": "https://rolea-topup.vercel.app/my-account"}],
-                    [{"text": "🔄 Refresh", "callback_data": "cust:wallet"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]
+                    [{"text": "ចូល Website ដើម្បីបញ្ចូលលុយ", "url": "https://rolea-topup.vercel.app/my-account"}],
+                    [{"text": "Refresh", "callback_data": "cust:wallet"}, {"text": "ម៉ឺនុយដើម", "callback_data": "cust:home"}]
                 ]
             }
         else:
             _tg_cust_state[chat_id] = {"mode": "link_uid"}
             text = (
-                f"💰 <b>គណនី Wallet មិនទាន់បានភ្ជាប់នៅឡើយទេ</b>\n\n"
+                f"<b>គណនី Wallet មិនទាន់បានភ្ជាប់នៅឡើយទេ</b>\n\n"
                 f"Telegram របស់អ្នកមិនទាន់ភ្ជាប់ជាមួយ Account លើ Website ទេ។\n\n"
-                f"👇 <b>របៀបភ្ជាប់ដើម្បីឆែក Wallet៖</b>\n"
+                f"<b>របៀបភ្ជាប់ដើម្បីឆែក Wallet៖</b>\n"
                 f"1. ចូលទៅ Website ត្រង់ទំព័រ <b>My Account</b> រួចចុច Link Telegram ឬ\n"
                 f"2. <b>Reply សារនេះដោយបញ្ជូន User ID</b> របស់អ្នក (ឧ. <code>usr_...</code>) ឬ Username ដើម្បីភ្ជាប់ភ្លាមៗ!"
             )
             markup = {
                 "inline_keyboard": [
-                    [{"text": "🌐 ចូលទៅកាន់ My Account", "url": "https://rolea-topup.vercel.app/my-account"}],
-                    [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]
+                    [{"text": "ចូលទៅកាន់ My Account", "url": "https://rolea-topup.vercel.app/my-account"}],
+                    [{"text": "ម៉ឺនុយដើម", "callback_data": "cust:home"}]
                 ]
             }
         await answer_callback_query(token, query_id, "")
@@ -2077,18 +2077,18 @@ async def handle_telegram_customer_callback(query: Dict[str, Any], token: str, d
     elif sub == "prices":
         _tg_cust_state.pop(chat_id, None)
         active_pkgs = [p for p in packages if p.get("game") == "roblox" or not p.get("game")][:8]
-        lines = [f"🏷️ <b>តារាងតម្លៃកញ្ចប់ Robux ហាង {store_name}</b>\n"]
+        lines = [f"️ <b>តារាងតម្លៃកញ្ចប់ Robux ហាង {store_name}</b>\n"]
         for p in active_pkgs:
             p_name = html.escape(str(p.get("name") or "Robux Package"), quote=False)
             p_price = float(p.get("price") or 0)
-            in_stk = "🟢 មានស្តុក" if p.get("in_stock", True) else "⛔ អស់ស្តុក"
+            in_stk = "មានស្តុក" if p.get("in_stock", True) else "អស់ស្តុក"
             lines.append(f"• <b>{p_name}</b> — <code>${p_price:.2f} USD</code> [{in_stk}]")
         
-        lines.append("\n⚡ <i>បាញ់លឿន រហ័ស និងមានសុវត្ថិភាពខ្ពស់ ១០០%</i>")
+        lines.append("\n<i>បាញ់លឿន រហ័ស និងមានសុវត្ថិភាពខ្ពស់ ១០០%</i>")
         markup = {
             "inline_keyboard": [
-                [{"text": "🛒 ចូលទិញលើ Website ឥឡូវនេះ", "url": "https://rolea-topup.vercel.app"}],
-                [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]
+                [{"text": "ចូលទិញលើ Website ឥឡូវនេះ", "url": "https://rolea-topup.vercel.app"}],
+                [{"text": "ម៉ឺនុយដើម", "callback_data": "cust:home"}]
             ]
         }
         await answer_callback_query(token, query_id, "")
@@ -2099,15 +2099,15 @@ async def handle_telegram_customer_callback(query: Dict[str, Any], token: str, d
         _tg_cust_state.pop(chat_id, None)
         adm_handle = str(settings.get("telegram_handle") or "Rothzz3").lstrip("@")
         text = (
-            f"📞 <b>ផ្នែកបម្រើអតិថិជន (Customer Support)</b>\n\n"
+            f"<b>ផ្នែកបម្រើអតិថិជន (Customer Support)</b>\n\n"
             f"ប្រសិនបើលោកអ្នកមានចម្ងល់ ឬត្រូវការជំនួយទាក់ទងនឹងការកុម្ម៉ង់ សូមទាក់ទង Admin៖\n"
-            f"👤 <b>Telegram Admin:</b> @{adm_handle}\n"
-            f"🕒 <b>ម៉ោងបម្រើសេវា៖</b> 8:00 AM - 11:30 PM (រាល់ថ្ងៃ)"
+            f"<b>Telegram Admin:</b> @{adm_handle}\n"
+            f"<b>ម៉ោងបម្រើសេវា៖</b> 8:00 AM - 11:30 PM (រាល់ថ្ងៃ)"
         )
         markup = {
             "inline_keyboard": [
-                [{"text": "💬 ឆាតទៅកាន់ Admin ផ្ទាល់", "url": f"https://t.me/{adm_handle}"}],
-                [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]
+                [{"text": "ឆាតទៅកាន់ Admin ផ្ទាល់", "url": f"https://t.me/{adm_handle}"}],
+                [{"text": "ម៉ឺនុយដើម", "callback_data": "cust:home"}]
             ]
         }
         await answer_callback_query(token, query_id, "")
@@ -2134,11 +2134,11 @@ def _build_tg_stock_card(status_note: str = "") -> tuple[str, Dict[str, Any]]:
         buname = b.get("roblox_username") or "Unassigned"
         funds = int(float(b.get("group_funds") or 0))
         is_on = bool(b.get("enabled", True))
-        st_icon = "🟢" if is_on else "⛔"
+        st_icon = "" if is_on else ""
         st_text = "បើកដំណើរការ (ON)" if is_on else "បានបិទ (OFF)"
 
         bot_lines.append(f"{st_icon} <b>{bname}</b> (@{buname}): <code>{funds:,} R$</code> — {st_text}")
-        tog_label = "⛔ បិទ" if is_on else "✅ បើក"
+        tog_label = "បិទ" if is_on else "បើក"
         inline_rows.append([
             {"text": f"{st_icon} {bname} • {funds:,} R$", "callback_data": f"adm:bot_view:{bid}"},
             {"text": tog_label, "callback_data": f"adm:bot_tog:{bid}"}
@@ -2149,22 +2149,22 @@ def _build_tg_stock_card(status_note: str = "") -> tuple[str, Dict[str, Any]]:
     off_cnt = len(bots) - active_cnt
 
     text = (
-        f"📦 <b>[គ្រប់គ្រង ROBLOX BOT & MULTI-COOKIE POOL]</b>\n\n"
-        + (f"🔔 {status_note}\n\n" if status_note else "")
-        + f"⚡ <b>ស្តុកសរុបដំណើរការក្នុងហាង៖</b> <code>{total_stock:,} R$</code>\n"
-        f"📊 <b>Bot សរុប៖</b> {len(bots)} គណនី (🟢 បើក: {active_cnt} | ⛔ បិទ: {off_cnt})\n\n"
-        f"📋 <b>បញ្ជី Bot & Cookie ក្នុងប្រព័ន្ធ៖</b>\n"
+        f"<b>[គ្រប់គ្រង ROBLOX BOT & MULTI-COOKIE POOL]</b>\n\n"
+        + (f"{status_note}\n\n" if status_note else "")
+        + f"<b>ស្តុកសរុបដំណើរការក្នុងហាង៖</b> <code>{total_stock:,} R$</code>\n"
+        f"<b>Bot សរុប៖</b> {len(bots)} គណនី (បើក: {active_cnt} | បិទ: {off_cnt})\n\n"
+        f"<b>បញ្ជី Bot & Cookie ក្នុងប្រព័ន្ធ៖</b>\n"
         f"{bots_summary}\n\n"
-        f"📦 <b>ស្ថានភាពកញ្ចប់ Robux ក្នុងហាង៖</b>\n"
+        f"<b>ស្ថានភាពកញ្ចប់ Robux ក្នុងហាង៖</b>\n"
         f"• មានស្តុក (In Stock)៖ <b>{in_cnt} កញ្ចប់</b> | អស់ស្តុក៖ <b>{out_cnt} កញ្ចប់</b>\n\n"
-        f"👇 <i>សូមចុចលើ Bot នីមួយៗដើម្បី បិទ/បើក (ON/OFF) ឬបន្ថែម Bot ថ្មី៖</i>"
+        f"<i>សូមចុចលើ Bot នីមួយៗដើម្បី បិទ/បើក (ON/OFF) ឬបន្ថែម Bot ថ្មី៖</i>"
     )
 
     inline_rows.append([
-        {"text": "➕ បន្ថែម Cookie ថ្មី (Add Bot)", "callback_data": "adm:bot_add"},
-        {"text": "🔄 Sync Balance គ្រប់ Bot", "callback_data": "adm:bot_sync"}
+        {"text": "បន្ថែម Cookie ថ្មី (Add Bot)", "callback_data": "adm:bot_add"},
+        {"text": "Sync Balance គ្រប់ Bot", "callback_data": "adm:bot_sync"}
     ])
-    inline_rows.append([{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}])
+    inline_rows.append([{"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}])
 
     return text, {"inline_keyboard": inline_rows}
 
@@ -2187,7 +2187,7 @@ def _find_tg_bot(bid: str) -> Optional[Dict[str, Any]]:
 def _build_tg_bot_view(bot_id: str, status_note: str = "") -> tuple[str, Dict[str, Any]]:
     b = _find_tg_bot(bot_id)
     if not b:
-        return "❌ រកមិនឃើញ Bot នេះទេ។", {"inline_keyboard": [[{"text": "⬅️ ត្រឡប់ទៅបញ្ជី Bot", "callback_data": "adm:bot"}]]}
+        return "រកមិនឃើញ Bot នេះទេ។", {"inline_keyboard": [[{"text": "⬅️ ត្រឡប់ទៅបញ្ជី Bot", "callback_data": "adm:bot"}]]}
 
     bname = b.get("name") or "Payout Bot"
     buname = b.get("roblox_username") or "Unknown"
@@ -2195,32 +2195,32 @@ def _build_tg_bot_view(bot_id: str, status_note: str = "") -> tuple[str, Dict[st
     funds = int(float(b.get("group_funds") or 0))
     is_on = bool(b.get("enabled", True))
     last_sync = b.get("last_synced") or "មិនទាន់ Sync"
-    st_status = "🟢 កំពុងបើក (ON - រាប់បញ្ចូលក្នុងស្តុកហាង)" if is_on else "⛔ បានបិទ (OFF - មិនរាប់ក្នុងស្តុក)"
+    st_status = "កំពុងបើក (ON - រាប់បញ្ចូលក្នុងស្តុកហាង)" if is_on else "បានបិទ (OFF - មិនរាប់ក្នុងស្តុក)"
 
     text = (
-        f"📦 <b>[ព័ត៌មានលម្អិតអំពី {bname}]</b>\n\n"
-        + (f"🔔 {status_note}\n\n" if status_note else "")
+        f"<b>[ព័ត៌មានលម្អិតអំពី {bname}]</b>\n\n"
+        + (f"{status_note}\n\n" if status_note else "")
         + f"• <b>ឈ្មោះសម្គាល់៖</b> {bname}\n"
         f"• <b>គណនី Roblox៖</b> @{buname} (ID: <code>{buid}</code>)\n"
         f"• <b>ស្ថានភាពដំណើរការ៖</b> {st_status}\n"
         f"• <b>តុល្យភាព Robux៖</b> <code>{funds:,} R$</code>\n"
         f"• <b>Sync ចុងក្រោយ៖</b> <code>{last_sync}</code>\n\n"
-        f"👇 <i>សូមចុចប៊ូតុងខាងក្រោមដើម្បី បិទ/បើក (ON/OFF), Sync ឬលុប៖</i>"
+        f"<i>សូមចុចប៊ូតុងខាងក្រោមដើម្បី បិទ/បើក (ON/OFF), Sync ឬលុប៖</i>"
     )
 
-    tog_text = "⛔ បិទ Bot នេះ (OFF)" if is_on else "✅ បើក Bot នេះ (ON)"
+    tog_text = "បិទ Bot នេះ (OFF)" if is_on else "បើក Bot នេះ (ON)"
     markup = {
         "inline_keyboard": [
             [
                 {"text": tog_text, "callback_data": f"adm:bot_tog:{bot_id}"},
-                {"text": "🔄 Sync Bot នេះ", "callback_data": f"adm:bot_sync1:{bot_id}"}
+                {"text": "Sync Bot នេះ", "callback_data": f"adm:bot_sync1:{bot_id}"}
             ],
             [
-                {"text": "🗑️ លុប Bot នេះចេញ (Delete)", "callback_data": f"adm:bot_del:{bot_id}"}
+                {"text": "️ លុប Bot នេះចេញ (Delete)", "callback_data": f"adm:bot_del:{bot_id}"}
             ],
             [
                 {"text": "⬅️ ត្រឡប់ទៅបញ្ជី Bot", "callback_data": "adm:bot"},
-                {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}
+                {"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}
             ]
         ]
     }
@@ -2228,7 +2228,7 @@ def _build_tg_bot_view(bot_id: str, status_note: str = "") -> tuple[str, Dict[st
 
 def _build_tg_spin_card(status_note: str = "") -> tuple[str, Dict[str, Any]]:
     global spin_data
-    st_en = "🟢 កំពុងបើក (Enabled)" if spin_data.get("enabled", True) else "⛔ បានបិទ (Disabled)"
+    st_en = "កំពុងបើក (Enabled)" if spin_data.get("enabled", True) else "បានបិទ (Disabled)"
     sp_price = float(spin_data.get("spin_price_usd") or 0.5)
     tot_spins = int(spin_data.get("total_spins") or len(spin_data.get("history", [])))
     tot_rev = float(spin_data.get("total_revenue_usd") or 0.0)
@@ -2243,43 +2243,43 @@ def _build_tg_spin_card(status_note: str = "") -> tuple[str, Dict[str, Any]]:
         pct = (w / total_w) * 100
         lbl = s.get("label", "Prize")
         rob = int(s.get("robux", 0))
-        icon = "❌" if rob == 0 else ("🏆" if rob >= 500 else "🎁")
+        icon = "" if rob == 0 else ("" if rob >= 500 else "")
         slice_lines.append(f"{icon} <b>{lbl}</b>: <code>{w:g}</code> ({pct:.1f}%)")
 
     slices_str = "\n".join(slice_lines)
 
     text = (
-        f"🎡 <b>[ផ្ទាំងគ្រប់គ្រង LUCKY SPIN ROBUX]</b>\n\n"
-        + (f"🔔 {status_note}\n\n" if status_note else "")
+        f"<b>[ផ្ទាំងគ្រប់គ្រង LUCKY SPIN ROBUX]</b>\n\n"
+        + (f"{status_note}\n\n" if status_note else "")
         + f"• <b>ស្ថានភាព៖</b> {st_en}\n"
         f"• <b>តម្លៃបង្វិល៖</b> <code>${sp_price:.2f} USD</code>\n"
         f"• <b>បង្វិលសរុប៖</b> {tot_spins} ដង | <b>ចំណូល៖</b> ${tot_rev:.2f} USD\n"
         f"• <b>Robux ចេញសរុប៖</b> {tot_rbx:,} R$\n\n"
-        f"📊 <b>ទម្ងន់ & ឱកាសចេញរង្វាន់ (Weights & Chances)៖</b>\n"
+        f"<b>ទម្ងន់ & ឱកាសចេញរង្វាន់ (Weights & Chances)៖</b>\n"
         f"{slices_str}\n\n"
-        f"👇 <i>សូមជ្រើសរើស Preset កំណត់ទម្ងន់លឿន ឬកែតាមចិត្ត៖</i>"
+        f"<i>សូមជ្រើសរើស Preset កំណត់ទម្ងន់លឿន ឬកែតាមចិត្ត៖</i>"
     )
 
     markup = {
         "inline_keyboard": [
             [
-                {"text": "🔒 ដាក់ Thank You 80% (តឹង/ចំណេញ)", "callback_data": "adm:spin_pre:hard"},
-                {"text": "⚖️ 60% (មធ្យម)", "callback_data": "adm:spin_pre:mid"}
+                {"text": "ដាក់ Thank You 80% (តឹង/ចំណេញ)", "callback_data": "adm:spin_pre:hard"},
+                {"text": "️ 60% (មធ្យម)", "callback_data": "adm:spin_pre:mid"}
             ],
             [
-                {"text": "🎁 ដាក់ Thank You 40% (ងាយឈ្នះ)", "callback_data": "adm:spin_pre:easy"},
-                {"text": "✏️ កែទម្ងន់តាមចិត្ត (Custom)", "callback_data": "adm:spin_slices"}
+                {"text": "ដាក់ Thank You 40% (ងាយឈ្នះ)", "callback_data": "adm:spin_pre:easy"},
+                {"text": "️ កែទម្ងន់តាមចិត្ត (Custom)", "callback_data": "adm:spin_slices"}
             ],
             [
-                {"text": "💲 $0.25", "callback_data": "adm:spin_p:0.25"},
-                {"text": "💲 $0.50", "callback_data": "adm:spin_p:0.50"},
-                {"text": "💲 $1.00", "callback_data": "adm:spin_p:1.00"}
+                {"text": "$0.25", "callback_data": "adm:spin_p:0.25"},
+                {"text": "$0.50", "callback_data": "adm:spin_p:0.50"},
+                {"text": "$1.00", "callback_data": "adm:spin_p:1.00"}
             ],
             [
-                {"text": "⛔ បិទ Spin" if spin_data.get("enabled", True) else "✅ បើក Spin", "callback_data": "adm:spin_tog"}
+                {"text": "បិទ Spin" if spin_data.get("enabled", True) else "បើក Spin", "callback_data": "adm:spin_tog"}
             ],
             [
-                {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}
+                {"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}
             ]
         ]
     }
@@ -2289,7 +2289,7 @@ def _build_tg_spin_slices_picker() -> tuple[str, Dict[str, Any]]:
     global spin_data
     slices = spin_data.get("slices", [])
     text = (
-        "✏️ <b>ជ្រើសរើសរង្វាន់ដើម្បីកែប្រែទម្ងន់ (Edit Slice Weight)</b>\n\n"
+        "️ <b>ជ្រើសរើសរង្វាន់ដើម្បីកែប្រែទម្ងន់ (Edit Slice Weight)</b>\n\n"
         "ចុចលើប៊ូតុងរង្វាន់ខាងក្រោម រួច Reply បញ្ចូលលេខទម្ងន់ថ្មី (Weight):\n"
         "<i>(លេខកាន់តែធំ = ឱកាសចេញកាន់តែខ្ពស់)</i>"
     )
@@ -2382,28 +2382,28 @@ def _build_tg_users_page(page: int = 0) -> tuple[str, Dict[str, Any]]:
     slice_users = users[page * per_page : (page + 1) * per_page]
 
     text = (
-        f"💰 <b>ជ្រើសរើសអតិថិជនដើម្បីកែសម្រួលលុយ Wallet</b>\n"
+        f"<b>ជ្រើសរើសអតិថិជនដើម្បីកែសម្រួលលុយ Wallet</b>\n"
         f"ទំព័រ {page + 1}/{max_page + 1} · សរុប: {total} នាក់\n\n"
-        f"👇 ចុចលើលេខរៀង/ឈ្មោះ ដើម្បី បន្ថែម (+) ឬ កាត់ (-) លុយ:"
+        f"ចុចលើលេខរៀង/ឈ្មោះ ដើម្បី បន្ថែម (+) ឬ កាត់ (-) លុយ:"
     )
     rows = []
     for idx, u in enumerate(slice_users, start=page * per_page + 1):
         uid = str(u.get("id") or "")
         uname = str(u.get("username") or "User")[:18]
         bal = float(u.get("balance") or 0.0)
-        frozen_tag = " ❄️ (កក)" if u.get("wallet_frozen") else ""
-        rows.append([{"text": f"{idx}. 👤 {uname} — ${bal:.2f}{frozen_tag}", "callback_data": f"adm:u:{uid}:{page}"}])
+        frozen_tag = " ️ (កក)" if u.get("wallet_frozen") else ""
+        rows.append([{"text": f"{idx}. {uname} — ${bal:.2f}{frozen_tag}", "callback_data": f"adm:u:{uid}:{page}"}])
 
     nav = []
     if page > 0:
         nav.append({"text": "⬅️ ថយក្រោយ", "callback_data": f"adm:users:{page - 1}"})
     if page < max_page:
-        nav.append({"text": "បន្ទាប់ ➡️", "callback_data": f"adm:users:{page + 1}"})
+        nav.append({"text": "បន្ទាប់ ️", "callback_data": f"adm:users:{page + 1}"})
     if nav:
         rows.append(nav)
     rows.append([
-        {"text": "🔍 បញ្ចូល User ID", "callback_data": "adm:find"},
-        {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}
+        {"text": "បញ្ចូល User ID", "callback_data": "adm:find"},
+        {"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}
     ])
     return text, {"inline_keyboard": rows}
 
@@ -2417,15 +2417,15 @@ def _build_tg_user_card(user_id: str, return_page: int = 0) -> Optional[tuple[st
     email = html.escape(str(u.get("email") or "—"), quote=False)
     bal = float(u.get("balance") or 0.0)
     frozen = bool(u.get("wallet_frozen"))
-    status_str = "❄️ បានបង្កក (FROZEN)" if frozen else "✅ ធម្មតា (ACTIVE)"
+    status_str = "️ បានបង្កក (FROZEN)" if frozen else "ធម្មតា (ACTIVE)"
     text = (
-        f"👤 <b>ការគ្រប់គ្រង Wallet អតិថិជន</b>\n\n"
+        f"<b>ការគ្រប់គ្រង Wallet អតិថិជន</b>\n\n"
         f"<b>ឈ្មោះ (ចុច Copy)៖</b> <code>{html.escape(raw_uname, quote=False)}</code>\n"
         f"<b>User ID (ចុច Copy)៖</b> <code>{html.escape(uid, quote=False)}</code>\n"
         f"<b>Email៖</b> {email}\n"
         f"<b>ស្ថានភាព Wallet៖</b> {status_str}\n"
-        f"💵 <b>សមតុល្យបច្ចុប្បន្ន៖</b> <code>${bal:.2f} USD</code>\n\n"
-        f"👇 <i>ចុចប៊ូតុងខាងក្រោមដើម្បី បន្ថែម (+) ឬ កាត់ (-) ប្រាក់៖</i>"
+        f"<b>សមតុល្យបច្ចុប្បន្ន៖</b> <code>${bal:.2f} USD</code>\n\n"
+        f"<i>ចុចប៊ូតុងខាងក្រោមដើម្បី បន្ថែម (+) ឬ កាត់ (-) ប្រាក់៖</i>"
     )
     markup = {
         "inline_keyboard": [
@@ -2442,16 +2442,16 @@ def _build_tg_user_card(user_id: str, return_page: int = 0) -> Optional[tuple[st
                 {"text": "-$10.00", "callback_data": f"adm:adj:{uid}:-10:{return_page}"}
             ],
             [
-                {"text": "✏️ ដាក់ចំនួនខ្លួនឯង +$", "callback_data": f"adm:cadd:{uid}:{return_page}"},
-                {"text": "✏️ កាត់ចំនួនខ្លួនឯង -$", "callback_data": f"adm:csub:{uid}:{return_page}"}
+                {"text": "️ ដាក់ចំនួនខ្លួនឯង +$", "callback_data": f"adm:cadd:{uid}:{return_page}"},
+                {"text": "️ កាត់ចំនួនខ្លួនឯង -$", "callback_data": f"adm:csub:{uid}:{return_page}"}
             ],
             [
-                {"text": "🔓 ដោះបង្កក" if frozen else "❄️ បង្កក Wallet", "callback_data": f"adm:frz:{uid}:{return_page}"},
-                {"text": "🗑️ លុបគណនី (Delete)", "callback_data": f"adm:u_del_ask:{uid}:{return_page}"}
+                {"text": "ដោះបង្កក" if frozen else "️ បង្កក Wallet", "callback_data": f"adm:frz:{uid}:{return_page}"},
+                {"text": "️ លុបគណនី (Delete)", "callback_data": f"adm:u_del_ask:{uid}:{return_page}"}
             ],
             [
                 {"text": "⬅️ បញ្ជីអតិថិជន", "callback_data": f"adm:users:{return_page}"},
-                {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}
+                {"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}
             ]
         ]
     }
@@ -2530,7 +2530,7 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         if not ok:
             await answer_callback_query(token, query_id, note)
             return
-        await answer_callback_query(token, query_id, f"✅ {note}")
+        await answer_callback_query(token, query_id, f"{note}")
         card = _build_tg_user_card(uid, ret_p)
         if card and msg_id:
             await edit_telegram_message(token, chat_id, msg_id, card[0], card[1])
@@ -2546,17 +2546,17 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         raw_uname = str(u.get("username") or "User")
         bal = float(u.get("balance") or 0.0)
         confirm_text = (
-            f"⚠️ <b>[បញ្ជាក់ការលុបគណនីអតិថិជន / DELETE USER]</b>\n\n"
+            f"️ <b>[បញ្ជាក់ការលុបគណនីអតិថិជន / DELETE USER]</b>\n\n"
             f"តើអ្នកពិតជាចង់លុបគណនីនេះចោលមែនទេ?\n"
-            f"👤 <b>ឈ្មោះ៖</b> <code>{html.escape(raw_uname, quote=False)}</code>\n"
-            f"🆔 <b>User ID៖</b> <code>{html.escape(uid, quote=False)}</code>\n"
-            f"💵 <b>សមតុល្យ Wallet៖</b> <code>${bal:.2f} USD</code>\n\n"
-            f"🚨 <i>ចំណាំ៖ ទិន្នន័យគណនីនេះនឹងត្រូវលុបចេញពីប្រព័ន្ធជាអចិន្ត្រៃយ៍ មិនអាចត្រឡប់ក្រោយវិញបានឡើយ!</i>"
+            f"<b>ឈ្មោះ៖</b> <code>{html.escape(raw_uname, quote=False)}</code>\n"
+            f"<b>User ID៖</b> <code>{html.escape(uid, quote=False)}</code>\n"
+            f"<b>សមតុល្យ Wallet៖</b> <code>${bal:.2f} USD</code>\n\n"
+            f"<i>ចំណាំ៖ ទិន្នន័យគណនីនេះនឹងត្រូវលុបចេញពីប្រព័ន្ធជាអចិន្ត្រៃយ៍ មិនអាចត្រឡប់ក្រោយវិញបានឡើយ!</i>"
         )
         confirm_markup = {
             "inline_keyboard": [
-                [{"text": f"🔴 បាទ/ចាស! លុបគណនី @{raw_uname} ចោល", "callback_data": f"adm:u_del_cfm:{uid}:{ret_p}"}],
-                [{"text": "❌ ទេ! ត្រឡប់ក្រោយ (Cancel)", "callback_data": f"adm:u:{uid}:{ret_p}"}]
+                [{"text": f"បាទ/ចាស! លុបគណនី @{raw_uname} ចោល", "callback_data": f"adm:u_del_cfm:{uid}:{ret_p}"}],
+                [{"text": "ទេ! ត្រឡប់ក្រោយ (Cancel)", "callback_data": f"adm:u:{uid}:{ret_p}"}]
             ]
         }
         if msg_id:
@@ -2575,9 +2575,9 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
             deleted = users.pop(idx)
             save_users()
         del_name = str(deleted.get("username") or uid)
-        await answer_callback_query(token, query_id, f"✅ បានលុបគណនី {del_name} ជោគជ័យ!")
+        await answer_callback_query(token, query_id, f"បានលុបគណនី {del_name} ជោគជ័យ!")
         success_text = (
-            f"🗑️ <b>[បានលុបគណនីជោគជ័យ / USER DELETED]</b>\n\n"
+            f"️ <b>[បានលុបគណនីជោគជ័យ / USER DELETED]</b>\n\n"
             f"គណនី <b>@{html.escape(del_name, quote=False)}</b> (ID: <code>{html.escape(uid, quote=False)}</code>) ត្រូវបានលុបចេញពីប្រព័ន្ធរួចរាល់ហើយ។"
         )
         users_txt, users_markup = _build_tg_users_page(ret_p)
@@ -2597,7 +2597,7 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
                 return
             u["wallet_frozen"] = not bool(u.get("wallet_frozen"))
             save_users()
-            st_lbl = "Frozen ❄️" if u["wallet_frozen"] else "Active ✅"
+            st_lbl = "Frozen ️" if u["wallet_frozen"] else "Active "
         await answer_callback_query(token, query_id, f"Wallet is now {st_lbl}")
         card = _build_tg_user_card(uid, ret_p)
         if card and msg_id:
@@ -2608,28 +2608,28 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         ret_p = int(parts[3]) if len(parts) > 3 and parts[3].isdigit() else 0
         if sub == "find":
             _tg_admin_state[chat_id] = {"mode": "find"}
-            prompt = "🔍 <b>ស្វែងរកអតិថិជន (Find User)</b>\nសូម Reply សារនេះដោយបញ្ជូន <b>User ID</b> (ឧ. <code>usr_...</code>), ឈ្មោះ Username ឬ Email:"
+            prompt = "<b>ស្វែងរកអតិថិជន (Find User)</b>\nសូម Reply សារនេះដោយបញ្ជូន <b>User ID</b> (ឧ. <code>usr_...</code>), ឈ្មោះ Username ឬ Email:"
         elif sub == "find_ord":
             _tg_admin_state[chat_id] = {"mode": "find_ord"}
-            prompt = "🔎 <b>ស្វែងរក Order (Find Order)</b>\nសូម Reply សារនេះដោយបញ្ជូន <b>Order ID</b> (ឧ. <code>ORD-...</code> ឬ <code>SPIN...</code>):"
+            prompt = "<b>ស្វែងរក Order (Find Order)</b>\nសូម Reply សារនេះដោយបញ្ជូន <b>Order ID</b> (ឧ. <code>ORD-...</code> ឬ <code>SPIN...</code>):"
         elif sub == "cadd":
             _tg_admin_state[chat_id] = {"mode": "cadd", "user_id": uid, "page": ret_p}
-            prompt = f"✏️ <b>បញ្ចូលទឹកប្រាក់តាមចិត្ត</b>\nសូម Reply សារនេះដោយបញ្ជូនចំនួនទឹកប្រាក់ USD ដែលត្រូវ <b>បន្ថែម</b> ទៅកាន់ User <code>{html.escape(uid, quote=False)}</code> (ឧ. <code>25</code>):"
+            prompt = f"️ <b>បញ្ចូលទឹកប្រាក់តាមចិត្ត</b>\nសូម Reply សារនេះដោយបញ្ជូនចំនួនទឹកប្រាក់ USD ដែលត្រូវ <b>បន្ថែម</b> ទៅកាន់ User <code>{html.escape(uid, quote=False)}</code> (ឧ. <code>25</code>):"
         elif sub == "csub":
             _tg_admin_state[chat_id] = {"mode": "csub", "user_id": uid, "page": ret_p}
-            prompt = f"✏️ <b>កាត់ទឹកប្រាក់តាមចិត្ត</b>\nសូម Reply សារនេះដោយបញ្ជូនចំនួនទឹកប្រាក់ USD ដែលត្រូវ <b>កាត់ចេញពី</b> User <code>{html.escape(uid, quote=False)}</code> (ឧ. <code>5</code>):"
+            prompt = f"️ <b>កាត់ទឹកប្រាក់តាមចិត្ត</b>\nសូម Reply សារនេះដោយបញ្ជូនចំនួនទឹកប្រាក់ USD ដែលត្រូវ <b>កាត់ចេញពី</b> User <code>{html.escape(uid, quote=False)}</code> (ឧ. <code>5</code>):"
         elif sub == "promo_new":
             _tg_admin_state[chat_id] = {"mode": "promo_new"}
-            prompt = "🎟️ <b>បង្កើតកូដបញ្ចុះតម្លៃថ្មី</b>\nសូម Reply សារនេះតាមទម្រង់ <code>CODE ចំនួន</code> (ឧ. <code>ROLEA10 10%</code> ឬ <code>SAVE5 $5</code>):"
+            prompt = "️ <b>បង្កើតកូដបញ្ចុះតម្លៃថ្មី</b>\nសូម Reply សារនេះតាមទម្រង់ <code>CODE ចំនួន</code> (ឧ. <code>ROLEA10 10%</code> ឬ <code>SAVE5 $5</code>):"
         elif sub == "blk_u":
             _tg_admin_state[chat_id] = {"mode": "blk_u"}
-            prompt = "🚫 <b>ប្លុកឈ្មោះ (Block Username)</b>\nសូម Reply សារនេះដោយបញ្ជូនឈ្មោះ Roblox Username ដែលត្រូវ Blacklist:"
+            prompt = "<b>ប្លុកឈ្មោះ (Block Username)</b>\nសូម Reply សារនេះដោយបញ្ជូនឈ្មោះ Roblox Username ដែលត្រូវ Blacklist:"
         elif sub == "blk_ip":
             _tg_admin_state[chat_id] = {"mode": "blk_ip"}
-            prompt = "🚫 <b>ប្លុកអាសយដ្ឋាន IP (Block IP)</b>\nសូម Reply សារនេះដោយបញ្ជូន IP Address ដែលត្រូវ Blacklist:"
+            prompt = "<b>ប្លុកអាសយដ្ឋាន IP (Block IP)</b>\nសូម Reply សារនេះដោយបញ្ជូន IP Address ដែលត្រូវ Blacklist:"
         else:
             _tg_admin_state[chat_id] = {"mode": "bcast"}
-            prompt = "📢 <b>ផ្ញើសារ Broadcast ទៅកាន់អតិថិជនទាំងអស់</b>\nសូម Reply សារនេះនូវខ្លឹមសារដែលត្រូវផ្ញើជូនអតិថិជនទាំងអស់តាម Telegram:"
+            prompt = "<b>ផ្ញើសារ Broadcast ទៅកាន់អតិថិជនទាំងអស់</b>\nសូម Reply សារនេះនូវខ្លឹមសារដែលត្រូវផ្ញើជូនអតិថិជនទាំងអស់តាម Telegram:"
         await answer_callback_query(token, query_id, "")
         await send_telegram_direct_message(token, chat_id, prompt, {"force_reply": True, "selective": True})
 
@@ -2647,9 +2647,9 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         ]
         total = len(active_orders)
         if total == 0:
-            text = "📦 <b>បញ្ជី Order កំពុងរង់ចាំ (PAID ONLY)</b>\n\n✅ គ្មាន Order បានបង់ប្រាក់ណាកំពុងរង់ចាំនៅពេលនេះទេ!"
+            text = "<b>បញ្ជី Order កំពុងរង់ចាំ (PAID ONLY)</b>\n\nគ្មាន Order បានបង់ប្រាក់ណាកំពុងរង់ចាំនៅពេលនេះទេ!"
             rows = [
-                [{"text": "🔄 Refresh", "callback_data": "adm:pending:0"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]
+                [{"text": "Refresh", "callback_data": "adm:pending:0"}, {"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}]
             ]
         else:
             per_page = 5
@@ -2658,7 +2658,7 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
             slice_orders = active_orders[page * per_page : (page + 1) * per_page]
 
             lines = [
-                f"📦 <b>បញ្ជី Order បានបង់ប្រាក់ / កំពុងរង់ចាំបាញ់</b>\n"
+                f"<b>បញ្ជី Order បានបង់ប្រាក់ / កំពុងរង់ចាំបាញ់</b>\n"
                 f"ទំព័រ {page + 1}/{max_page + 1} · សរុប: {total} Order (បង់ប្រាក់រួច)\n"
             ]
             rows = []
@@ -2667,23 +2667,23 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
                 raw_c = str(o.get("roblox_username") or o.get("buyer_account") or "Customer")
                 cust = html.escape(raw_c, quote=False)
                 amt = float(o.get("amount") or 0)
-                lines.append(f"{idx}. <code>{html.escape(oid, quote=False)}</code> — <code>{cust}</code> (${amt:.2f}) [🟢 PAID]")
+                lines.append(f"{idx}. <code>{html.escape(oid, quote=False)}</code> — <code>{cust}</code> (${amt:.2f}) [PAID]")
                 rows.append([
-                    {"text": f"✅ {idx}. បាញ់រួច ({oid[:8]})", "callback_data": f"complete:{oid}"},
-                    {"text": f"❌ បដិសេធ ({oid[:8]})", "callback_data": f"reject:{oid}"}
+                    {"text": f"{idx}. បាញ់រួច ({oid[:8]})", "callback_data": f"complete:{oid}"},
+                    {"text": f"បដិសេធ ({oid[:8]})", "callback_data": f"reject:{oid}"}
                 ])
 
             nav = []
             if page > 0:
                 nav.append({"text": "⬅️ ថយក្រោយ", "callback_data": f"adm:pending:{page - 1}"})
             if page < max_page:
-                nav.append({"text": "បន្ទាប់ ➡️", "callback_data": f"adm:pending:{page + 1}"})
+                nav.append({"text": "បន្ទាប់ ️", "callback_data": f"adm:pending:{page + 1}"})
             if nav:
                 rows.append(nav)
 
             rows.append([
-                {"text": "🔄 Refresh", "callback_data": f"adm:pending:{page}"},
-                {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}
+                {"text": "Refresh", "callback_data": f"adm:pending:{page}"},
+                {"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}
             ])
             text = "\n".join(lines)
         await answer_callback_query(token, query_id, "")
@@ -2694,22 +2694,22 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         completed_orders = [o for o in orders if o.get("status") == "completed" or o.get("delivered")]
         paid_rev = sum(float(o.get("amount") or 0) for o in orders if o.get("paid") and o.get("status") != "refunded")
         text = (
-            f"📊 <b>ស្ថិតិហាងសរុប (Store Statistics)</b>\n\n"
-            f"📦 <b>ការកុម្ម៉ង់សរុប៖</b> {len(orders)} កុម្ម៉ង់\n"
-            f"✅ <b>បាញ់ទំនិញរួចរាល់៖</b> {len(completed_orders)} កុម្ម៉ង់\n"
-            f"💵 <b>ចំណូលលុយពិតដែលបានបង់៖</b> ${paid_rev:.2f} USD\n"
-            f"👥 <b>អតិថិជនចុះឈ្មោះ៖</b> {len(users)} នាក់"
+            f"<b>ស្ថិតិហាងសរុប (Store Statistics)</b>\n\n"
+            f"<b>ការកុម្ម៉ង់សរុប៖</b> {len(orders)} កុម្ម៉ង់\n"
+            f"<b>បាញ់ទំនិញរួចរាល់៖</b> {len(completed_orders)} កុម្ម៉ង់\n"
+            f"<b>ចំណូលលុយពិតដែលបានបង់៖</b> ${paid_rev:.2f} USD\n"
+            f"<b>អតិថិជនចុះឈ្មោះ៖</b> {len(users)} នាក់"
         )
         await answer_callback_query(token, query_id, "")
         if msg_id:
-            await edit_telegram_message(token, chat_id, msg_id, text, {"inline_keyboard": [[{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]})
+            await edit_telegram_message(token, chat_id, msg_id, text, {"inline_keyboard": [[{"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}]]})
 
     elif sub == "daily_rep":
         text = build_daily_sales_report()
         markup = {"inline_keyboard": [
-            [{"text": "🔄 Refresh របាយការណ៍", "callback_data": "adm:daily_rep"}],
-            [{"text": "💾 Backup Data ចូល Telegram", "callback_data": "adm:backup_now"}],
-            [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]
+            [{"text": "Refresh របាយការណ៍", "callback_data": "adm:daily_rep"}],
+            [{"text": "Backup Data ចូល Telegram", "callback_data": "adm:backup_now"}],
+            [{"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}]
         ]}
         await answer_callback_query(token, query_id, "")
         if msg_id:
@@ -2719,16 +2719,16 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         await answer_callback_query(token, query_id, "កំពុងបង្កើត File Backup...")
         ok = await send_telegram_data_backup(chat_id)
         if ok:
-            await send_telegram_direct_message(token, chat_id, "✅ <b>បានផ្ញើឯកសារ Backup ចូល Telegram ជោគជ័យ!</b>", {"inline_keyboard": [[{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]})
+            await send_telegram_direct_message(token, chat_id, "<b>បានផ្ញើឯកសារ Backup ចូល Telegram ជោគជ័យ!</b>", {"inline_keyboard": [[{"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}]]})
         else:
-            await send_telegram_direct_message(token, chat_id, "❌ <b>ការផ្ញើ Backup បរាជ័យ។</b>")
+            await send_telegram_direct_message(token, chat_id, "<b>ការផ្ញើ Backup បរាជ័យ។</b>")
 
     elif sub in ("spin", "spin_tog", "spin_slices", "spin_pre", "spw_ed") or sub.startswith("spin_p"):
         status_note = ""
         if sub == "spin_tog":
             spin_data["enabled"] = not bool(spin_data.get("enabled", True))
             save_spin_data()
-            status_note = f"Spin Wheel ត្រូវបាន {'បើកដំណើរការ 🟢' if spin_data['enabled'] else 'បិទដំណើរការ ⛔'}"
+            status_note = f"Spin Wheel ត្រូវបាន {'បើកដំណើរការ ' if spin_data['enabled'] else 'បិទដំណើរការ '}"
             await answer_callback_query(token, query_id, status_note)
         elif sub.startswith("spin_p") and len(parts) >= 3:
             try:
@@ -2736,7 +2736,7 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
                 if p_val > 0:
                     spin_data["spin_price_usd"] = round(p_val, 2)
                     save_spin_data()
-                    status_note = f"✅ តម្លៃ Spin ត្រូវបានដាក់ ${p_val:.2f} USD"
+                    status_note = f"តម្លៃ Spin ត្រូវបានដាក់ ${p_val:.2f} USD"
                     await answer_callback_query(token, query_id, status_note)
             except ValueError:
                 await answer_callback_query(token, query_id, "តម្លៃមិនត្រឹមត្រូវ។")
@@ -2745,13 +2745,13 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
             slices = spin_data.get("slices", [])
             if pre == "hard":
                 preset_weights = {"sl_1": 80.0, "sl_2": 12.0, "sl_3": 5.0, "sl_4": 2.0, "sl_5": 0.7, "sl_6": 0.2, "sl_7": 0.08, "sl_8": 0.02}
-                status_note = "🛡️ បានកំណត់ Thank You 80% (កម្រិតតឹង/ការពារការខាត) ជោគជ័យ!"
+                status_note = "️ បានកំណត់ Thank You 80% (កម្រិតតឹង/ការពារការខាត) ជោគជ័យ!"
             elif pre == "mid":
                 preset_weights = {"sl_1": 60.0, "sl_2": 22.0, "sl_3": 11.0, "sl_4": 5.0, "sl_5": 1.4, "sl_6": 0.4, "sl_7": 0.15, "sl_8": 0.05}
-                status_note = "⚖️ បានកំណត់ Thank You 60% (កម្រិតមធ្យម) ជោគជ័យ!"
+                status_note = "️ បានកំណត់ Thank You 60% (កម្រិតមធ្យម) ជោគជ័យ!"
             else:
                 preset_weights = {"sl_1": 40.0, "sl_2": 32.0, "sl_3": 17.0, "sl_4": 7.0, "sl_5": 2.5, "sl_6": 1.0, "sl_7": 0.4, "sl_8": 0.1}
-                status_note = "🎁 បានកំណត់ Thank You 40% (កម្រិតងាយឈ្នះ) ជោគជ័យ!"
+                status_note = "បានកំណត់ Thank You 40% (កម្រិតងាយឈ្នះ) ជោគជ័យ!"
 
             for s in slices:
                 sid = s.get("id")
@@ -2776,7 +2776,7 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
             t_lbl = target.get("label", sid)
             t_w = float(target.get("weight", 0))
             prompt = (
-                f"✏️ <b>កំណត់ទម្ងន់ (Weight) សម្រាប់៖ {t_lbl}</b>\n\n"
+                f"️ <b>កំណត់ទម្ងន់ (Weight) សម្រាប់៖ {t_lbl}</b>\n\n"
                 f"• ទម្ងន់បច្ចុប្បន្ន៖ <code>{t_w:g}</code>\n\n"
                 f"សូម Reply សារនេះដោយបញ្ចូលទម្ងន់ថ្មី (Weight):\n"
                 f"• ឧទាហរណ៍ <code>70</code> (ប្រសិនបើចង់ឱ្យចេញញឹកញាប់)\n"
@@ -2799,7 +2799,7 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
             if gid in games:
                 games[gid]["enabled"] = not games[gid].get("enabled", True)
                 save_games()
-                await answer_callback_query(token, query_id, f"{games[gid].get('name', gid)} គឺ {'បើក 🟢' if games[gid]['enabled'] else 'បិទ ⛔'}")
+                await answer_callback_query(token, query_id, f"{games[gid].get('name', gid)} គឺ {'បើក ' if games[gid]['enabled'] else 'បិទ '}")
             else:
                 await answer_callback_query(token, query_id, "រកមិនឃើញហ្គេមនេះទេ។")
         else:
@@ -2808,9 +2808,9 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         for gid, g in games.items():
             en = g.get("enabled", True)
             gname = str(g.get("name") or gid)
-            rows.append([{"text": f"{'🟢' if en else '⛔'} {gname} ({'បើក' if en else 'បិទ'})", "callback_data": f"adm:gtog:{gid}"}])
-        rows.append([{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}])
-        text = "🎮 <b>ស្ថានភាពហ្គេម (ចុចលើប៊ូតុងដើម្បី បិទ/បើក)</b>"
+            rows.append([{"text": f"{'' if en else ''} {gname} ({'បើក' if en else 'បិទ'})", "callback_data": f"adm:gtog:{gid}"}])
+        rows.append([{"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}])
+        text = "<b>ស្ថានភាពហ្គេម (ចុចលើប៊ូតុងដើម្បី បិទ/បើក)</b>"
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, text, {"inline_keyboard": rows})
 
@@ -2822,14 +2822,14 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
             await answer_callback_query(token, query_id, "កំពុង Sync ឆែកស្តុក Robux គ្រប់ Bot…")
             sr = await sync_all_bots_balance()
             sync_package_stock_with_inventory()
-            status_note = "✅ បាន Sync ជាមួយគ្រប់ Bot ជោគជ័យ!" if sr.get("ok") else f"⚠️ Sync: {sr.get('error', 'បរាជ័យ')}"
+            status_note = "បាន Sync ជាមួយគ្រប់ Bot ជោគជ័យ!" if sr.get("ok") else f"️ Sync: {sr.get('error', 'បរាជ័យ')}"
             text, markup = _build_tg_stock_card(status_note)
         elif sub == "bot_add":
             _tg_admin_state[chat_id] = {"mode": "bot_cookie_add"}
             prompt = (
-                "➕ <b>បន្ថែម ROBLOX BOT & COOKIE ថ្មី</b>\n\n"
+                "<b>បន្ថែម ROBLOX BOT & COOKIE ថ្មី</b>\n\n"
                 "សូម <b>Reply (ឆ្លើយតប)</b> សារនេះដោយផ្ញើកូដ <code>.ROBLOSECURITY</code> cookie របស់ Bot ថ្មី (Bot B / Bot C…):\n\n"
-                "<i>🔐 ប្រព័ន្ធនឹងធ្វើការផ្ទៀងផ្ទាត់ឈ្មោះ និង Live Robux Funds ដោយស្វ័យប្រវត្ត។</i>"
+                "<i>ប្រព័ន្ធនឹងធ្វើការផ្ទៀងផ្ទាត់ឈ្មោះ និង Live Robux Funds ដោយស្វ័យប្រវត្ត។</i>"
             )
             await answer_callback_query(token, query_id, "")
             await send_telegram_direct_message(token, chat_id, prompt, {"force_reply": True, "selective": True})
@@ -2846,9 +2846,9 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
                 sync_package_stock_with_inventory()
                 bname = target.get("name") or "Bot"
                 is_on = target["enabled"]
-                st_label = "បើកដំណើរការ (ON) 🟢" if is_on else "បិទដំណើរការ (OFF) ⛔"
+                st_label = "បើកដំណើរការ (ON) " if is_on else "បិទដំណើរការ (OFF) "
                 await answer_callback_query(token, query_id, f"{bname} គឺ {st_label}")
-                status_note = f"✅ បាន{'បើក' if is_on else 'បិទ'} {bname} ({st_label}) រួចរាល់!"
+                status_note = f"បាន{'បើក' if is_on else 'បិទ'} {bname} ({st_label}) រួចរាល់!"
                 text, markup = _build_tg_stock_card(status_note)
             else:
                 await answer_callback_query(token, query_id, "រកមិនឃើញ Bot នេះទេ។")
@@ -2860,7 +2860,7 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
                 s_res = await sync_single_bot(target)
                 save_inventory()
                 sync_package_stock_with_inventory()
-                status_note = f"✅ បាន Sync {target.get('name')} ជោគជ័យ! ({target.get('group_funds', 0):,} R$)" if s_res.get("ok") else f"⚠️ Sync: {s_res.get('error')}"
+                status_note = f"បាន Sync {target.get('name')} ជោគជ័យ! ({target.get('group_funds', 0):,} R$)" if s_res.get("ok") else f"️ Sync: {s_res.get('error')}"
                 text, markup = _build_tg_bot_view(bid, status_note)
             else:
                 await answer_callback_query(token, query_id, "រកមិនឃើញ Bot នេះទេ។")
@@ -2872,8 +2872,8 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
             save_inventory()
             sync_package_stock_with_inventory()
             bname = target.get("name") if target else "Bot"
-            await answer_callback_query(token, query_id, f"🗑️ បានលុប {bname} រួចរាល់!")
-            text, markup = _build_tg_stock_card(f"🗑️ បានលុប {bname} ចេញពីប្រព័ន្ធរួចរាល់!")
+            await answer_callback_query(token, query_id, f"️ បានលុប {bname} រួចរាល់!")
+            text, markup = _build_tg_stock_card(f"️ បានលុប {bname} ចេញពីប្រព័ន្ធរួចរាល់!")
         else:
             await answer_callback_query(token, query_id, "")
             text, markup = _build_tg_stock_card(status_note)
@@ -2886,9 +2886,9 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
     elif sub == "mute_stock_alert":
         inventory["telegram_alert_enabled"] = False
         save_inventory()
-        await answer_callback_query(token, query_id, "🔕 បានបិទ Low Stock Alert ជោគជ័យ!")
+        await answer_callback_query(token, query_id, "បានបិទ Low Stock Alert ជោគជ័យ!")
         if msg_id:
-            await edit_telegram_message(token, chat_id, msg_id, "🔕 <b>ការដាស់តឿនស្តុក Robux (Low Stock Alert) ត្រូវបានបិទដំណើរការ (Muted) រួចរាល់។</b>\nលោកអ្នកអាចបើកវាឡើងវិញតាម Admin Panel បានគ្រប់ពេល។", {"inline_keyboard": [[{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]})
+            await edit_telegram_message(token, chat_id, msg_id, "<b>ការដាស់តឿនស្តុក Robux (Low Stock Alert) ត្រូវបានបិទដំណើរការ (Muted) រួចរាល់។</b>\nលោកអ្នកអាចបើកវាឡើងវិញតាម Admin Panel បានគ្រប់ពេល។", {"inline_keyboard": [[{"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}]]})
 
     elif sub in ("fsale", "fstog", "fstime"):
         if sub == "fstog":
@@ -3048,19 +3048,19 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
             elif btype == "ip":
                 blacklist["blocked_ips"] = [x for x in blacklist.get("blocked_ips", []) if x != bval]
             save_blacklist()
-            await answer_callback_query(token, query_id, f"🔓 បានដោះប្លុក {bval}")
+            await answer_callback_query(token, query_id, f"បានដោះប្លុក {bval}")
         else:
             await answer_callback_query(token, query_id, "")
         bu = blacklist.get("blocked_users", [])
         bi = blacklist.get("blocked_ips", [])
         rows = []
         for u_blk in bu[:4]:
-            rows.append([{"text": f"🔓 ដោះប្លុកឈ្មោះ៖ {u_blk}", "callback_data": f"adm:unblk:u:{u_blk}"}])
+            rows.append([{"text": f"ដោះប្លុកឈ្មោះ៖ {u_blk}", "callback_data": f"adm:unblk:u:{u_blk}"}])
         for ip_blk in bi[:4]:
-            rows.append([{"text": f"🔓 ដោះប្លុក IP៖ {ip_blk}", "callback_data": f"adm:unblk:ip:{ip_blk}"}])
-        rows.append([{"text": "➕ ប្លុកឈ្មោះ Username", "callback_data": "adm:blk_u"}, {"text": "➕ ប្លុកអាសយដ្ឋាន IP", "callback_data": "adm:blk_ip"}])
-        rows.append([{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}])
-        text = f"🚫 <b>ការគ្រប់គ្រង Blacklist</b>\n\n<b>ឈ្មោះដែលបានប្លុក៖</b> {len(bu)}\n<b>IP ដែលបានប្លុក៖</b> {len(bi)}\n\nចុចលើឈ្មោះ ឬ IP ដើម្បីដោះប្លុក៖"
+            rows.append([{"text": f"ដោះប្លុក IP៖ {ip_blk}", "callback_data": f"adm:unblk:ip:{ip_blk}"}])
+        rows.append([{"text": "ប្លុកឈ្មោះ Username", "callback_data": "adm:blk_u"}, {"text": "ប្លុកអាសយដ្ឋាន IP", "callback_data": "adm:blk_ip"}])
+        rows.append([{"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}])
+        text = f"<b>ការគ្រប់គ្រង Blacklist</b>\n\n<b>ឈ្មោះដែលបានប្លុក៖</b> {len(bu)}\n<b>IP ដែលបានប្លុក៖</b> {len(bi)}\n\nចុចលើឈ្មោះ ឬ IP ដើម្បីដោះប្លុក៖"
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, text, {"inline_keyboard": rows})
 
@@ -3068,20 +3068,20 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         if sub == "maint_tog":
             settings["maintenance_mode"] = not bool(settings.get("maintenance_mode", False))
             save_settings()
-            await answer_callback_query(token, query_id, f"Maintenance Mode: {'បើក 🛠️' if settings['maintenance_mode'] else 'បិទ 🟢'}")
+            await answer_callback_query(token, query_id, f"Maintenance Mode: {'បើក ️' if settings['maintenance_mode'] else 'បិទ '}")
         else:
             await answer_callback_query(token, query_id, "")
         maint = bool(settings.get("maintenance_mode", False))
         text = (
-            f"📢 <b>ការគ្រប់គ្រងហាង និងផ្សាយដំណឹង (Broadcast)</b>\n\n"
-            f"<b>ស្ថានភាពហាង៖</b> {'🛠️ កំពុងជួសជុល (Maintenance ON)' if maint else '🟢 ដំណើរការធម្មតា (Online)'}\n\n"
+            f"<b>ការគ្រប់គ្រងហាង និងផ្សាយដំណឹង (Broadcast)</b>\n\n"
+            f"<b>ស្ថានភាពហាង៖</b> {'️ កំពុងជួសជុល (Maintenance ON)' if maint else 'ដំណើរការធម្មតា (Online)'}\n\n"
             f"សូមជ្រើសរើសប៊ូតុងខាងក្រោមដើម្បី បិទ/បើក របៀបជួសជុល ឬផ្ញើសារដំណឹងទៅអតិថិជនទាំងអស់៖"
         )
         markup = {
             "inline_keyboard": [
-                [{"text": "🟢 បើកដំណើរការហាង (Online)" if maint else "🛠️ ដាក់ហាងជួសជុល (Maintenance)", "callback_data": "adm:maint_tog"}],
-                [{"text": "📢 ផ្ញើសារដំណឹង (Broadcast)", "callback_data": "adm:bcast"}],
-                [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]
+                [{"text": "បើកដំណើរការហាង (Online)" if maint else "️ ដាក់ហាងជួសជុល (Maintenance)", "callback_data": "adm:maint_tog"}],
+                [{"text": "ផ្ញើសារដំណឹង (Broadcast)", "callback_data": "adm:bcast"}],
+                [{"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}]
             ]
         }
         if msg_id:
@@ -3197,7 +3197,7 @@ async def handle_telegram_callback_query(query: Dict[str, Any], token: str):
         return
 
     if not is_telegram_admin(from_id, from_uname, msg_chat_id):
-        await answer_callback_query(token, query_id, "⛔ Unauthorized: Admin action only.", show_alert=True)
+        await answer_callback_query(token, query_id, "Unauthorized: Admin action only.", show_alert=True)
         return
 
     if data.startswith("adm:"):
@@ -3235,7 +3235,7 @@ async def handle_telegram_callback_query(query: Dict[str, Any], token: str):
 
         if action == "complete":
             if order.get("status") == "refunded":
-                await answer_callback_query(token, query_id, f"⚠️ Order #{order_id} ត្រូវបានសងប្រាក់វិញរួចហើយ។")
+                await answer_callback_query(token, query_id, f"️ Order #{order_id} ត្រូវបានសងប្រាក់វិញរួចហើយ។")
                 return
             order["paid"] = True
             order["delivered"] = True
@@ -3249,19 +3249,19 @@ async def handle_telegram_callback_query(query: Dict[str, Any], token: str):
             save_orders()
             asyncio.create_task(notify_customer_order_completed(order))
 
-            await answer_callback_query(token, query_id, f"✅ Order #{order_id} បានបាញ់រួចរាល់!")
+            await answer_callback_query(token, query_id, f"Order #{order_id} បានបាញ់រួចរាល់!")
 
             updated_text = (
-                f"✅ <b>[ORDER COMPLETED BY ADMIN]</b>\n"
-                f"🏪 <b>Store:</b> {html.escape(str(settings.get('store_name', 'Rolea Topup')), quote=False)}\n"
-                f"🆔 <b>Order ID:</b> <code>{html.escape(str(order.get('order_id') or ''), quote=False)}</code>\n"
-                f"🎮 <b>Game:</b> {game_name}\n"
-                f"👤 <b>Account (ចុច Copy):</b> <code>{html.escape(raw_cust_acc, quote=False)}</code>\n"
-                f"📦 <b>Package:</b> {pkg_name}\n"
-                f"💵 <b>Amount:</b> ${amount} USD\n"
-                f"🎉 <b>Status:</b> COMPLETED &amp; DELIVERED\n"
-                f"👮 <b>Action By:</b> {admin_name}\n"
-                f"🕒 <b>Action Time:</b> {now_ict}"
+                f"<b>[ORDER COMPLETED BY ADMIN]</b>\n"
+                f"<b>Store:</b> {html.escape(str(settings.get('store_name', 'Rolea Topup')), quote=False)}\n"
+                f"<b>Order ID:</b> <code>{html.escape(str(order.get('order_id') or ''), quote=False)}</code>\n"
+                f"<b>Game:</b> {game_name}\n"
+                f"<b>Account (ចុច Copy):</b> <code>{html.escape(raw_cust_acc, quote=False)}</code>\n"
+                f"<b>Package:</b> {pkg_name}\n"
+                f"<b>Amount:</b> ${amount} USD\n"
+                f"<b>Status:</b> COMPLETED &amp; DELIVERED\n"
+                f"<b>Action By:</b> {admin_name}\n"
+                f"<b>Action Time:</b> {now_ict}"
             )
             if query.get("message"):
                 msg = query["message"]
@@ -3270,25 +3270,25 @@ async def handle_telegram_callback_query(query: Dict[str, Any], token: str):
         elif action == "reject":
             ok_ref, ref_msg, ref_user = process_order_refund(order)
             if not ok_ref:
-                await answer_callback_query(token, query_id, f"⚠️ {ref_msg}")
+                await answer_callback_query(token, query_id, f"️ {ref_msg}")
                 return
             asyncio.create_task(notify_customer_order_refunded(order))
 
             uname_note = f" (@{ref_user['username']})" if ref_user else ""
-            await answer_callback_query(token, query_id, f"⚠️ Order #{order_id} បានបដិសេធ & សងប្រាក់ចូល Wallet{uname_note}!")
+            await answer_callback_query(token, query_id, f"️ Order #{order_id} បានបដិសេធ & សងប្រាក់ចូល Wallet{uname_note}!")
 
             updated_text = (
-                f"❌ <b>[ការកុម្ម៉ង់ត្រូវបានបដិសេធ & សងប្រាក់វិញ]</b>\n"
-                f"🏪 <b>ហាង៖</b> {html.escape(str(settings.get('store_name', 'Rolea Topup')), quote=False)}\n"
-                f"🆔 <b>Order ID:</b> <code>{html.escape(str(order.get('order_id') or ''), quote=False)}</code>\n"
-                f"🎮 <b>ហ្គេម៖</b> {game_name}\n"
-                f"👤 <b>ឈ្មោះក្នុងហ្គេម (ចុច Copy)៖</b> <code>{html.escape(raw_cust_acc, quote=False)}</code>\n"
-                f"📦 <b>កញ្ចប់៖</b> {pkg_name}\n"
-                f"💵 <b>តម្លៃ៖</b> ${amount} USD\n"
-                f"💰 <b>បង្វិលសងចូល៖</b> Rolea Wallet{uname_note}\n"
-                f"🚫 <b>ស្ថានភាព៖</b> បដិសេធ និងសងប្រាក់វិញ (REFUNDED)\n"
-                f"👮 <b>រៀបចំដោយ Admin៖</b> {admin_name}\n"
-                f"🕒 <b>ពេលវេលា៖</b> {now_ict}"
+                f"<b>[ការកុម្ម៉ង់ត្រូវបានបដិសេធ & សងប្រាក់វិញ]</b>\n"
+                f"<b>ហាង៖</b> {html.escape(str(settings.get('store_name', 'Rolea Topup')), quote=False)}\n"
+                f"<b>Order ID:</b> <code>{html.escape(str(order.get('order_id') or ''), quote=False)}</code>\n"
+                f"<b>ហ្គេម៖</b> {game_name}\n"
+                f"<b>ឈ្មោះក្នុងហ្គេម (ចុច Copy)៖</b> <code>{html.escape(raw_cust_acc, quote=False)}</code>\n"
+                f"<b>កញ្ចប់៖</b> {pkg_name}\n"
+                f"<b>តម្លៃ៖</b> ${amount} USD\n"
+                f"<b>បង្វិលសងចូល៖</b> Rolea Wallet{uname_note}\n"
+                f"<b>ស្ថានភាព៖</b> បដិសេធ និងសងប្រាក់វិញ (REFUNDED)\n"
+                f"<b>រៀបចំដោយ Admin៖</b> {admin_name}\n"
+                f"<b>ពេលវេលា៖</b> {now_ict}"
             )
             if query.get("message"):
                 msg = query["message"]
@@ -3354,7 +3354,7 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                 asyncio.create_task(record_unauthorized_bot_attempt(from_id, from_uname, chat_id, text))
                 asyncio.create_task(send_telegram_direct_message(token, chat_id, "Access Denied: Admin authentication required."))
             else:
-                asyncio.create_task(send_telegram_direct_message(token, chat_id, "⏳ <i>កំពុងផ្ញើសារសាកល្បង Bug Alert ទៅកាន់គ្រុប Monitor log Rolea (-1004361070205)…</i>"))
+                asyncio.create_task(send_telegram_direct_message(token, chat_id, "<i>កំពុងផ្ញើសារសាកល្បង Bug Alert ទៅកាន់គ្រុប Monitor log Rolea (-1004361070205)…</i>"))
                 ok = await send_bug_alert_telegram(
                     title="Manual Test Bug Alert",
                     error_msg="Testing website bug alert dispatch to Monitor log Rolea group (-1004361070205).",
@@ -3365,9 +3365,9 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                     severity="WARNING"
                 )
                 if ok:
-                    asyncio.create_task(send_telegram_direct_message(token, chat_id, "✅ <b>បានផ្ញើសារសាកល្បង Bug Alert ចូលគ្រុប Monitor log Rolea (<code>-1004361070205</code>) រួចរាល់!</b>"))
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, "<b>បានផ្ញើសារសាកល្បង Bug Alert ចូលគ្រុប Monitor log Rolea (<code>-1004361070205</code>) រួចរាល់!</b>"))
                 else:
-                    asyncio.create_task(send_telegram_direct_message(token, chat_id, "⚠️ <b>ការផ្ញើ Bug Alert បរាជ័យ។ សូមពិនិត្យសិទ្ធិរបស់ Bot ក្នុងគ្រុប។</b>"))
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, "️ <b>ការផ្ញើ Bug Alert បរាជ័យ។ សូមពិនិត្យសិទ្ធិរបស់ Bot ក្នុងគ្រុប។</b>"))
         elif is_telegram_admin(from_id, from_uname, chat_id) and chat_id in _tg_admin_state and text and not text.startswith("/"):
             st_info = _tg_admin_state.pop(chat_id, {})
             mode = st_info.get("mode")
@@ -3381,7 +3381,7 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                     if card:
                         asyncio.create_task(send_telegram_direct_message(token, chat_id, card[0], card[1]))
                 else:
-                    asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ រកមិនឃើញអតិថិជនណាត្រូវនឹង <code>{html.escape(text, quote=False)}</code> ទេ។", {"inline_keyboard": [[{"text": "🔍 សាកល្បងម្តងទៀត", "callback_data": "adm:find"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, f"រកមិនឃើញអតិថិជនណាត្រូវនឹង <code>{html.escape(text, quote=False)}</code> ទេ។", {"inline_keyboard": [[{"text": "សាកល្បងម្តងទៀត", "callback_data": "adm:find"}, {"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
             elif mode in ("cadd", "csub"):
                 uid = st_info.get("user_id", "")
                 ret_p = int(st_info.get("page") or 0)
@@ -3390,7 +3390,7 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                     if amt_val <= 0 or not math.isfinite(amt_val):
                         raise ValueError()
                 except ValueError:
-                    asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ ចំនួនទឹកប្រាក់មិនត្រឹមត្រូវ។ សូមបញ្ចូលលេខវិជ្ជមាន (ឧ. <code>10</code>)។", {"inline_keyboard": [[{"text": "⬅️ ត្រឡប់ទៅកាន់ User", "callback_data": f"adm:u:{uid}:{ret_p}"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, "ចំនួនទឹកប្រាក់មិនត្រឹមត្រូវ។ សូមបញ្ចូលលេខវិជ្ជមាន (ឧ. <code>10</code>)។", {"inline_keyboard": [[{"text": "⬅️ ត្រឡប់ទៅកាន់ User", "callback_data": f"adm:u:{uid}:{ret_p}"}, {"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
                     return
                 delta = amt_val if mode == "cadd" else -amt_val
                 async with _tx_lock:
@@ -3398,9 +3398,9 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                 if ok:
                     card = _build_tg_user_card(uid, ret_p)
                     if card:
-                        asyncio.create_task(send_telegram_direct_message(token, chat_id, f"✅ <b>{html.escape(note, quote=False)}</b>\n\n{card[0]}", card[1]))
+                        asyncio.create_task(send_telegram_direct_message(token, chat_id, f"<b>{html.escape(note, quote=False)}</b>\n\n{card[0]}", card[1]))
                 else:
-                    asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ {html.escape(note, quote=False)}"))
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, f"{html.escape(note, quote=False)}"))
             elif mode == "spin_w_set":
                 sid = st_info.get("slice_id")
                 try:
@@ -3409,7 +3409,7 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                     if val < 0 or not math.isfinite(val):
                         raise ValueError()
                 except ValueError:
-                    asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ ទម្ងន់ Weight ត្រូវតែជាលេខវិជ្ជមាន (ឧ. <code>70</code> ឬ <code>15.5</code>)។", {"inline_keyboard": [[{"text": "⬅️ ត្រឡប់ក្រោយ", "callback_data": "adm:spin_slices"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, "ទម្ងន់ Weight ត្រូវតែជាលេខវិជ្ជមាន (ឧ. <code>70</code> ឬ <code>15.5</code>)។", {"inline_keyboard": [[{"text": "⬅️ ត្រឡប់ក្រោយ", "callback_data": "adm:spin_slices"}, {"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
                     return
 
                 slices = spin_data.get("slices", [])
@@ -3417,10 +3417,10 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                 if sl:
                     sl["weight"] = round(val, 2)
                     save_spin_data()
-                    st_txt, st_markup = _build_tg_spin_card(f"✅ បានកំណត់ទម្ងន់ <b>{sl.get('label')}</b> ទៅជា <b>{val:g}</b> ជោគជ័យ!")
+                    st_txt, st_markup = _build_tg_spin_card(f"បានកំណត់ទម្ងន់ <b>{sl.get('label')}</b> ទៅជា <b>{val:g}</b> ជោគជ័យ!")
                     asyncio.create_task(send_telegram_direct_message(token, chat_id, st_txt, st_markup))
                 else:
-                    asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ រកមិនឃើញរង្វាន់នេះទេ។", {"inline_keyboard": [[{"text": "⬅️ ត្រឡប់ក្រោយ", "callback_data": "adm:spin_slices"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, "រកមិនឃើញរង្វាន់នេះទេ។", {"inline_keyboard": [[{"text": "⬅️ ត្រឡប់ក្រោយ", "callback_data": "adm:spin_slices"}, {"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
             elif mode == "bot_cookie_add":
                 clean_c = text.strip()
                 if clean_c.startswith(".ROBLOSECURITY="):
@@ -3428,12 +3428,12 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                 if not clean_c or len(clean_c) < 50:
                     asyncio.create_task(send_telegram_direct_message(
                         token, chat_id,
-                        "❌ <b>Cookie មិនត្រឹមត្រូវ!</b>\nសូមផ្ញើកូដ <code>.ROBLOSECURITY</code> cookie ពេញលេញ។",
-                        {"inline_keyboard": [[{"text": "🔄 សាកល្បងម្ដងទៀត", "callback_data": "adm:bot_add"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}
+                        "<b>Cookie មិនត្រឹមត្រូវ!</b>\nសូមផ្ញើកូដ <code>.ROBLOSECURITY</code> cookie ពេញលេញ។",
+                        {"inline_keyboard": [[{"text": "សាកល្បងម្ដងទៀត", "callback_data": "adm:bot_add"}, {"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}
                     ))
                     return
 
-                asyncio.create_task(send_telegram_direct_message(token, chat_id, "⏳ <i>កំពុងផ្ទៀងផ្ទាត់ Cookie ជាមួយ Roblox Server…</i>"))
+                asyncio.create_task(send_telegram_direct_message(token, chat_id, "<i>កំពុងផ្ទៀងផ្ទាត់ Cookie ជាមួយ Roblox Server…</i>"))
 
                 header_cookie = f".ROBLOSECURITY={clean_c}"
                 try:
@@ -3442,8 +3442,8 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                         if r_auth.status_code != 200:
                             asyncio.create_task(send_telegram_direct_message(
                                 token, chat_id,
-                                f"❌ <b>Cookie មិនត្រឹមត្រូវ ឬផុតកំណត់ (HTTP {r_auth.status_code})!</b>\nសូមចម្លង .ROBLOSECURITY ថ្មីពី Browser។",
-                                {"inline_keyboard": [[{"text": "🔄 សាកល្បងម្ដងទៀត", "callback_data": "adm:bot_add"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}
+                                f"<b>Cookie មិនត្រឹមត្រូវ ឬផុតកំណត់ (HTTP {r_auth.status_code})!</b>\nសូមចម្លង .ROBLOSECURITY ថ្មីពី Browser។",
+                                {"inline_keyboard": [[{"text": "សាកល្បងម្ដងទៀត", "callback_data": "adm:bot_add"}, {"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}
                             ))
                             return
                         u_data = r_auth.json()
@@ -3498,15 +3498,15 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                         save_inventory()
                         sync_package_stock_with_inventory()
 
-                        st_txt, st_markup = _build_tg_stock_card(f"🎉 <b>ភ្ជាប់ជោគជ័យ!</b> បានបន្ថែម <b>{bot_name}</b> (@{uname}) ជាមួយ <code>{funds:,} R$</code>។")
+                        st_txt, st_markup = _build_tg_stock_card(f"<b>ភ្ជាប់ជោគជ័យ!</b> បានបន្ថែម <b>{bot_name}</b> (@{uname}) ជាមួយ <code>{funds:,} R$</code>។")
                         asyncio.create_task(send_telegram_direct_message(token, chat_id, st_txt, st_markup))
                 except Exception as ex:
-                    asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ បរាជ័យក្នុងការតភ្ជាប់៖ {ex}"))
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, f"បរាជ័យក្នុងការតភ្ជាប់៖ {ex}"))
             elif mode == "find_ord":
                 q_ord = text.strip().lstrip("#").upper()
                 ord_obj = next((o for o in orders if str(o.get("order_id", "")).upper() in (q_ord, f"ORD-{q_ord}")), None)
                 if not ord_obj:
-                    asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ រកមិនឃើញ Order <code>{html.escape(text, quote=False)}</code> ទេ។", {"inline_keyboard": [[{"text": "🔎 សាកល្បងម្តងទៀត", "callback_data": "adm:find_ord"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, f"រកមិនឃើញ Order <code>{html.escape(text, quote=False)}</code> ទេ។", {"inline_keyboard": [[{"text": "សាកល្បងម្តងទៀត", "callback_data": "adm:find_ord"}, {"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
                 else:
                     oid = str(ord_obj.get("order_id") or "")
                     raw_cust = str(ord_obj.get("roblox_username") or ord_obj.get("buyer_account") or "Customer")
@@ -3515,25 +3515,25 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                     amt = float(ord_obj.get("amount") or 0)
                     st = str(ord_obj.get("status") or "pending").upper()
                     is_paid = bool(ord_obj.get("paid"))
-                    paid_badge = "🟢 បានបង់ប្រាក់រួច (PAID)" if is_paid else "⏳ មិនទាន់បង់ប្រាក់ (UNPAID)"
+                    paid_badge = "បានបង់ប្រាក់រួច (PAID)" if is_paid else "មិនទាន់បង់ប្រាក់ (UNPAID)"
                     o_txt = (
-                         f"🔎 <b>ព័ត៌មានលម្អិតអំពីការកុម្ម៉ង់ (Order Details)</b>\n\n"
-                         f"🆔 <b>Order ID (ចុច Copy)៖</b> <code>{html.escape(oid, quote=False)}</code>\n"
-                         f"👤 <b>ឈ្មោះក្នុងហ្គេម (ចុច Copy)៖</b> <code>{html.escape(raw_cust, quote=False)}</code>\n"
-                         f"📦 <b>កញ្ចប់៖</b> {pkg}\n"
-                         f"💵 <b>តម្លៃ៖</b> ${amt:.2f} USD\n"
-                         f"💳 <b>ការទូទាត់៖</b> {paid_badge}\n"
-                         f"📌 <b>ស្ថានភាព៖</b> {st}"
+                         f"<b>ព័ត៌មានលម្អិតអំពីការកុម្ម៉ង់ (Order Details)</b>\n\n"
+                         f"<b>Order ID (ចុច Copy)៖</b> <code>{html.escape(oid, quote=False)}</code>\n"
+                         f"<b>ឈ្មោះក្នុងហ្គេម (ចុច Copy)៖</b> <code>{html.escape(raw_cust, quote=False)}</code>\n"
+                         f"<b>កញ្ចប់៖</b> {pkg}\n"
+                         f"<b>តម្លៃ៖</b> ${amt:.2f} USD\n"
+                         f"<b>ការទូទាត់៖</b> {paid_badge}\n"
+                         f"<b>ស្ថានភាព៖</b> {st}"
                     )
                     o_rows = []
                     if is_paid and ord_obj.get("status") not in ("completed", "refunded"):
-                        o_rows.append([{"text": "✅ បាញ់រួចរាល់ (Complete)", "callback_data": f"complete:{oid}"}, {"text": "❌ បដិសេធ & សងប្រាក់ (Reject)", "callback_data": f"reject:{oid}"}])
-                    o_rows.append([{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}])
+                        o_rows.append([{"text": "បាញ់រួចរាល់ (Complete)", "callback_data": f"complete:{oid}"}, {"text": "បដិសេធ & សងប្រាក់ (Reject)", "callback_data": f"reject:{oid}"}])
+                    o_rows.append([{"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}])
                     asyncio.create_task(send_telegram_direct_message(token, chat_id, o_txt, {"inline_keyboard": o_rows}))
             elif mode == "promo_new":
                 parts_p = text.strip().split()
                 if len(parts_p) < 2:
-                    asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ ទម្រង់មិនត្រឹមត្រូវ: <code>CODE 10%</code> ឬ <code>CODE $5</code>", {"inline_keyboard": [[{"text": "🎟️ Promo Codes", "callback_data": "adm:promos:0"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, "ទម្រង់មិនត្រឹមត្រូវ: <code>CODE 10%</code> ឬ <code>CODE $5</code>", {"inline_keyboard": [[{"text": "️ Promo Codes", "callback_data": "adm:promos:0"}, {"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
                 else:
                     p_code = parts_p[0].upper()
                     raw_v = parts_p[1]
@@ -3543,13 +3543,13 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                         if p_val <= 0:
                             raise ValueError()
                         if any(c.get("code", "").upper() == p_code for c in coupons):
-                            asyncio.create_task(send_telegram_direct_message(token, chat_id, f"⚠️ កូដ Promo <code>{html.escape(p_code, quote=False)}</code> មានរួចហើយ។", {"inline_keyboard": [[{"text": "🎟️ Promo Codes", "callback_data": "adm:promos:0"}]]}))
+                            asyncio.create_task(send_telegram_direct_message(token, chat_id, f"️ កូដ Promo <code>{html.escape(p_code, quote=False)}</code> មានរួចហើយ។", {"inline_keyboard": [[{"text": "️ Promo Codes", "callback_data": "adm:promos:0"}]]}))
                         else:
                             coupons.insert(0, {"id": "cpn_" + secrets.token_hex(4), "code": p_code, "type": p_type, "value": p_val, "min_spend": 0.0, "max_uses": 0, "used_count": 0, "enabled": True, "description": f"{p_val}{'$' if p_type == 'fixed' else '%'} Discount"})
                             save_coupons()
-                            asyncio.create_task(send_telegram_direct_message(token, chat_id, f"✅ បានបង្កើតកូដ Promo <code>{html.escape(p_code, quote=False)}</code> ({html.escape(raw_v, quote=False)}) ជោគជ័យ!", {"inline_keyboard": [[{"text": "🎟️ មើល Promo Codes", "callback_data": "adm:promos:0"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
+                            asyncio.create_task(send_telegram_direct_message(token, chat_id, f"បានបង្កើតកូដ Promo <code>{html.escape(p_code, quote=False)}</code> ({html.escape(raw_v, quote=False)}) ជោគជ័យ!", {"inline_keyboard": [[{"text": "️ មើល Promo Codes", "callback_data": "adm:promos:0"}, {"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
                     except ValueError:
-                        asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ ចំនួនទឹកប្រាក់បញ្ចុះមិនត្រឹមត្រូវ។", {"inline_keyboard": [[{"text": "🎟️ Promo Codes", "callback_data": "adm:promos:0"}]]}))
+                        asyncio.create_task(send_telegram_direct_message(token, chat_id, "ចំនួនទឹកប្រាក់បញ្ចុះមិនត្រឹមត្រូវ។", {"inline_keyboard": [[{"text": "️ Promo Codes", "callback_data": "adm:promos:0"}]]}))
             elif mode in ("blk_u", "blk_ip"):
                 target_v = text.strip()
                 key = "blocked_users" if mode == "blk_u" else "blocked_ips"
@@ -3557,7 +3557,7 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                 if target_v and target_v not in lst:
                     lst.append(target_v)
                     save_blacklist()
-                asyncio.create_task(send_telegram_direct_message(token, chat_id, f"🚫 បាន Blacklist <code>{html.escape(target_v, quote=False)}</code> ជោគជ័យ!", {"inline_keyboard": [[{"text": "🚫 មឺនុយ Blacklist", "callback_data": "adm:blk"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
+                asyncio.create_task(send_telegram_direct_message(token, chat_id, f"បាន Blacklist <code>{html.escape(target_v, quote=False)}</code> ជោគជ័យ!", {"inline_keyboard": [[{"text": "មឺនុយ Blacklist", "callback_data": "adm:blk"}, {"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
             elif mode == "bcast":
                 targets = set()
                 for u_it in users:
@@ -3572,8 +3572,8 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                     for tc in tg_list:
                         if await send_telegram_direct_message(token, tc, msg_body):
                             sent_cnt += 1
-                    await send_telegram_direct_message(token, chat_id, f"✅ Broadcast sent to <b>{sent_cnt}</b> customer(s)!", {"inline_keyboard": [[{"text": "🏠 Admin Menu", "callback_data": "adm:home"}]]})
-                b_msg = f"📢 <b>{html.escape(str(settings.get('store_name', 'Rolea Topup')), quote=False)}</b>\n\n{html.escape(text.strip(), quote=False)}"
+                    await send_telegram_direct_message(token, chat_id, f"Broadcast sent to <b>{sent_cnt}</b> customer(s)!", {"inline_keyboard": [[{"text": "Admin Menu", "callback_data": "adm:home"}]]})
+                b_msg = f"<b>{html.escape(str(settings.get('store_name', 'Rolea Topup')), quote=False)}</b>\n\n{html.escape(text.strip(), quote=False)}"
                 asyncio.create_task(_do_bcast(targets, b_msg))
         elif text.startswith("/start"):
             parts = text.split(maxsplit=1)
@@ -3619,7 +3619,7 @@ async def telegram_polling_loop():
                 if now_ict.hour == 23 and _last_daily_report_date != today_str:
                     _last_daily_report_date = today_str
                     rep_msg = build_daily_sales_report(today_str)
-                    asyncio.create_task(send_telegram_direct_message(token, admin_private_chat, rep_msg, {"inline_keyboard": [[{"text": "📊 មើលក្នុង Admin Panel", "callback_data": "adm:home"}]]}))
+                    asyncio.create_task(send_telegram_direct_message(token, admin_private_chat, rep_msg, {"inline_keyboard": [[{"text": "មើលក្នុង Admin Panel", "callback_data": "adm:home"}]]}))
 
                 # Automatic Daily Backup at 00:00 (Midnight ICT) - Private Admin only
                 if now_ict.hour == 0 and _last_daily_backup_date != today_str:
@@ -3645,7 +3645,7 @@ async def telegram_polling_loop():
                         asyncio.create_task(send_telegram_direct_message(token, BUG_ALERT_CHAT_ID, conflict_alert))
                         try:
                             # Auto-purge any rogue webhook
-                            await client.post(f"https://api.telegram.org/bot{token}/deleteWebhook?drop_pending_updates=False", timeout=10.0)
+                            await client.post(f"https://api.telegram.org/bot{token}/deleteWebhook?drop_pending_updates=True", timeout=10.0)
                         except Exception:
                             pass
                     sleep_sec = 10.0
@@ -4349,6 +4349,11 @@ async def security_and_no_cache_middleware(request: Request, call_next):
     norm_path, suspicious_path = _normalize_request_path(path)
     eff_ip = get_admin_effective_ip(request) or "unknown"
 
+    # 0a. Permanent Blacklist IP check (Immediate drop for known attackers)
+    blocked_ips_set = set(str(i).strip() for i in blacklist.get("blocked_ips", []))
+    if eff_ip and eff_ip in blocked_ips_set:
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Access denied: IP has been permanently blacklisted."})
+
     # 0b. Temporary auto-ban check for repeat attack/scanner IPs
     banned, ban_left = _is_scanner_temp_banned(eff_ip)
     if banned:
@@ -5001,7 +5006,7 @@ async def claim_daily_free_spin(request: Request):
         "order_id": order_id,
         "receipt_token": receipt_token,
         "remaining_seconds": total_cd,
-        "message": f"🎉 Congratulations! You won {robux_won} Robux from your Daily Free Spin!" if robux_won > 0 else "🎁 Thank you for playing your Daily Free Spin! Come back tomorrow for another chance."
+        "message": f"Congratulations! You won {robux_won} Robux from your Daily Free Spin!" if robux_won > 0 else "Thank you for playing your Daily Free Spin! Come back tomorrow for another chance."
     }
 
 @app.post("/api/spin/create-ticket")
@@ -7077,13 +7082,23 @@ async def admin_login(request: Request):
         admin_failed_attempts[client_ip] = attempts
         remaining = max(0, 5 - len(attempts))
         if len(attempts) >= 5:
-            admin_lockouts[client_ip] = now_ts + 300
+            admin_lockouts[client_ip] = now_ts + 900
             admin_failed_attempts[client_ip] = []
-            log_admin_security_event("IP Locked Out", client_ip, username or "unknown", "locked", "5 consecutive failed attempts (5 min ban)")
+            log_admin_security_event("IP Locked Out", client_ip, username or "unknown", "locked", "5 consecutive failed attempts (15 min ban)")
             asyncio.create_task(send_admin_security_telegram(
-                f"<b>[SECURITY ALERT] Admin Brute-Force Blocked</b>\nIP Address: <code>{client_ip}</code>\nAttempted User: <code>{username}</code>\nStatus: Locked out for 5 minutes."
+                f"<b>[SECURITY ALERT] Admin Brute-Force Blocked</b>\nIP Address: <code>{client_ip}</code>\nAttempted User: <code>{username}</code>\nStatus: Locked out for 15 minutes."
             ))
-            return JSONResponse(status_code=429, content={"ok": False, "error": "Account temporarily locked for 5 minutes due to 5 failed attempts."})
+            total_failed = admin_security.setdefault("failed_attempts_total", {})
+            total_failed[client_ip] = total_failed.get(client_ip, 0) + len(attempts)
+            if total_failed[client_ip] >= 10:
+                b_ips = blacklist.setdefault("blocked_ips", [])
+                if client_ip not in b_ips:
+                    b_ips.append(client_ip)
+                    save_blacklist()
+                asyncio.create_task(send_admin_security_telegram(
+                    f"<b>[CRITICAL SECURITY ALERT] IP Permanently Blacklisted</b>\nIP Address: <code>{client_ip}</code>\nReason: 10+ repeated failed admin login attempts."
+                ))
+            return JSONResponse(status_code=429, content={"ok": False, "error": "Account temporarily locked for 15 minutes due to repeated failed attempts."})
         log_admin_security_event("Failed Login", client_ip, username or "unknown", "failed", f"Invalid credentials ({remaining} attempts left)")
         return JSONResponse(status_code=401, content={"ok": False, "error": f"Invalid username or password. ({remaining} attempts remaining)"})
 
@@ -8074,7 +8089,7 @@ async def admin_telegram_broadcast(request: Request):
     body = await request.json() if (await request.body()) else {}
     title = body.get("title", "").strip() or "Special Promo Announcement"
     message = body.get("message", "").strip()
-    button_text = body.get("button_text", "").strip() or "🔥 Shop Offers Now"
+    button_text = body.get("button_text", "").strip() or "Shop Offers Now"
     button_url = body.get("button_url", "").strip() or "http://localhost:3000"
     
     if not message:
@@ -8098,10 +8113,10 @@ async def admin_telegram_broadcast(request: Request):
             
     # Compose Telegram HTML Broadcast
     tg_text = (
-        f"📢 <b>{title}</b>\n"
+        f"<b>{title}</b>\n"
         f"━━━━━━━━━━━━━━━━━━━\n\n"
         f"{message}\n\n"
-        f"🎮 <b>Rolea Topup</b> — Fast & Reliable"
+        f"<b>Rolea Topup</b> — Fast & Reliable"
     )
     
     reply_markup = None
@@ -8141,7 +8156,7 @@ async def admin_telegram_test():
                 url,
                 json={
                     "chat_id": chat_id,
-                    "text": f"🔔 <b>[TEST NOTIFICATION]</b>\n✨ <b>Rolea Topup:</b> Telegram Order Alert bot is connected successfully.\n🕒 <b>Time:</b> {now_ict}",
+                    "text": f"<b>[TEST NOTIFICATION]</b>\n<b>Rolea Topup:</b> Telegram Order Alert bot is connected successfully.\n<b>Time:</b> {now_ict}",
                     "parse_mode": "HTML"
                 }
             )
@@ -8224,18 +8239,18 @@ async def check_and_send_low_stock_alert():
     if token and admin_chat:
         store_name = html.escape(str(settings.get("store_name", "Rolea Topup")), quote=False)
         msg = (
-            f"🚨 <b>[{store_name} — ការដាស់តឿនស្តុក ROBUX]</b>\n\n"
-            f"⚠️ <b>ស្តុក Robux ក្នុង Bot ជិតអស់ហើយ!</b>\n"
+            f"<b>[{store_name} — ការដាស់តឿនស្តុក ROBUX]</b>\n\n"
+            f"️ <b>ស្តុក Robux ក្នុង Bot ជិតអស់ហើយ!</b>\n"
             f"• ស្តុកជាក់ស្តែងបច្ចុប្បន្ន៖ <code>{current_stock:,} R$</code>\n"
             f"• កម្រិតកំណត់ដាស់តឿន៖ <code>{threshold:,} R$</code>\n\n"
-            f"👉 សូមបញ្ចូល Group Funds ឬដាក់ Cookie បន្ថែមដើម្បីកុំឱ្យដាច់ស្តុកពេលភ្ញៀវកុម្ម៉ង់!\n"
+            f"សូមបញ្ចូល Group Funds ឬដាក់ Cookie បន្ថែមដើម្បីកុំឱ្យដាច់ស្តុកពេលភ្ញៀវកុម្ម៉ង់!\n"
             f"<i>(សារដាស់តឿននេះផ្ញើជូនតែ Admin ឯកជនប៉ុណ្ណោះ មិនផ្ញើចូល Group ឡើយ)</i>"
         )
         markup = {
             "inline_keyboard": [
-                [{"text": "📦 ឆែកស្តុកក្នុង Bot ឥឡូវនេះ", "callback_data": "adm:bot"}],
-                [{"text": "🔕 បិទការដាស់តឿននេះ (Mute Alert)", "callback_data": "adm:mute_stock_alert"}],
-                [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]
+                [{"text": "ឆែកស្តុកក្នុង Bot ឥឡូវនេះ", "callback_data": "adm:bot"}],
+                [{"text": "បិទការដាស់តឿននេះ (Mute Alert)", "callback_data": "adm:mute_stock_alert"}],
+                [{"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}]
             ]
         }
         await send_telegram_direct_message(token, admin_chat, msg, markup)

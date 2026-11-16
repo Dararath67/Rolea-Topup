@@ -2274,7 +2274,13 @@
         <div style="background:#ecfdf5;border:1.5px solid #a7f3d0;border-radius:14px;padding:16px;margin-bottom:18px">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap">
             <div style="display:flex;align-items:center;gap:10px">
-              <span style="font-size:22px">🎁</span>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 12 20 22 4 22 4 12"/>
+                <rect x="2" y="7" width="20" height="5"/>
+                <line x1="12" y1="22" x2="12" y2="7"/>
+                <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/>
+                <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
+              </svg>
               <div>
                 <div style="font-weight:800;font-size:14px;color:#065f46">Daily Free Spin &amp; Check-in System</div>
                 <div style="font-size:12px;color:#047857">Allow registered customers to spin 1 time for free every 24 hours</div>
@@ -3371,7 +3377,7 @@
             <h2 style="margin:0;font-family:'Plus Jakarta Sans','Inter',sans-serif;font-weight:900;font-size:22px;color:#0f172a">Rolea Topup</h2>
             <div style="font-size:12px;color:#64748b;margin-top:2px">Official Payment Receipt & Fulfillment Slip</div>
             <div style="font-size:11px;color:#059669;font-weight:700;display:flex;align-items:center;gap:4px;margin-top:3px">
-              <span>✓ Verified Merchant</span> · <span>Bakong KHQR Partner</span>
+              <span>Verified Merchant</span> · <span>Bakong KHQR Partner</span>
             </div>
           </div>
         </div>
@@ -3392,7 +3398,7 @@
         <div style="text-align:right">
           <div style="color:#64748b;font-size:11px;font-weight:700;text-transform:uppercase">Payment Details</div>
           <div style="font-weight:800;font-size:13.5px;color:#0f172a;margin-top:2px" id="inv-modal-method">Bakong KHQR</div>
-          <div style="color:#059669;font-weight:700;font-size:11.5px" id="inv-modal-delivery-status">✓ Sent to Account</div>
+          <div style="color:#059669;font-weight:700;font-size:11.5px" id="inv-modal-delivery-status">Sent to Account</div>
         </div>
       </div>
 
@@ -5600,7 +5606,7 @@ async function handleSendTelegramBroadcast(e) {
 
   const originalContent = btn.innerHTML;
   btn.disabled = true;
-  btn.innerHTML = '<span>⏳ Sending Broadcast...</span>';
+  btn.innerHTML = '<span>Sending Broadcast...</span>';
   if (statusEl) statusEl.style.display = 'none';
 
   try {
@@ -5693,7 +5699,7 @@ async function loadInventoryData() {
         elStatusChip.style.background = '#e2e8f0';
         elStatusChip.style.color = '#475569';
       } else if (primaryBot.status === 'error') {
-        elStatusChip.textContent = '✕ Cookie Expired';
+        elStatusChip.textContent = 'Cookie Expired';
         elStatusChip.style.background = '#fee2e2';
         elStatusChip.style.color = '#dc2626';
       } else if (isLow) {
@@ -5874,7 +5880,7 @@ async function toggleBotStatus(botId) {
     const j = await res.json();
     if (res.ok && j.ok) {
       const bname = j.bot.name || 'Bot';
-      const st = j.bot.enabled ? 'Enabled 🟢 (Included in Stock)' : 'Disabled ⛔ (Excluded from Stock)';
+      const st = j.bot.enabled ? 'Enabled (Included in Stock)' : 'Disabled (Excluded from Stock)';
       toast(`${bname} is now ${st}`);
       loadInventoryData();
     } else {
@@ -6206,7 +6212,7 @@ function openInvoiceModal(orderId) {
   document.getElementById('inv-modal-player').textContent = `@${o.roblox_username || o.player_id || o.buyer_account || 'Guest Player'}`;
   document.getElementById('inv-modal-game').textContent = `Game: ${o.product_name || o.game || 'Roblox'}`;
   document.getElementById('inv-modal-method').textContent = o.payment_method || 'Bakong KHQR';
-  document.getElementById('inv-modal-delivery-status').textContent = o.delivered ? '✓ Sent to Account' : (o.paid ? '⏳ Queued for Sending' : 'Awaiting Payment');
+  document.getElementById('inv-modal-delivery-status').textContent = o.delivered ? 'Sent to Account' : (o.paid ? 'Queued for Sending' : 'Awaiting Payment');
   
   document.getElementById('inv-modal-pkg').textContent = o.package || o.product_name || 'Robux Topup';
   document.getElementById('inv-modal-units').textContent = o.robux_amount ? `${Number(o.robux_amount).toLocaleString()} Units` : '-';
@@ -6284,7 +6290,7 @@ async function loadBlacklistData() {
               <td style="font-weight:700;color:#475569">${escHtml(by)}</td>
               <td>
                 <button class="btn-top" style="padding:3px 8px;font-size:11px;color:#059669;border-color:#a7f3d0" onclick="removeBlacklist('${escJsArg(e.target)}', '${escJsArg(e.type)}')">
-                  ✓ Unblock
+                  Unblock
                 </button>
               </td>
             </tr>
