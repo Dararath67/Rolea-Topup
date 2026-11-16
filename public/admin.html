@@ -1363,6 +1363,10 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 3"/></svg>
         <span class="nav-label">Lucky Spin Robux</span>
       </a>
+      <a data-tab="scratch" id="nav-scratch" title="Golden Scratch Card">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M7 8h10M7 12h6M7 16h4"/></svg>
+        <span class="nav-label">Golden Scratch Card</span>
+      </a>
       <a data-tab="inventory" id="nav-inventory" title="Robux Bot & Cookie">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
           <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
@@ -2387,6 +2391,206 @@
             </thead>
             <tbody id="spin-history-tbody"></tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: GOLDEN SCRATCH CARD -->
+    <div class="tab-content" id="tab-scratch" style="display:none">
+      <!-- KPI Cards -->
+      <div class="stats-row" style="grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));margin-bottom:22px">
+        <div class="kpi-card">
+          <div>
+            <div class="kpi-label">Total Scratched</div>
+            <div class="kpi-value" id="scratch-kpi-total">0</div>
+            <div class="kpi-sub">Total scratch cards played</div>
+          </div>
+          <div class="kpi-icon blue">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M7 8h10M7 12h6M7 16h4"/></svg>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div>
+            <div class="kpi-label">Scratch Revenue</div>
+            <div class="kpi-value" id="scratch-kpi-rev" style="color:#059669">$0.00</div>
+            <div class="kpi-sub">Total ticket sales income</div>
+          </div>
+          <div class="kpi-icon emerald">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div>
+            <div class="kpi-label">Robux Awarded</div>
+            <div class="kpi-value" id="scratch-kpi-robux">0 R$</div>
+            <div class="kpi-sub">Total won by customers</div>
+          </div>
+          <div class="kpi-icon purple">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+        </div>
+
+        <div class="kpi-card" style="border:1.5px solid #bbf7d0;background:linear-gradient(145deg,#ffffff 0%,#f0fdf4 100%)">
+          <div>
+            <div class="kpi-label" style="color:#15803d;font-weight:800">Expected House Margin</div>
+            <div class="kpi-value" id="scratch-kpi-margin" style="color:#16a34a">0%</div>
+            <div class="kpi-sub" id="scratch-kpi-profit">Net profit: $0.00</div>
+          </div>
+          <div class="kpi-icon emerald" style="background:#dcfce7;color:#16a34a">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top Configuration -->
+      <div class="card-panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <h3>Golden Scratch Card Settings &amp; Probabilities</h3>
+            <span>Control ticket price, prizes, odds/weights, daily free scratch, and Telegram alerts</span>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" class="btn-top" onclick="runScratchSimulation()" style="font-weight:700">Simulate 1,000 Cards</button>
+            <button type="button" class="btn-top primary" onclick="saveScratchConfig()" style="font-weight:700">Save Scratch Config</button>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));gap:16px;margin-bottom:18px">
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <div style="font-weight:700;font-size:13px;color:#1e293b">Enable Scratch Card Page</div>
+              <div style="font-size:11.5px;color:#64748b">Show on storefront &amp; allow customers to play</div>
+            </div>
+            <label class="toggle-switch-label">
+              <input type="checkbox" id="scratch-set-enabled" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <div style="font-weight:700;font-size:13px;color:#1d4ed8">Telegram Win &amp; Claim Alerts</div>
+              <div style="font-size:11.5px;color:#2563eb">Send instant alert to Admin Telegram group on Robux win claim</div>
+            </div>
+            <label class="toggle-switch-label">
+              <input type="checkbox" id="scratch-set-telegram" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Daily Free Scratch Setting Box -->
+        <div style="background:#ecfdf5;border:1.5px solid #a7f3d0;border-radius:14px;padding:16px;margin-bottom:18px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:10px">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.2">
+                <polyline points="20 12 20 22 4 22 4 12"/>
+                <rect x="2" y="7" width="20" height="5"/>
+                <line x1="12" y1="22" x2="12" y2="7"/>
+                <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/>
+                <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
+              </svg>
+              <div>
+                <div style="font-weight:800;font-size:14px;color:#065f46">Daily Free Scratch &amp; Check-in System</div>
+                <div style="font-size:12px;color:#047857">Allow registered customers to scratch 1 free card every 24 hours</div>
+              </div>
+            </div>
+            <label class="toggle-switch-label">
+              <input type="checkbox" id="scratch-set-daily-enabled" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:14px">
+            <div class="form-group-modern" style="margin:0">
+              <label style="color:#065f46">Cooldown (Hours)</label>
+              <input type="number" step="1" min="1" max="168" id="scratch-set-daily-cooldown" value="24">
+              <div style="font-size:11px;color:#047857;margin-top:4px">Default: 24h between free cards</div>
+            </div>
+            <div class="form-group-modern" style="margin:0">
+              <label style="color:#065f46">Max Robux Prize on Free Scratch (R$)</label>
+              <input type="number" step="1" min="0" max="100" id="scratch-set-daily-maxrobux" value="10">
+              <div style="font-size:11px;color:#047857;margin-top:4px">Safe guard: prevents jackpot wins on daily free cards</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(210px, 1fr));gap:14px">
+          <div class="form-group-modern" style="margin:0">
+            <label>Card Title</label>
+            <input type="text" id="scratch-set-title" value="Golden Scratch Card">
+          </div>
+          <div class="form-group-modern" style="margin:0">
+            <label>Ticket Price ($ USD)</label>
+            <input type="number" step="0.05" min="0.05" id="scratch-set-price" value="0.25" oninput="recalcScratchPreview()">
+          </div>
+          <div class="form-group-modern" style="margin:0">
+            <label>Your Cost per 1,000 R$ ($ USD)</label>
+            <input type="number" step="0.1" min="0.5" id="scratch-set-cost1k" value="4.00" oninput="recalcScratchPreview()">
+          </div>
+        </div>
+
+        <div id="scratch-sim-box" style="display:none;margin-top:16px;padding:14px 18px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:12px;font-size:13px;color:#166534"></div>
+
+        <!-- Prizes & Probabilities Table -->
+        <div style="margin-top:22px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+            <div>
+              <b style="font-size:14px;color:#0f172a">Prize Tiers &amp; Probabilities (Match 3 to Win)</b>
+              <div style="font-size:12px;color:#64748b" id="scratch-weight-summary">Loading odds…</div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button type="button" class="btn-top" onclick="addScratchPrizeRow()">+ Add Prize Tier</button>
+            </div>
+          </div>
+
+          <div style="overflow-x:auto">
+            <table class="data-table" style="width:100%">
+              <thead>
+                <tr>
+                  <th>Prize Label</th>
+                  <th>Robux Value</th>
+                  <th>Weight (Chance)</th>
+                  <th>Probability %</th>
+                  <th>Tier Status</th>
+                  <th style="width:70px">Action</th>
+                </tr>
+              </thead>
+              <tbody id="scratch-prizes-tbody">
+                <!-- Populated via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Real-Time Scratch History -->
+        <div style="margin-top:28px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <b style="font-size:14px;color:#0f172a">Customer Scratch Log &amp; Real-Time Winners</b>
+              <span style="font-size:11px;font-weight:800;color:#059669;background:#ecfdf5;border:1px solid #a7f3d0;padding:2px 8px;border-radius:999px">LIVE</span>
+            </div>
+            <button type="button" class="btn-top" onclick="resetScratchStats()" style="color:#dc2626">Reset Stats &amp; History</button>
+          </div>
+          <div style="overflow-x:auto;max-height:360px">
+            <table class="data-table" style="width:100%">
+              <thead>
+                <tr>
+                  <th>Scratch ID</th>
+                  <th>Player Username</th>
+                  <th>Result Prize</th>
+                  <th>Ticket Paid</th>
+                  <th>Payment</th>
+                  <th>Claim Status</th>
+                  <th>Played At</th>
+                </tr>
+              </thead>
+              <tbody id="scratch-history-tbody">
+                <!-- Populated via JS -->
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -3736,6 +3940,7 @@ function switchTab(tabId, updateUrl = true) {
     inventory: ['Robux Bot & Cookie', 'Configure your Roblox bot (.ROBLOSECURITY) cookie to track real Robux balance and automate payouts.'],
     security: ['Admin Security & Access Control', 'Protect your Admin Console with strong credentials, 2FA Security PIN, and audit logs.'],
     spin: ['Lucky Spin Robux Manager', 'Customize wheel slices, Thank You chances, and Anti-Big-Prize profitability guards.'],
+    scratch: ['Golden Scratch Card Manager', 'Configure ticket price, prizes, odds/weights, daily free scratch, and Telegram alerts.'],
     flashsale: ['Flash Sale Manager', 'Configure real-time countdown flash sales, promotional discounts, and limited-time deals.']
   };
 
@@ -3759,6 +3964,8 @@ function switchTab(tabId, updateUrl = true) {
     loadSecurityData();
   } else if (tabId === 'spin' && typeof loadAdminSpinData === 'function') {
     loadAdminSpinData();
+  } else if (tabId === 'scratch' && typeof loadAdminScratchData === 'function') {
+    loadAdminScratchData();
   }
 }
 
@@ -3773,7 +3980,7 @@ function restoreActiveTab() {
     } catch (e) {}
   }
 
-  const validTabs = ['plans', 'roblox', 'tiktok', 'spin', 'inventory', 'blacklist', 'orders', 'overview', 'banners', 'settings', 'security', 'promos', 'users', 'flashsale'];
+  const validTabs = ['plans', 'roblox', 'tiktok', 'spin', 'scratch', 'inventory', 'blacklist', 'orders', 'overview', 'banners', 'settings', 'security', 'promos', 'users', 'flashsale'];
   if (tab && validTabs.includes(tab)) {
     switchTab(tab, false);
   }
@@ -6871,6 +7078,193 @@ async function resetSpinStats() {
   try {
     const res = await fetch('/api/admin/spin/reset-stats', { method: 'POST' });
     if (res.ok) { toast('Spin stats reset!'); loadAdminSpinData(); }
+  } catch (e) {}
+}
+
+let adminScratchPrizes = [];
+
+async function loadAdminScratchData() {
+  try {
+    const res = await fetch('/api/admin/scratch?_t=' + Date.now());
+    const j = await res.json();
+    if (!res.ok || !j.ok) return;
+
+    const sc = j.scratch_data;
+    adminScratchPrizes = (sc.prizes || []).map(x => Object.assign({}, x));
+
+    const totalScratched = Number(sc.total_cards_scratched || 0);
+    const totalRev = Number(sc.total_revenue_usd || 0);
+    const totalRobux = Number(sc.total_robux_awarded || 0);
+    const cost1k = Number(sc.cost_per_1k_robux_usd || 4.0);
+    const estCost = (totalRobux / 1000) * cost1k;
+    const netProfit = totalRev - estCost;
+    const margin = totalRev > 0 ? (((totalRev - estCost) / totalRev) * 100).toFixed(1) : '0.0';
+
+    document.getElementById('scratch-kpi-total').textContent = totalScratched;
+    document.getElementById('scratch-kpi-rev').textContent = '$' + totalRev.toFixed(2);
+    document.getElementById('scratch-kpi-robux').textContent = totalRobux.toLocaleString() + ' R$';
+    document.getElementById('scratch-kpi-margin').textContent = margin + '%';
+    document.getElementById('scratch-kpi-profit').textContent = 'Net profit: $' + netProfit.toFixed(2);
+
+    document.getElementById('scratch-set-enabled').checked = sc.enabled !== false;
+    document.getElementById('scratch-set-telegram').checked = sc.telegram_alert_enabled !== false;
+    document.getElementById('scratch-set-daily-enabled').checked = sc.daily_free_scratch_enabled !== false;
+    document.getElementById('scratch-set-daily-cooldown').value = sc.daily_free_scratch_cooldown_hours || 24;
+    document.getElementById('scratch-set-daily-maxrobux').value = sc.daily_free_scratch_max_robux !== undefined ? sc.daily_free_scratch_max_robux : 10;
+    document.getElementById('scratch-set-title').value = sc.title || 'Golden Scratch Card';
+    document.getElementById('scratch-set-price').value = sc.card_price_usd ?? 0.25;
+    document.getElementById('scratch-set-cost1k').value = sc.cost_per_1k_robux_usd ?? 4.00;
+
+    renderAdminScratchPrizes();
+
+    const hBody = document.getElementById('scratch-history-tbody');
+    if (hBody) {
+      const hist = sc.history || [];
+      if (hist.length === 0) {
+        hBody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:20px">No customer scratch cards recorded yet.</td></tr>';
+      } else {
+        hBody.innerHTML = hist.slice(0, 50).map(h => {
+          const isThank = Number(h.robux || 0) === 0;
+          const resBadge = isThank
+            ? '<span style="background:#f1f5f9;color:#475569;padding:3px 9px;border-radius:8px;font-weight:700">Thank You (0 R$)</span>'
+            : `<span style="background:#dcfce7;color:#15803d;padding:3px 9px;border-radius:8px;font-weight:800">+${Number(h.robux).toLocaleString()} R$</span>`;
+          const claimStatus = isThank
+            ? '<span style="color:#94a3b8;font-size:11px">—</span>'
+            : '<span style="background:#fef3c7;color:#b45309;padding:2px 7px;border-radius:6px;font-size:11px;font-weight:700">Won</span>';
+          return `<tr>
+            <td><span class="order-id-badge">${h.scratch_id}</span></td>
+            <td><b>@${h.username || 'Guest'}</b></td>
+            <td>${resBadge}</td>
+            <td>$${Number(h.price_usd || 0).toFixed(2)}</td>
+            <td>${h.payment_method || '-'}</td>
+            <td>${claimStatus}</td>
+            <td style="font-size:11.5px;color:#64748b">${h.created_at ? new Date(h.created_at).toLocaleString() : '-'}</td>
+          </tr>`;
+        }).join('');
+      }
+    }
+  } catch (e) {}
+}
+
+function renderAdminScratchPrizes() {
+  const tbody = document.getElementById('scratch-prizes-tbody');
+  if (!tbody) return;
+  const totalW = adminScratchPrizes.reduce((s, x) => s + Math.max(0, Number(x.weight || 0)), 0) || 1;
+
+  tbody.innerHTML = adminScratchPrizes.map((p, i) => {
+    const pct = ((Math.max(0, Number(p.weight || 0)) / totalW) * 100).toFixed(2);
+    const rob = Number(p.robux || 0);
+    const isJackpot = rob >= 500;
+    const badge = rob === 0
+      ? '<span style="background:#f1f5f9;color:#475569;padding:2px 7px;border-radius:6px;font-size:11px;font-weight:700">Better Luck</span>'
+      : (isJackpot
+        ? '<span style="background:#fee2e2;color:#b91c1c;padding:2px 7px;border-radius:6px;font-size:11px;font-weight:700">JACKPOT</span>'
+        : '<span style="background:#dcfce7;color:#15803d;padding:2px 7px;border-radius:6px;font-size:11px;font-weight:700">Prize Tier</span>');
+    return `<tr>
+      <td><input type="text" value="${(p.label || '').replace(/"/g, '&quot;')}" onchange="adminScratchPrizes[${i}].label=this.value" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;width:140px;font-weight:700"></td>
+      <td><input type="number" min="0" value="${rob}" oninput="adminScratchPrizes[${i}].robux=parseInt(this.value||0,10);recalcScratchPreview()" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;width:90px"></td>
+      <td><input type="number" step="0.01" min="0" value="${p.weight}" oninput="adminScratchPrizes[${i}].weight=parseFloat(this.value||0);recalcScratchPreview()" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;width:90px"></td>
+      <td><b id="sc-pct-${i}">${pct}%</b></td>
+      <td>${badge}</td>
+      <td><button type="button" class="btn-top" onclick="removeScratchPrizeRow(${i})" style="color:#dc2626;padding:5px 10px;font-size:11.5px">Delete</button></td>
+    </tr>`;
+  }).join('');
+  recalcScratchPreview();
+}
+
+function recalcScratchPreview() {
+  const totalW = adminScratchPrizes.reduce((s, x) => s + Math.max(0, Number(x.weight || 0)), 0) || 0;
+  const cost1k = parseFloat(document.getElementById('scratch-set-cost1k')?.value || 4.0);
+  const price = parseFloat(document.getElementById('scratch-set-price')?.value || 0.25);
+  const expRobux = totalW > 0
+    ? adminScratchPrizes.reduce((s, x) => s + ((Math.max(0, Number(x.weight || 0)) / totalW) * Number(x.robux || 0)), 0)
+    : 0;
+  const expCost = (expRobux / 1000) * cost1k;
+  const margin = price > 0 ? (((price - expCost) / price) * 100).toFixed(1) : '0.0';
+
+  const summary = document.getElementById('scratch-weight-summary');
+  if (summary) {
+    summary.textContent = `Total Weight: ${totalW.toFixed(2)} · Avg Payout: ${expRobux.toFixed(1)} R$ ($${expCost.toFixed(3)}) · Expected Margin: ${margin}%`;
+  }
+  adminScratchPrizes.forEach((p, i) => {
+    const el = document.getElementById('sc-pct-' + i);
+    if (el && totalW > 0) {
+      el.textContent = ((Math.max(0, Number(p.weight || 0)) / totalW) * 100).toFixed(2) + '%';
+    }
+  });
+}
+
+function addScratchPrizeRow() {
+  adminScratchPrizes.push({
+    id: 'sc_' + Date.now(),
+    label: 'Thank You',
+    robux: 0,
+    weight: 10
+  });
+  renderAdminScratchPrizes();
+}
+
+function removeScratchPrizeRow(idx) {
+  if (adminScratchPrizes.length <= 2) {
+    toast('Scratch card must have at least 2 prize tiers!');
+    return;
+  }
+  adminScratchPrizes.splice(idx, 1);
+  renderAdminScratchPrizes();
+}
+
+async function saveScratchConfig() {
+  try {
+    const payload = {
+      enabled: document.getElementById('scratch-set-enabled').checked,
+      telegram_alert_enabled: document.getElementById('scratch-set-telegram').checked,
+      daily_free_scratch_enabled: document.getElementById('scratch-set-daily-enabled').checked,
+      daily_free_scratch_cooldown_hours: parseInt(document.getElementById('scratch-set-daily-cooldown').value, 10) || 24,
+      daily_free_scratch_max_robux: parseInt(document.getElementById('scratch-set-daily-maxrobux').value, 10) || 10,
+      title: document.getElementById('scratch-set-title').value.trim(),
+      card_price_usd: parseFloat(document.getElementById('scratch-set-price').value),
+      cost_per_1k_robux_usd: parseFloat(document.getElementById('scratch-set-cost1k').value),
+      prizes: adminScratchPrizes
+    };
+    const res = await fetch('/api/admin/scratch/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      toast('Golden Scratch Card configuration saved!');
+      loadAdminScratchData();
+    } else {
+      toast(j.error || 'Failed to save scratch settings');
+    }
+  } catch (e) { toast('Error saving scratch settings'); }
+}
+
+async function runScratchSimulation() {
+  try {
+    toast('Running 1,000-card simulation…');
+    const res = await fetch('/api/admin/scratch/test-roll', { method: 'POST' });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      const box = document.getElementById('scratch-sim-box');
+      const bk = Object.entries(j.breakdown || {}).map(([k, v]) => `<b>${k}</b>: ${v}×`).join(' &nbsp;|&nbsp; ');
+      box.style.display = 'block';
+      box.innerHTML = `
+        <b>1,000 Scratch Cards Simulation Results:</b><br>
+        Revenue: <b>$${j.revenue_usd.toFixed(2)}</b> · Robux Given: <b>${j.robux_awarded.toLocaleString()} R$</b> (Cost: $${j.estimated_cost_usd.toFixed(2)}) ·
+        <b style="color:#059669">Net Store Profit: $${j.estimated_profit_usd.toFixed(2)}</b><br>
+        <div style="margin-top:6px;font-size:12px">${bk}</div>
+      `;
+    }
+  } catch (e) { toast('Simulation failed'); }
+}
+
+async function resetScratchStats() {
+  if (!(await adminDialog.confirm('Reset Scratch Stats?', 'Reset all Scratch Card stats and customer history?', 'danger', 'Reset Stats'))) return;
+  try {
+    const res = await fetch('/api/admin/scratch/reset-stats', { method: 'POST' });
+    if (res.ok) { toast('Scratch stats reset!'); loadAdminScratchData(); }
   } catch (e) {}
 }
 

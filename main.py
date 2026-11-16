@@ -2535,6 +2535,71 @@ def _build_tg_spin_slices_picker() -> tuple[str, Dict[str, Any]]:
     rows.append([{"text": "⬅️ ត្រឡប់ទៅផ្ទាំង Spin", "callback_data": "adm:spin"}])
     return text, {"inline_keyboard": rows}
 
+def _build_tg_admin_scratch(status_note: str = "") -> tuple[str, Dict[str, Any]]:
+    global scratch_data
+    en = bool(scratch_data.get("enabled", True))
+    st_en = "🟢 បើកដំណើរការ (ON)" if en else "⛔ បិទដំណើរការ (OFF)"
+    sc_price = float(scratch_data.get("card_price_usd", 0.25))
+    tot_cards = int(scratch_data.get("total_cards_scratched", 0))
+    tot_rev = float(scratch_data.get("total_revenue_usd", 0.0))
+    tot_rbx = int(scratch_data.get("total_robux_awarded", 0))
+    free_en = bool(scratch_data.get("daily_free_scratch_enabled", True))
+    free_str = "🟢 បើក (ON)" if free_en else "⛔ បិទ (OFF)"
+    free_max = int(scratch_data.get("daily_free_scratch_max_robux", 10))
+
+    prizes = scratch_data.get("prizes", [])
+    total_w = sum(max(0.0, float(p.get("weight", 0))) for p in prizes) or 1.0
+
+    prize_lines = []
+    for p in prizes:
+        w = max(0.0, float(p.get("weight", 0)))
+        pct = (w / total_w) * 100
+        lbl = p.get("label", "Prize")
+        rob = int(p.get("robux", 0))
+        icon = "❌" if rob == 0 else ("🏆" if rob >= 500 else "🎁")
+        prize_lines.append(f"{icon} <b>{lbl}</b>: <code>{w:g}</code> ({pct:.1f}%)")
+
+    prizes_str = "\n".join(prize_lines)
+
+    text = (
+        f"🎫 <b>[ផ្ទាំងគ្រប់គ្រង GOLDEN SCRATCH CARD]</b>\n\n"
+        + (f"🔔 {status_note}\n\n" if status_note else "")
+        + f"• <b>ស្ថានភាពកាត៖</b> {st_en}\n"
+        f"• <b>តម្លៃសំបុត្រ៖</b> <code>${sc_price:.2f} USD</code>\n"
+        f"• <b>កាត Free ប្រចាំថ្ងៃ៖</b> {free_str} (Max: {free_max} R$)\n"
+        f"• <b>កោសសរុប៖</b> {tot_cards} សន្លឹក | <b>ចំណូល៖</b> ${tot_rev:.2f} USD\n"
+        f"• <b>Robux ចេញសរុប៖</b> {tot_rbx:,} R$\n\n"
+        f"📊 <b>ឱកាសឈ្នះរង្វាន់ (Probabilities & Weights)៖</b>\n"
+        f"{prizes_str}\n\n"
+        f"👇 <i>សូមជ្រើសរើសប៊ូតុងខាងក្រោមដើម្បីកំណត់ (មិនបាច់វាយអក្សរ)៖</i>"
+    )
+
+    markup = {
+        "inline_keyboard": [
+            [
+                {"text": "⛔ បិទ Scratch" if en else "✅ បើក Scratch", "callback_data": "adm:sc_tog"},
+                {"text": f"🎁 Free: {'បិទ' if free_en else 'បើក'}", "callback_data": "adm:sc_free_tog"}
+            ],
+            [
+                {"text": "💲 $0.25", "callback_data": "adm:sc_p:0.25"},
+                {"text": "💲 $0.50", "callback_data": "adm:sc_p:0.50"},
+                {"text": "💲 $1.00", "callback_data": "adm:sc_p:1.00"}
+            ],
+            [
+                {"text": "🔒 ដាក់ Thank You 85% (តឹង/ចំណេញ)", "callback_data": "adm:sc_pre:hard"},
+                {"text": "⚖️ 70% (មធ្យម)", "callback_data": "adm:sc_pre:mid"}
+            ],
+            [
+                {"text": "🎉 ដាក់ Thank You 50% (ងាយឈ្នះ)", "callback_data": "adm:sc_pre:easy"},
+                {"text": "📊 ស្ថិតិ & អ្នកឈ្នះថ្មីៗ", "callback_data": "adm:sc_winners"}
+            ],
+            [
+                {"text": "🏠 ម៉ឺនុយដើម (Admin Home)", "callback_data": "adm:home"}
+            ]
+        ]
+    }
+    return text, markup
+
 def _build_tg_admin_home() -> tuple[str, Dict[str, Any]]:
     pending_cnt = sum(
         1 for o in orders 
@@ -2544,13 +2609,14 @@ def _build_tg_admin_home() -> tuple[str, Dict[str, Any]]:
         and o.get("type") != "wallet_topup" 
         and o.get("product_type") != "wallet" 
         and not str(o.get("order_id", "")).startswith("WLT")
-        and not (o.get("package_id") == "spin_reward" and not o.get("claim_submitted"))
+        and not (o.get("package_id") in ("spin_reward", "scratch_reward") and not o.get("claim_submitted"))
     )
     total_users = len(users)
     total_wallet = sum(float(u.get("balance") or 0.0) for u in users)
     store_name = html.escape(str(settings.get("store_name", "Rolea Topup")), quote=False)
     maint_str = "🛠️ កំពុងជួសជុល (MAINTENANCE)" if settings.get("maintenance_mode") else "🟢 កំពុងដំណើរការ (ONLINE)"
     spin_str = "🟢 បើក (ON)" if spin_data.get("enabled", True) else "⛔ បិទ (OFF)"
+    scratch_str = "🟢 បើក (ON)" if scratch_data.get("enabled", True) else "⛔ បិទ (OFF)"
     fs_active = is_flash_sale_active()
     fs_rem = get_flash_sale_remaining_seconds()
     fs_h = fs_rem // 3600
@@ -2559,7 +2625,7 @@ def _build_tg_admin_home() -> tuple[str, Dict[str, Any]]:
     text = (
         f"🛡️ <b>{store_name} — ផ្ទាំងគ្រប់គ្រង Admin (Telegram Panel)</b>\n\n"
         f"🌐 <b>ស្ថានភាពហាង៖</b> {maint_str}\n"
-        f"🎡 <b>ស្ថានភាព Spin៖</b> {spin_str}\n"
+        f"🎡 <b>Spin៖</b> {spin_str}  |  🎫 <b>Scratch៖</b> {scratch_str}\n"
         f"⚡ <b>ស្ថានភាព Flash Sale៖</b> {fs_str}\n"
         f"👥 <b>អតិថិជនសរុប៖</b> {total_users} នាក់  |  💳 <b>លុយក្នុង Wallet៖</b> ${total_wallet:.2f}\n"
         f"📦 <b>Order កំពុងរង់ចាំ៖</b> {pending_cnt} កុម្ម៉ង់\n\n"
@@ -2582,18 +2648,19 @@ def _build_tg_admin_home() -> tuple[str, Dict[str, Any]]:
             ],
             [
                 {"text": "🏪 បិទ/បើក ហ្គេមនីមួយៗ", "callback_data": "adm:games"},
-                {"text": "🎡 គ្រប់គ្រង Spin Robux", "callback_data": "adm:spin"}
+                {"text": "🎡 គ្រប់គ្រង Spin", "callback_data": "adm:spin"}
             ],
             [
-                {"text": "📦 Roblox Bot & Cookie", "callback_data": "adm:bot"},
+                {"text": "🎫 គ្រប់គ្រង Scratch Card", "callback_data": "adm:scratch"},
                 {"text": f"⚡ Flash Sale ({'ON' if fs_active else 'OFF'})", "callback_data": "adm:fsale"}
             ],
             [
-                {"text": "🎟️ កូដបញ្ចុះតម្លៃ (Promo)", "callback_data": "adm:promos:0"},
-                {"text": "🚫 Blacklist / ប្លុក", "callback_data": "adm:blk"}
+                {"text": "📦 Roblox Bot & Cookie", "callback_data": "adm:bot"},
+                {"text": "🎟️ កូដបញ្ចុះតម្លៃ (Promo)", "callback_data": "adm:promos:0"}
             ],
             [
-                {"text": "📢 ផ្ញើសារ Broadcast / បិទបើកហាង", "callback_data": "adm:store_ctrl"}
+                {"text": "🚫 Blacklist / ប្លុក", "callback_data": "adm:blk"},
+                {"text": "📢 ផ្សាយដំណឹង / បិទបើកហាង", "callback_data": "adm:store_ctrl"}
             ],
             [{"text": "🔄 Refresh ផ្ទាំងបញ្ជា", "callback_data": "adm:home"}]
         ]
@@ -3030,6 +3097,92 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
             await answer_callback_query(token, query_id, "")
 
         text, markup = _build_tg_spin_card(status_note)
+        if msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, text, markup)
+
+    elif sub in ("scratch", "sc_tog", "sc_free_tog", "sc_p", "sc_pre", "sc_winners"):
+        status_note = ""
+        if sub == "sc_tog":
+            scratch_data["enabled"] = not scratch_data.get("enabled", True)
+            save_scratch_data()
+            st = "បើកដំណើរការ (ON) 🟢" if scratch_data["enabled"] else "បិទដំណើរការ (OFF) ⛔"
+            status_note = f"✅ Scratch Card ត្រូវបាន {st}"
+            await answer_callback_query(token, query_id, f"Scratch: {st}")
+        elif sub == "sc_free_tog":
+            scratch_data["daily_free_scratch_enabled"] = not scratch_data.get("daily_free_scratch_enabled", True)
+            save_scratch_data()
+            st = "បើក (ON) 🟢" if scratch_data["daily_free_scratch_enabled"] else "បិទ (OFF) ⛔"
+            status_note = f"✅ កាត Free ប្រចាំថ្ងៃត្រូវបាន {st}"
+            await answer_callback_query(token, query_id, f"Daily Free: {st}")
+        elif sub == "sc_p" and len(parts) >= 3:
+            try:
+                np = round(float(parts[2]), 2)
+                scratch_data["card_price_usd"] = np
+                save_scratch_data()
+                status_note = f"✅ បានប្តូរតម្លៃសំបុត្រទៅ៖ ${np:.2f} USD"
+                await answer_callback_query(token, query_id, f"Price: ${np:.2f}")
+            except Exception:
+                await answer_callback_query(token, query_id, "Invalid price")
+        elif sub == "sc_pre" and len(parts) >= 3:
+            pre = parts[2]
+            prizes = scratch_data.get("prizes", [])
+            if pre == "hard":
+                for p in prizes:
+                    r = int(p.get("robux", 0))
+                    if r == 0: p["weight"] = 85.0
+                    elif r <= 25: p["weight"] = 8.0
+                    elif r <= 100: p["weight"] = 5.0
+                    else: p["weight"] = 0.5
+                status_note = "🔒 បានកំណត់ Preset: 85% Thank You (House Safe/ចំណេញខ្ពស់)"
+            elif pre == "mid":
+                for p in prizes:
+                    r = int(p.get("robux", 0))
+                    if r == 0: p["weight"] = 70.0
+                    elif r <= 25: p["weight"] = 18.0
+                    elif r <= 100: p["weight"] = 9.0
+                    else: p["weight"] = 1.0
+                status_note = "⚖️ បានកំណត់ Preset: 70% Thank You (មធ្យម/Balanced)"
+            elif pre == "easy":
+                for p in prizes:
+                    r = int(p.get("robux", 0))
+                    if r == 0: p["weight"] = 50.0
+                    elif r <= 25: p["weight"] = 28.0
+                    elif r <= 100: p["weight"] = 16.0
+                    else: p["weight"] = 3.0
+                status_note = "🎉 បានកំណត់ Preset: 50% Thank You (ងាយឈ្នះ/Promo Event)"
+            save_scratch_data()
+            await answer_callback_query(token, query_id, status_note)
+        elif sub == "sc_winners":
+            await answer_callback_query(token, query_id, "")
+            hist = scratch_data.get("history", [])
+            win_hist = [h for h in hist if int(h.get("robux", 0)) > 0]
+            if not win_hist:
+                w_text = (
+                    "🎫 <b>[ប្រវត្តិអ្នកឈ្នះកាតកោស SCRATCH WINNERS]</b>\n\n"
+                    "<i>មិនទាន់មានអ្នកកោសឈ្នះ Robux នៅឡើយទេ។</i>"
+                )
+            else:
+                lines = []
+                for h in win_hist[:10]:
+                    u = str(h.get("username") or "Player")
+                    rb = int(h.get("robux", 0))
+                    d = str(h.get("created_at", ""))[:16].replace("T", " ")
+                    lines.append(f"• @{u}: <b>+{rb:,} R$</b> (<code>{d}</code>)")
+                w_text = (
+                    f"🎫 <b>[អ្នកឈ្នះកាតកោស SCRATCH WINNERS ({len(win_hist)})]</b>\n\n"
+                    + "\n".join(lines)
+                )
+            w_markup = {"inline_keyboard": [
+                [{"text": "⬅️ ត្រឡប់ទៅផ្ទាំង Scratch", "callback_data": "adm:scratch"}],
+                [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]
+            ]}
+            if msg_id:
+                await edit_telegram_message(token, chat_id, msg_id, w_text, w_markup)
+            return
+        else:
+            await answer_callback_query(token, query_id, "")
+
+        text, markup = _build_tg_admin_scratch(status_note)
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, text, markup)
 
@@ -3589,6 +3742,31 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                 _tg_admin_state.pop(chat_id, None)
                 adm_text, adm_markup = _build_tg_admin_home()
                 asyncio.create_task(send_telegram_direct_message(token, chat_id, adm_text, adm_markup))
+        elif text == "/scratch" or text.startswith("/scratch ") or text.startswith("/scratch@"):
+            if not is_telegram_admin(from_id, from_uname, chat_id):
+                asyncio.create_task(record_unauthorized_bot_attempt(from_id, from_uname, chat_id, text))
+                asyncio.create_task(send_telegram_direct_message(token, chat_id, "Access Denied: Admin authentication required."))
+            else:
+                arg = text[8:].strip().lower() if text.startswith("/scratch ") else ""
+                if arg == "on":
+                    scratch_data["enabled"] = True
+                    save_scratch_data()
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, "✅ <b>Golden Scratch Card ត្រូវបានបើកដំណើរការ (ON)!</b>"))
+                elif arg == "off":
+                    scratch_data["enabled"] = False
+                    save_scratch_data()
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, "⛔ <b>Golden Scratch Card ត្រូវបានបិទដំណើរការ (OFF)!</b>"))
+                elif arg.startswith("price "):
+                    try:
+                        p_val = round(float(arg[6:].strip()), 2)
+                        scratch_data["card_price_usd"] = p_val
+                        save_scratch_data()
+                        asyncio.create_task(send_telegram_direct_message(token, chat_id, f"✅ <b>តម្លៃសំបុត្រ Scratch Card ត្រូវបានប្តូរទៅ៖ ${p_val:.2f} USD</b>"))
+                    except Exception:
+                        asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ ទម្រង់តម្លៃមិនត្រឹមត្រូវ ឧទាហរណ៍៖ <code>/scratch price 0.25</code>"))
+                else:
+                    sc_txt, sc_markup = _build_tg_admin_scratch()
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, sc_txt, sc_markup))
         elif text in ("/testbug", "/test_bug", "/bugtest") or text.startswith("/testbug"):
             if not is_telegram_admin(from_id, from_uname, chat_id):
                 asyncio.create_task(record_unauthorized_bot_attempt(from_id, from_uname, chat_id, text))
@@ -6074,9 +6252,29 @@ async def claim_scratch_reward(request: Request):
             break
 
     if not ord_match.get("telegram_alerted"):
-        ord_match["telegram_alerted"] = True
-        save_orders()
-        asyncio.create_task(send_telegram_order_notification(ord_match))
+        claim_markup = {
+            "inline_keyboard": [
+                [{"text": f"🌐 Roblox Profile (@{roblox_username})", "url": f"https://www.roblox.com/search/users?keyword={quote_plus(roblox_username)}"}],
+                [
+                    {"text": "✅ បាញ់រួចរាល់ (Complete)", "callback_data": f"complete:{order_id}"},
+                    {"text": "❌ បដិសេធ (Reject)", "callback_data": f"reject:{order_id}"}
+                ]
+            ]
+        }
+        async def _send_scratch_claim_tg():
+            rob_won = int(ord_match.get("robux_amount", 0))
+            sent = await send_telegram_admin_alert(
+                "🎫 <b>[SCRATCH CARD CLAIM] អតិថិជនស្នើសុំបើករង្វាន់ Robux</b>\n"
+                f"🆔 <b>Order ID:</b> <code>{html.escape(order_id, quote=False)}</code>\n"
+                f"👤 <b>ឈ្មោះគណនី Roblox:</b> <code>@{html.escape(roblox_username, quote=False)}</code>\n"
+                f"🎁 <b>រង្វាន់ឈ្នះ៖</b> <b>{rob_won:,} Robux</b>\n"
+                "⚡ សូមចូលទៅកាន់ Admin Orders Queue ដើម្បីបាញ់ Robux ជូនអតិថិជន!",
+                reply_markup=claim_markup
+            )
+            if sent:
+                ord_match["telegram_alerted"] = True
+                save_orders()
+        asyncio.create_task(_send_scratch_claim_tg())
 
     return {
         "ok": True,
@@ -6127,15 +6325,46 @@ async def admin_save_scratch(request: Request):
     scratch_data["subtitle"] = str(body.get("subtitle") or "").strip()
     if "card_price_usd" in body:
         scratch_data["card_price_usd"] = round(float(body["card_price_usd"]), 2)
+    if "cost_per_1k_robux_usd" in body:
+        scratch_data["cost_per_1k_robux_usd"] = round(float(body["cost_per_1k_robux_usd"]), 2)
     if "daily_free_scratch_enabled" in body:
         scratch_data["daily_free_scratch_enabled"] = bool(body["daily_free_scratch_enabled"])
     if "daily_free_scratch_cooldown_hours" in body:
         scratch_data["daily_free_scratch_cooldown_hours"] = int(body["daily_free_scratch_cooldown_hours"])
+    if "daily_free_scratch_max_robux" in body:
+        scratch_data["daily_free_scratch_max_robux"] = int(body["daily_free_scratch_max_robux"])
     if "prizes" in body and isinstance(body["prizes"], list):
         scratch_data["prizes"] = body["prizes"]
 
     save_scratch_data()
     return {"ok": True, "scratch_data": scratch_data}
+
+@app.post("/api/admin/scratch/test-roll")
+async def admin_test_scratch_roll():
+    """Runs a 1,000-card Monte Carlo simulation for Scratch Card."""
+    price = float(scratch_data.get("card_price_usd", 0.25))
+    cost_per_r = float(scratch_data.get("cost_per_1k_robux_usd", 4.0)) / 1000.0
+
+    counts: Dict[str, int] = {}
+    total_robux = 0
+    for _ in range(1000):
+        c = generate_scratch_card(is_daily_free=False)
+        lbl = c.get("prize_label", "Thank You")
+        counts[lbl] = counts.get(lbl, 0) + 1
+        total_robux += int(c.get("win_robux", 0))
+
+    sim_rev = round(price * 1000, 2)
+    sim_cost = round(total_robux * cost_per_r, 2)
+    sim_profit = round(sim_rev - sim_cost, 2)
+    return {
+        "ok": True,
+        "simulated_cards": 1000,
+        "revenue_usd": sim_rev,
+        "robux_awarded": total_robux,
+        "estimated_cost_usd": sim_cost,
+        "estimated_profit_usd": sim_profit,
+        "breakdown": counts
+    }
 
 @app.post("/api/admin/scratch/reset-stats")
 async def admin_reset_scratch_stats():
