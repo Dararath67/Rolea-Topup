@@ -6,8 +6,8 @@
   window.__roleaLoaderInit = true;
 
   var startTime = Date.now();
-  var MIN_SHOW_MS = 350;
-  var MAX_WAIT_MS = 2400;
+  var MIN_SHOW_MS = 0;
+  var MAX_WAIT_MS = 1000;
   var hidden = false;
   var hideTimer = null;
   var safetyTimer = null;
@@ -15,7 +15,7 @@
   var style = document.createElement('style');
   style.id = 'rolea-preloader-style';
   style.textContent = [
-    '#rolea-preloader{position:fixed;inset:0;z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#ffffff;color:#0f172a;font-family:"Plus Jakarta Sans","Inter",system-ui,-apple-system,sans-serif;opacity:1;visibility:visible;transition:opacity .26s cubic-bezier(.16,1,.3,1),transform .26s cubic-bezier(.16,1,.3,1),visibility .26s linear;-webkit-font-smoothing:antialiased;}',
+    '#rolea-preloader{position:fixed;inset:0;z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#ffffff;color:#0f172a;font-family:"Plus Jakarta Sans","Inter",system-ui,-apple-system,sans-serif;opacity:1;visibility:visible;transition:opacity .16s cubic-bezier(.16,1,.3,1),transform .16s cubic-bezier(.16,1,.3,1),visibility .16s linear;-webkit-font-smoothing:antialiased;}',
     'html[data-store-theme="dark"] #rolea-preloader{background:#0b1629;color:#f1f5f9;}',
     '#rolea-preloader.is-hidden{opacity:0;transform:scale(1.015);visibility:hidden;pointer-events:none;}',
     '.rl-loader-ring-wrap{position:relative;width:78px;height:78px;display:flex;align-items:center;justify-content:center;}',
@@ -115,9 +115,40 @@
       var targetUrl = new URL(link.href, window.location.href);
       if (targetUrl.origin !== window.location.origin) return;
       if (targetUrl.pathname === window.location.pathname && targetUrl.search === window.location.search && targetUrl.hash) return;
-      show('Opening page…');
+      // Do not block screen unless page load takes time
+      setTimeout(function () {
+        if (!hidden) show('Opening page…');
+      }, 120);
     } catch (_) {}
   });
+
+  // Instant Link Prefetching on Hover & Touch (Loads next page into cache before user finishes clicking)
+  var prefetched = new Set();
+  function prefetchUrl(url) {
+    if (!url || prefetched.has(url)) return;
+    prefetched.add(url);
+    var l = document.createElement('link');
+    l.rel = 'prefetch';
+    l.href = url;
+    l.as = 'document';
+    (document.head || document.documentElement).appendChild(l);
+  }
+
+  function onPointerOver(e) {
+    var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+    if (!a) return;
+    var raw = a.getAttribute('href') || '';
+    if (!raw || raw.charAt(0) === '#' || raw.indexOf('javascript:') === 0 || a.hasAttribute('download')) return;
+    try {
+      var u = new URL(a.href, window.location.href);
+      if (u.origin === window.location.origin) {
+        prefetchUrl(u.href);
+      }
+    } catch (_) {}
+  }
+
+  document.addEventListener('mouseover', onPointerOver, { passive: true });
+  document.addEventListener('touchstart', onPointerOver, { passive: true });
 
   window.RoleaLoader = { show: show, hide: hide };
 })();

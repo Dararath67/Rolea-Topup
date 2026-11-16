@@ -31,6 +31,18 @@ from fastapi import FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.gzip import GZipMiddleware
+
+class CachedStaticFiles(StaticFiles):
+    def file_response(self, *args, **kwargs) -> Response:
+        resp = super().file_response(*args, **kwargs)
+        path = args[0] if args else kwargs.get("full_path", "")
+        path_str = str(path).lower()
+        if any(path_str.endswith(ext) for ext in (".webp", ".png", ".jpg", ".jpeg", ".svg", ".ico", ".woff2", ".woff", ".ttf")):
+            resp.headers["Cache-Control"] = "public, max-age=2592000, immutable"
+        elif any(path_str.endswith(ext) for ext in (".css", ".js")):
+            resp.headers["Cache-Control"] = "public, max-age=86400, stale-while-revalidate=604800"
+        return resp
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -4503,10 +4515,19 @@ async def security_and_no_cache_middleware(request: Request, call_next):
             content={"ok": False, "error": "Internal server error. The engineering team has been automatically alerted."}
         )
 
-    if norm_path.startswith("/api/") or norm_path.endswith((".js", ".css", ".html")) or norm_path in ("/", "/spin", "/admin", "/admin/login", "/signin", "/game/roblox", "/my-account", "/check-order") or response.headers.get("content-type", "").startswith("text/html"):
+    # High-performance caching rules (Fast loading while preserving strict security on admin/auth)
+    if any(norm_path.endswith(ext) for ext in (".webp", ".png", ".jpg", ".jpeg", ".svg", ".ico", ".woff2", ".woff", ".ttf")):
+        response.headers["Cache-Control"] = "public, max-age=2592000, immutable"
+    elif any(norm_path.endswith(ext) for ext in (".js", ".css")):
+        response.headers["Cache-Control"] = "public, max-age=86400, stale-while-revalidate=604800"
+    elif norm_path in ("/api/settings", "/api/games", "/api/packages", "/api/flash-sale", "/api/spin/config", "/api/reviews"):
+        response.headers["Cache-Control"] = "public, max-age=15, stale-while-revalidate=60"
+    elif norm_path.startswith("/api/admin") or norm_path.startswith("/api/auth") or norm_path.startswith("/api/order-status") or norm_path in ("/admin", "/admin/login"):
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
+    else:
+        response.headers["Cache-Control"] = "public, max-age=30, stale-while-revalidate=120"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
     response.headers["X-XSS-Protection"] = "1; mode=block"
@@ -4559,6 +4580,7 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "X-Auth-Token", "X-Requested-With"],
 )
 app.add_middleware(MaxBodySizeMiddleware)
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 @app.on_event("startup")
 async def startup_event():
@@ -4575,6 +4597,7 @@ def _cached_json_response(payload: Any, cache_state: str) -> JSONResponse:
         headers={
             "X-Cache": cache_state,
             "X-Cache-Backend": cache_backend_name(),
+            "Cache-Control": "public, max-age=15, stale-while-revalidate=60",
         },
     )
 
@@ -9614,8 +9637,8 @@ async def page_admin():
 async def page_admin_login():
     return FileResponse(PUBLIC_DIR / "admin_login.html")
 
-# Mount public directory for CSS, JS, Media, SVGs
-app.mount("/", StaticFiles(directory=str(PUBLIC_DIR)), name="public")
+# Mount public directory for CSS, JS, Media, SVGs with aggressive client-side caching
+app.mount("/", CachedStaticFiles(directory=str(PUBLIC_DIR)), name="public")
 
 if __name__ == "__main__":
     import uvicorn
