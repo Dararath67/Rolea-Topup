@@ -7432,9 +7432,61 @@ async function resetScratchStats() {
   try {
     const res = await fetch('/api/admin/scratch/reset-stats', { method: 'POST' });
     if (res.ok) { toast('Scratch stats reset!'); loadAdminScratchData(); }
+  } catch (e) {}
+}
 
-
-let adminBoxData = null;
+const DEFAULT_ADMIN_BOX_DATA = {
+  enabled: true,
+  telegram_alert_enabled: true,
+  cost_per_1k_robux_usd: 4.00,
+  cases: {
+    bronze: {
+      id: "bronze", name: "Bronze Case", price_usd: 0.20,
+      items: [
+        { robux: 0, label: "Thank You", weight: 70, color: "#94a3b8" },
+        { robux: 10, label: "10 Robux", weight: 18, color: "#10b981" },
+        { robux: 15, label: "15 Robux", weight: 7, color: "#0ea5e9" },
+        { robux: 25, label: "25 Robux", weight: 3.5, color: "#8b5cf6" },
+        { robux: 50, label: "50 Robux", weight: 1.2, color: "#f59e0b" },
+        { robux: 100, label: "100 Robux", weight: 0.3, color: "#ef4444" }
+      ]
+    },
+    silver: {
+      id: "silver", name: "Silver Case", price_usd: 0.50,
+      items: [
+        { robux: 0, label: "Thank You", weight: 68, color: "#94a3b8" },
+        { robux: 50, label: "50 Robux", weight: 18, color: "#10b981" },
+        { robux: 75, label: "75 Robux", weight: 8, color: "#0ea5e9" },
+        { robux: 100, label: "100 Robux", weight: 4, color: "#8b5cf6" },
+        { robux: 200, label: "200 Robux", weight: 1.5, color: "#f59e0b" },
+        { robux: 350, label: "350 Robux", weight: 0.5, color: "#ef4444" }
+      ]
+    },
+    golden: {
+      id: "golden", name: "Golden Case", price_usd: 1.00,
+      items: [
+        { robux: 0, label: "Thank You", weight: 66, color: "#94a3b8" },
+        { robux: 150, label: "150 Robux", weight: 18, color: "#10b981" },
+        { robux: 200, label: "200 Robux", weight: 9, color: "#0ea5e9" },
+        { robux: 350, label: "350 Robux", weight: 4.5, color: "#8b5cf6" },
+        { robux: 600, label: "600 Robux", weight: 2, color: "#f59e0b" },
+        { robux: 1200, label: "1,200 Robux", weight: 0.5, color: "#ef4444" }
+      ]
+    },
+    diamond: {
+      id: "diamond", name: "Diamond Case", price_usd: 2.50,
+      items: [
+        { robux: 0, label: "Thank You", weight: 65, color: "#94a3b8" },
+        { robux: 500, label: "500 Robux", weight: 18, color: "#10b981" },
+        { robux: 800, label: "800 Robux", weight: 10, color: "#0ea5e9" },
+        { robux: 1500, label: "1,500 Robux", weight: 4.5, color: "#8b5cf6" },
+        { robux: 3000, label: "3,000 Robux", weight: 2, color: "#f59e0b" },
+        { robux: 5000, label: "5,000 Robux", weight: 0.5, color: "#ef4444" }
+      ]
+    }
+  }
+};
+let adminBoxData = JSON.parse(JSON.stringify(DEFAULT_ADMIN_BOX_DATA));
 let activeAdminCaseId = 'bronze';
 
 async function loadAdminBoxData() {
@@ -7658,9 +7710,6 @@ async function resetBoxStats() {
   try {
     const res = await fetch('/api/admin/box/reset-stats', { method: 'POST' });
     if (res.ok) { toast('Mystery Box stats reset!'); loadAdminBoxData(); }
-  } catch (e) {}
-}
-
   } catch (e) {}
 }
 
