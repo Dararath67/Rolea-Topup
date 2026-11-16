@@ -634,6 +634,24 @@
           </div>
         </div>
 
+        <!-- Customer Telegram Delivery Notification Connector -->
+        <div id="track-tg-notify-box" style="display:none;margin-bottom:14px;padding:14px 16px;border-radius:14px;background:#f0f9ff;border:1.5px solid #bae6fd;color:#0369a1;font-size:13px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:10px">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="#0284c7">
+                <path d="M20.665 3.717l-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42 10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701h-.002l-.313 4.674c.458 0 .66-.21.916-.457l2.199-2.138 4.574 3.379c.843.464 1.45.225 1.66-.782l2.996-14.116c.307-1.23-.47-1.787-1.208-1.527z"/>
+              </svg>
+              <div>
+                <div style="font-weight:800;font-size:13.5px;color:#075985">ភ្ជាប់ Telegram ទទួលដំណឹងពេលបាញ់ Robux រួចរាល់</div>
+                <div style="font-size:12px;color:#0369a1">ចុចភ្ជាប់ Telegram ដើម្បីឱ្យ Bot ផ្ញើសារប្រាប់ភ្លាមៗពេល Admin បាញ់ចូលគណនីរបស់អ្នករួច</div>
+              </div>
+            </div>
+            <a id="btn-track-tg-notify" href="https://t.me/RothzStore_bot" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px;background:#0284c7;color:#ffffff;padding:9px 16px;border-radius:10px;font-weight:800;font-size:12.5px;text-decoration:none;box-shadow:0 3px 10px rgba(2,132,199,0.3)">
+              ភ្ជាប់ Telegram ឥឡូវនេះ
+            </a>
+          </div>
+        </div>
+
         <!-- Action Links (Download Slip, View Receipt & Print) -->
         <div class="track-actions">
           <button type="button" id="btn-receipt-slip-download" onclick="downloadSlipFromCheckOrder()" class="btn-track-action" style="background:linear-gradient(135deg, #10b981 0%, #059669 100%);color:#ffffff;border:none;box-shadow:0 4px 12px rgba(16,185,129,0.3);font-weight:800;cursor:pointer">
@@ -959,6 +977,17 @@ function renderOrderCard(o) {
     progressEl.style.width = '25%';
     step3El.className = 'stepper-step';
     step3Text.textContent = '3. Waiting Payment';
+  }
+
+  const tgBox = document.getElementById('track-tg-notify-box');
+  const tgBtn = document.getElementById('btn-track-tg-notify');
+  if (tgBox && tgBtn) {
+    if (o.delivered || status === 'completed' || status === 'refunded') {
+      tgBox.style.display = 'none';
+    } else {
+      tgBox.style.display = 'block';
+      tgBtn.href = 'https://t.me/RothzStore_bot?start=' + encodeURIComponent(o.order_id);
+    }
   }
 }
 

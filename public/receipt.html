@@ -184,6 +184,14 @@
       </div>
 
       <div class="receipt-actions">
+        <!-- Telegram Delivery Notification Connector -->
+        <a id="rc-tg-notify-btn" href="https://t.me/RothzStore_bot" target="_blank" rel="noopener noreferrer" style="width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:9px;font-weight:800;border-radius:12px;padding:12px;background:#0088cc;color:#ffffff;text-decoration:none;font-size:13px;box-shadow:0 4px 12px rgba(0,136,204,0.28)">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20.665 3.717l-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42 10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701h-.002l-.313 4.674c.458 0 .66-.21.916-.457l2.199-2.138 4.574 3.379c.843.464 1.45.225 1.66-.782l2.996-14.116c.307-1.23-.47-1.787-1.208-1.527z"/>
+          </svg>
+          <span>ភ្ជាប់ Telegram ទទួលដំណឹងពេលបាញ់ Robux រួចរាល់</span>
+        </a>
+
         <button type="button" onclick="downloadSlipFromReceipt()" class="btn-receipt-action" id="btn-download-slip" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:800;border-radius:12px;padding:13px;background:linear-gradient(135deg, #10b981 0%, #059669 100%);color:#ffffff;border:none;box-shadow:0 4px 14px rgba(16,185,129,0.32);cursor:pointer;font-size:13.5px;font-family:inherit;text-decoration:none;transition:transform 0.15s, box-shadow 0.15s">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -252,6 +260,16 @@
       document.getElementById('rc-track').href = '/my-account';
       const tgBtn = document.getElementById('rc-tg-btn');
       if (tgBtn) tgBtn.href = '/check-order?order_id=' + encodeURIComponent(data.order_id);
+
+      const tgNotifyBtn = document.getElementById('rc-tg-notify-btn');
+      if (tgNotifyBtn) {
+        tgNotifyBtn.href = 'https://t.me/RothzStore_bot?start=' + encodeURIComponent(data.order_id || orderId);
+        if (data.delivered || data.status === 'completed' || data.status === 'refunded') {
+          tgNotifyBtn.style.display = 'none';
+        } else {
+          tgNotifyBtn.style.display = 'flex';
+        }
+      }
 
       if (data.auto_login_token) {
         localStorage.setItem('rolea_token', data.auto_login_token);

@@ -1710,21 +1710,21 @@ async def notify_customer_payment_received(order: Dict[str, Any]):
     time_str = format_ict_time(order.get("created_at"))
 
     text = (
-        f"🧾 <b>[វិក្កយបត្រទទួលប្រាក់ / PAYMENT RECEIPT]</b>\n"
-        f"🏪 <b>ហាង៖</b> {store_name}\n\n"
-        f"🆔 <b>Order ID (ចុច Copy)៖</b> <code>{html.escape(oid, quote=False)}</code>\n"
-        f"🎮 <b>ទំនិញ៖</b> {pkg} ({game_name})\n"
-        f"👤 <b>ឈ្មោះក្នុងហ្គេម (ចុច Copy)៖</b> <code>{customer}</code>\n"
-        f"💵 <b>ទឹកប្រាក់បានបង់៖</b> <code>${amount} USD</code>\n"
-        f"💳 <b>វិធីទូទាត់៖</b> {pay_method}\n"
-        f"⚡ <b>ស្ថានភាព៖</b> បង់ប្រាក់ជោគជ័យ - រង់ចាំ Admin បាញ់ទំនិញ\n"
-        f"🕒 <b>ពេលវេលា៖</b> {time_str}\n\n"
-        f"🙏 <i>សូមអរគុណសម្រាប់ការកុម្ម៉ង់! Admin នឹងបាញ់ទំនិញជូនក្នុងរយៈពេល 1-3 នាទី។</i>"
+        f"<b>[វិក្កយបត្រទទួលប្រាក់ / PAYMENT RECEIPT]</b>\n"
+        f"<b>ហាង៖</b> {store_name}\n\n"
+        f"<b>Order ID (ចុច Copy)៖</b> <code>{html.escape(oid, quote=False)}</code>\n"
+        f"<b>ទំនិញ៖</b> {pkg} ({game_name})\n"
+        f"<b>ឈ្មោះក្នុងហ្គេម (ចុច Copy)៖</b> <code>{customer}</code>\n"
+        f"<b>ទឹកប្រាក់បានបង់៖</b> <code>${amount} USD</code>\n"
+        f"<b>វិធីទូទាត់៖</b> {pay_method}\n"
+        f"<b>ស្ថានភាព៖</b> បង់ប្រាក់ជោគជ័យ - រង់ចាំ Admin បាញ់ទំនិញ\n"
+        f"<b>ពេលវេលា៖</b> {time_str}\n\n"
+        f"<i>សូមអរគុណសម្រាប់ការកុម្ម៉ង់! Admin នឹងបាញ់ទំនិញជូនក្នុងរយៈពេល 1-3 នាទី។</i>"
     )
     markup = {
         "inline_keyboard": [
-            [{"text": "🔎 តាមដានស្ថានភាព Order", "callback_data": f"cust:track:{oid}"}],
-            [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]
+            [{"text": "តាមដានស្ថានភាព Order", "callback_data": f"cust:track:{oid}"}],
+            [{"text": "ម៉ឺនុយដើម", "callback_data": "cust:home"}]
         ]
     }
     await send_telegram_direct_message(token, chat_id, text, reply_markup=markup)
@@ -1751,19 +1751,19 @@ async def notify_customer_order_completed(order: Dict[str, Any]):
     store_name = html.escape(str(settings.get("store_name", "Rolea Topup")), quote=False)
 
     text = (
-        f"🎉 <b>[ការកុម្ម៉ង់ត្រូវបានបាញ់រួចរាល់ / ORDER DELIVERED]</b>\n\n"
+        f"<b>[ការកុម្ម៉ង់ត្រូវបានបាញ់រួចរាល់ / ORDER DELIVERED]</b>\n\n"
         f"សួស្តី <b>{customer}</b>, ការកុម្ម៉ង់របស់អ្នកត្រូវបានបាញ់ទំនិញចូល Account រួចរាល់ ១០០% ហើយ!\n\n"
-        f"🆔 <b>Order ID (ចុច Copy)៖</b> <code>{html.escape(oid, quote=False)}</code>\n"
-        f"🎮 <b>ទំនិញ៖</b> {pkg} ({game_name})\n"
-        f"👤 <b>Account (ចុច Copy)៖</b> <code>{customer}</code>\n"
-        f"💵 <b>តម្លៃ៖</b> ${amount} USD\n"
-        f"✅ <b>ស្ថានភាព៖</b> បានបាញ់ទំនិញរួចរាល់ (COMPLETED)\n\n"
-        f"🙏 <i>សូមអរគុណសម្រាប់ការគាំទ្រហាង {store_name}!</i>"
+        f"<b>Order ID (ចុច Copy)៖</b> <code>{html.escape(oid, quote=False)}</code>\n"
+        f"<b>ទំនិញ៖</b> {pkg} ({game_name})\n"
+        f"<b>Account (ចុច Copy)៖</b> <code>{customer}</code>\n"
+        f"<b>តម្លៃ៖</b> ${amount} USD\n"
+        f"<b>ស្ថានភាព៖</b> បានបាញ់ទំនិញរួចរាល់ (COMPLETED)\n\n"
+        f"<i>សូមអរគុណសម្រាប់ការគាំទ្រហាង {store_name}!</i>"
     )
     markup = {
         "inline_keyboard": [
-            [{"text": "🔎 ពិនិត្យមើល Order", "callback_data": f"cust:track:{oid}"}],
-            [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]
+            [{"text": "ពិនិត្យមើល Order", "callback_data": f"cust:track:{oid}"}],
+            [{"text": "ម៉ឺនុយដើម", "callback_data": "cust:home"}]
         ]
     }
     await send_telegram_direct_message(token, chat_id, text, reply_markup=markup)
@@ -1920,34 +1920,34 @@ def _build_tg_order_track_card(order: Dict[str, Any]) -> tuple[str, Dict[str, An
     st_raw = str(order.get("status") or "pending").lower()
     
     if st_raw in ("completed", "delivered") or order.get("delivered"):
-        st_badge = "✅ បានបាញ់ទំនិញរួចរាល់ (COMPLETED)"
-        st_desc = "🎉 ទំនិញត្រូវបានបញ្ជូនចូល Account របស់អ្នករួចរាល់ហើយ! សូមចូលទៅពិនិត្យមើលក្នុង Game។"
+        st_badge = "បានបាញ់ទំនិញរួចរាល់ (COMPLETED)"
+        st_desc = "ទំនិញត្រូវបានបញ្ជូនចូល Account របស់អ្នករួចរាល់ហើយ! សូមចូលទៅពិនិត្យមើលក្នុង Game។"
     elif st_raw in ("pending", "sending", "paid"):
-        st_badge = "⏳ កំពុងរង់ចាំដំណើរការ (IN PROGRESS)"
-        st_desc = "⚡ Admin បានទទួលការទូទាត់របស់អ្នកហើយ និងកំពុងរៀបចំបាញ់ទំនិញជូនក្នុងរយៈពេលខ្លី។"
+        st_badge = "កំពុងរង់ចាំដំណើរការ (IN PROGRESS)"
+        st_desc = "Admin បានទទួលការទូទាត់របស់អ្នកហើយ និងកំពុងរៀបចំបាញ់ទំនិញជូនក្នុងរយៈពេលខ្លី។"
     elif st_raw == "refunded":
-        st_badge = "❌ បានសងប្រាក់វិញ (REFUNDED)"
-        st_desc = "⚠️ ការកុម្ម៉ង់នេះត្រូវបានបដិសេធ និងសងប្រាក់ត្រឡប់ទៅវិញរួចរាល់។"
+        st_badge = "បានសងប្រាក់វិញ (REFUNDED)"
+        st_desc = "ការកុម្ម៉ង់នេះត្រូវបានបដិសេធ និងសងប្រាក់ត្រឡប់ទៅវិញរួចរាល់។"
     else:
-        st_badge = f"📌 {st_raw.upper()}"
+        st_badge = f"{st_raw.upper()}"
         st_desc = "សូមរង់ចាំការត្រួតពិនិត្យពី Admin។"
 
     time_str = format_ict_time(order.get("created_at"))
 
     text = (
-        f"🔎 <b>ព័ត៌មានលម្អិតអំពីការកុម្ម៉ង់ (Order Tracking)</b>\n\n"
-        f"🆔 <b>Order ID (ចុច Copy)៖</b> <code>{html.escape(oid, quote=False)}</code>\n"
-        f"🎮 <b>ទំនិញ៖</b> {pkg} ({game_name})\n"
-        f"👤 <b>ឈ្មោះក្នុងហ្គេម (ចុច Copy)៖</b> <code>{cust}</code>\n"
-        f"💵 <b>តម្លៃ៖</b> ${amt:.2f} USD\n"
-        f"⚡ <b>ស្ថានភាព៖</b> {st_badge}\n"
-        f"🕒 <b>កាលបរិច្ឆេទ៖</b> {time_str}\n\n"
-        f"ℹ️ {st_desc}"
+        f"<b>ព័ត៌មានលម្អិតអំពីការកុម្ម៉ង់ (Order Tracking)</b>\n\n"
+        f"<b>Order ID (ចុច Copy)៖</b> <code>{html.escape(oid, quote=False)}</code>\n"
+        f"<b>ទំនិញ៖</b> {pkg} ({game_name})\n"
+        f"<b>ឈ្មោះក្នុងហ្គេម (ចុច Copy)៖</b> <code>{cust}</code>\n"
+        f"<b>តម្លៃ៖</b> ${amt:.2f} USD\n"
+        f"<b>ស្ថានភាព៖</b> {st_badge}\n"
+        f"<b>កាលបរិច្ឆេទ៖</b> {time_str}\n\n"
+        f"<i>{st_desc}</i>"
     )
     markup = {
         "inline_keyboard": [
-            [{"text": "🔄 Refresh ស្ថានភាព", "callback_data": f"cust:track:{oid}"}],
-            [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]
+            [{"text": "Refresh ស្ថានភាព", "callback_data": f"cust:track:{oid}"}],
+            [{"text": "ម៉ឺនុយដើម", "callback_data": "cust:home"}]
         ]
     }
     return text, markup
@@ -3579,7 +3579,7 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
             parts = text.split(maxsplit=1)
             param = parts[1].strip() if len(parts) > 1 else ""
             if param:
-                target_order = next((o for o in orders if o.get("order_id") == param or o.get("order_id") == f"ORD-{param}"), None)
+                target_order = next((o for o in orders if str(o.get("order_id", "")).strip().upper() in (param.upper(), f"ORD-{param.upper()}", param.upper().replace("ORD-", ""))), None)
                 if target_order:
                     target_order["customer_telegram_chat_id"] = chat_id
                     save_orders()
@@ -3589,9 +3589,16 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                             u["telegram_chat_id"] = chat_id
                             save_users()
                     c_txt, c_markup = _build_tg_order_track_card(target_order)
-                    asyncio.create_task(send_telegram_direct_message(token, chat_id, f"✅ <b>បានភ្ជាប់ការជូនដំណឹងសម្រាប់ Order នេះជោគជ័យ!</b>\n\n{c_txt}", c_markup))
+                    confirm_text = (
+                        "<b>[បានភ្ជាប់ការជូនដំណឹងជោគជ័យ / NOTIFICATION CONNECTED]</b>\n\n"
+                        f"Order ID: <code>{html.escape(target_order.get('order_id', ''), quote=False)}</code>\n"
+                        "ប្រព័ន្ធបានភ្ជាប់ការជូនដំណឹងមកកាន់ Telegram របស់អ្នករួចរាល់។\n"
+                        "<b>Bot នឹងផ្ញើសារស្វ័យប្រវត្តិក្តៅៗមក Telegram របស់អ្នកភ្លាមៗនៅពេល Admin បាញ់ Robux ចូល Account រួចរាល់!</b>\n\n"
+                        f"{c_txt}"
+                    )
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, confirm_text, c_markup))
                 else:
-                    asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ រកមិនឃើញ Order <code>#{param}</code> ទេ។ សូមចុចប៊ូតុងខាងក្រោមដើម្បីជ្រើសរើស៖", {"inline_keyboard": [[{"text": "🔎 តាមដាន Order (Track Order)", "callback_data": "cust:track"}], [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]]}))
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, f"រកមិនឃើញ Order <code>#{html.escape(param, quote=False)}</code> ទេ។ សូមចុចប៊ូតុងខាងក្រោមដើម្បីជ្រើសរើស៖", {"inline_keyboard": [[{"text": "តាមដាន Order (Track Order)", "callback_data": "cust:track"}], [{"text": "ម៉ឺនុយដើម", "callback_data": "cust:home"}]]}))
             else:
                 c_txt, c_markup = _build_tg_cust_home(chat_id)
                 asyncio.create_task(send_telegram_direct_message(token, chat_id, c_txt, c_markup))
