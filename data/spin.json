@@ -8,16 +8,16 @@
   "max_big_wins_per_day": 1,
   "min_spins_between_big_wins": 25,
   "require_profit_reserve": true,
-  "spins_since_last_big_win": 15,
-  "total_spins": 15,
-  "total_revenue_usd": 7.5,
-  "total_robux_awarded": 140,
+  "spins_since_last_big_win": 0,
+  "total_spins": 0,
+  "total_revenue_usd": 0.0,
+  "total_robux_awarded": 0,
   "slices": [
     {
       "id": "sl_1",
       "label": "Thank You",
       "robux": 0,
-      "weight": 80.0,
+      "weight": 60.0,
       "color": "#475569",
       "text_color": "#ffffff"
     },
@@ -25,7 +25,7 @@
       "id": "sl_2",
       "label": "10 Robux",
       "robux": 10,
-      "weight": 12.0,
+      "weight": 20.0,
       "color": "#2563eb",
       "text_color": "#ffffff"
     },
@@ -33,7 +33,7 @@
       "id": "sl_3",
       "label": "25 Robux",
       "robux": 25,
-      "weight": 5.0,
+      "weight": 10.0,
       "color": "#0284c7",
       "text_color": "#ffffff"
     },
@@ -41,7 +41,7 @@
       "id": "sl_4",
       "label": "50 Robux",
       "robux": 50,
-      "weight": 2.0,
+      "weight": 5.0,
       "color": "#059669",
       "text_color": "#ffffff"
     },
@@ -49,7 +49,7 @@
       "id": "sl_5",
       "label": "100 Robux",
       "robux": 100,
-      "weight": 0.7,
+      "weight": 2.8,
       "color": "#7c3aed",
       "text_color": "#ffffff"
     },
@@ -57,7 +57,7 @@
       "id": "sl_6",
       "label": "200 Robux",
       "robux": 200,
-      "weight": 0.2,
+      "weight": 0.9,
       "color": "#d97706",
       "text_color": "#ffffff"
     },
@@ -65,7 +65,7 @@
       "id": "sl_7",
       "label": "500 Robux",
       "robux": 500,
-      "weight": 0.08,
+      "weight": 0.1,
       "color": "#e11d48",
       "text_color": "#ffffff"
     },
@@ -80,169 +80,114 @@
   ],
   "history": [
     {
-      "spin_id": "SPINAA89EBA2",
-      "username": "Rothz",
+      "spin_id": "SPIN58EC5C25",
+      "username": "sokleab",
       "label": "Thank You",
       "robux": 0,
-      "price_usd": 0.5,
-      "payment_method": "Rolea Wallet",
+      "price_usd": 0.0,
+      "payment_method": "Daily Free Spin",
       "guard_triggered": false,
       "order_id": null,
-      "created_at": "2026-11-12T05:12:10.868736+00:00"
+      "created_at": "2026-11-16T02:43:43.529807+00:00"
     },
     {
-      "spin_id": "SPINF66936B9",
-      "username": "Rothz",
-      "label": "25 Robux",
-      "robux": 25,
-      "price_usd": 0.5,
-      "payment_method": "Rolea Wallet",
-      "guard_triggered": false,
-      "order_id": "SPINF66936B9",
-      "created_at": "2026-11-12T05:07:59.424807+00:00"
-    },
-    {
-      "spin_id": "SPIN21BE0F3F",
-      "username": "Rothz",
+      "spin_id": "SPIN2C2D8A12",
+      "username": "Lynaouknokthom",
       "label": "10 Robux",
       "robux": 10,
-      "price_usd": 0.5,
-      "payment_method": "Rolea Wallet",
+      "price_usd": 0.0,
+      "payment_method": "Daily Free Spin",
       "guard_triggered": false,
-      "order_id": "SPIN21BE0F3F",
-      "created_at": "2026-11-12T05:07:51.535100+00:00"
+      "order_id": "SPIN2C2D8A12",
+      "created_at": "2026-11-15T15:39:33.884597+00:00"
     },
     {
-      "spin_id": "SPIN62EB9453",
-      "username": "Roi",
-      "label": "25 Robux",
-      "robux": 25,
-      "price_usd": 0.5,
-      "payment_method": "Rolea Wallet",
-      "guard_triggered": true,
-      "order_id": "SPIN62EB9453",
-      "created_at": "2026-11-12T04:49:07.923953+00:00"
-    },
-    {
-      "spin_id": "SPIND27677F4",
-      "username": "Rothz",
-      "label": "50 Robux",
-      "robux": 50,
-      "price_usd": 0.5,
-      "payment_method": "Rolea Wallet",
-      "guard_triggered": false,
-      "order_id": "SPIND27677F4",
-      "created_at": "2026-11-12T04:27:36.622919+00:00"
-    },
-    {
-      "spin_id": "SPIN1E305CDC",
-      "username": "Navien567",
-      "label": "10 Robux",
-      "robux": 10,
-      "price_usd": 0.5,
-      "payment_method": "Rolea Wallet",
-      "guard_triggered": false,
-      "order_id": "SPIN1E305CDC",
-      "created_at": "2026-11-11T13:46:50.055641+00:00"
-    },
-    {
-      "spin_id": "SPIND449BA8E",
-      "username": "Navien567",
+      "spin_id": "SPIN5F7AEB5E",
+      "username": "rithsovanna",
       "label": "Thank You",
       "robux": 0,
-      "price_usd": 0.5,
-      "payment_method": "Rolea Wallet",
+      "price_usd": 0.0,
+      "payment_method": "Daily Free Spin",
       "guard_triggered": false,
       "order_id": null,
-      "created_at": "2026-11-11T13:46:27.205818+00:00"
+      "created_at": "2026-11-15T14:00:07.352404+00:00"
     },
     {
-      "spin_id": "SPINF73F2031",
-      "username": "Navien567",
+      "spin_id": "SPIN07D2C772",
+      "username": "hongnaly",
       "label": "Thank You",
       "robux": 0,
-      "price_usd": 0.5,
-      "payment_method": "Rolea Wallet",
+      "price_usd": 0.0,
+      "payment_method": "Daily Free Spin",
       "guard_triggered": false,
       "order_id": null,
-      "created_at": "2026-11-11T13:46:19.869756+00:00"
+      "created_at": "2026-11-15T13:53:36.360722+00:00"
     },
     {
-      "spin_id": "SPIN0CC6226E",
-      "username": "Iro",
-      "label": "10 Robux",
-      "robux": 10,
-      "price_usd": 0.5,
-      "payment_method": "Rolea Wallet",
-      "guard_triggered": false,
-      "order_id": "SPIN0CC6226E",
-      "created_at": "2026-11-11T05:46:05.759848+00:00"
-    },
-    {
-      "spin_id": "SPINA6D01232",
-      "username": "Iro",
+      "spin_id": "SPIN1BB02C07",
+      "username": "hunlyyen",
       "label": "Thank You",
       "robux": 0,
-      "price_usd": 0.5,
-      "payment_method": "Rolea Wallet",
+      "price_usd": 0.0,
+      "payment_method": "Daily Free Spin",
       "guard_triggered": false,
       "order_id": null,
-      "created_at": "2026-11-11T05:45:59.112507+00:00"
+      "created_at": "2026-11-15T13:51:38.868554+00:00"
     },
     {
-      "spin_id": "SPIN0D587291",
-      "username": "Iro",
+      "spin_id": "SPINBD51CD14",
+      "username": "rrpop",
       "label": "Thank You",
       "robux": 0,
-      "price_usd": 0.5,
-      "payment_method": "Rolea Wallet",
-      "guard_triggered": true,
+      "price_usd": 0.0,
+      "payment_method": "Daily Free Spin",
+      "guard_triggered": false,
       "order_id": null,
-      "created_at": "2026-11-11T05:45:44.914030+00:00"
+      "created_at": "2026-11-15T13:47:47.942225+00:00"
     },
     {
-      "spin_id": "SPIN76465901",
-      "username": "Iro",
+      "spin_id": "SPIN7BECE9F9",
+      "username": "raphopsoeun",
       "label": "Thank You",
       "robux": 0,
-      "price_usd": 0.5,
-      "payment_method": "Rolea Wallet",
+      "price_usd": 0.0,
+      "payment_method": "Daily Free Spin",
       "guard_triggered": false,
       "order_id": null,
-      "created_at": "2026-11-11T05:45:37.805509+00:00"
+      "created_at": "2026-11-15T13:47:06.136663+00:00"
     },
     {
-      "spin_id": "SPINCE92D1BB",
-      "username": "notaaaiw20",
-      "label": "10 Robux",
-      "robux": 10,
-      "price_usd": 0.5,
-      "payment_method": "Rolea Wallet",
-      "guard_triggered": false,
-      "order_id": "SPINCE92D1BB",
-      "created_at": "2026-11-11T05:06:04.752157+00:00"
-    },
-    {
-      "spin_id": "SPINF26A0F12",
-      "username": "notaaaiw20",
-      "label": "Thank You",
-      "robux": 0,
-      "price_usd": 0.5,
-      "payment_method": "Rolea Wallet",
-      "guard_triggered": false,
-      "order_id": null,
-      "created_at": "2026-11-11T05:05:56.894452+00:00"
-    },
-    {
-      "spin_id": "SPINBF6314C3",
+      "spin_id": "SPIN967CCE44",
       "username": "Navien567",
       "label": "Thank You",
       "robux": 0,
-      "price_usd": 0.5,
-      "payment_method": "Rolea Wallet",
+      "price_usd": 0.0,
+      "payment_method": "Daily Free Spin",
       "guard_triggered": false,
       "order_id": null,
-      "created_at": "2026-11-11T04:13:42.740183+00:00"
+      "created_at": "2026-11-15T13:45:19.672645+00:00"
+    },
+    {
+      "spin_id": "SPINA6480412",
+      "username": "looki",
+      "label": "Thank You",
+      "robux": 0,
+      "price_usd": 0.0,
+      "payment_method": "Daily Free Spin",
+      "guard_triggered": false,
+      "order_id": null,
+      "created_at": "2026-11-15T07:12:19.523560+00:00"
+    },
+    {
+      "spin_id": "SPIN5BAD2D4A",
+      "username": "rathadararat",
+      "label": "Thank You",
+      "robux": 0,
+      "price_usd": 0.0,
+      "payment_method": "Daily Free Spin",
+      "guard_triggered": false,
+      "order_id": null,
+      "created_at": "2026-11-15T05:23:50.328630+00:00"
     }
   ],
   "daily_free_spin_enabled": true,

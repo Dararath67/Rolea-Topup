@@ -47,6 +47,15 @@
 
   document.documentElement.appendChild(overlay);
 
+  // Festive winter snowfall effect
+  if (!document.getElementById('rolea-snow-script')) {
+    var snowScript = document.createElement('script');
+    snowScript.id = 'rolea-snow-script';
+    snowScript.src = '/snow.js?v=20261116_v1';
+    snowScript.defer = true;
+    (document.head || document.documentElement).appendChild(snowScript);
+  }
+
   function setLabel(text) {
     var sub = document.getElementById('rl-loader-sub');
     if (sub && text) sub.textContent = text;
