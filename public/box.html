@@ -1,0 +1,1312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Roblox Mystery Box - Rolea Topup</title>
+  <link rel="icon" href="/favicon.png" type="image/png" sizes="64x64">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css?v=20261110_v3">
+  <style>
+    :root {
+      --primary: #0284c7;
+      --primary-hover: #0369a1;
+      --primary-light: #e0f2fe;
+      --dark-slate: #0f172a;
+      --gold-accent: #f59e0b;
+      --gold-border: #fde047;
+      --gold-bg: #fffbeb;
+      --border-color: #e2e8f0;
+      --card-bg: #ffffff;
+    }
+    body {
+      background: #f8fafc;
+      color: #0f172a;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+    .box-shell {
+      max-width: 1040px;
+      margin: 20px auto 100px;
+      padding: 0 16px;
+    }
+    .game-mode-tabs {
+      display: flex;
+      background: #ffffff;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 5px;
+      margin-bottom: 20px;
+      gap: 8px;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.03);
+    }
+    .game-mode-tab {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 16px;
+      font-size: 13.5px;
+      font-weight: 800;
+      color: #64748b;
+      text-decoration: none;
+      border-radius: 12px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .game-mode-tab:hover {
+      color: #0f172a;
+      background: #f1f5f9;
+    }
+    .game-mode-tab.active {
+      color: #0284c7;
+      background: #f0f9ff;
+      border: 1.5px solid #bae6fd;
+      box-shadow: 0 2px 8px rgba(2, 132, 199, 0.08);
+    }
+
+    /* Hero Banner */
+    .box-hero-banner {
+      background: #ffffff;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 22px;
+      padding: 24px 28px;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 28px rgba(15, 23, 42, 0.04);
+    }
+    .box-hero-banner h1 {
+      font-size: 26px;
+      font-weight: 900;
+      margin: 0 0 4px;
+      letter-spacing: -0.4px;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .box-hero-banner p {
+      margin: 0;
+      color: #64748b;
+      font-size: 13.5px;
+    }
+
+    /* 4-Tier Case Selector */
+    .cases-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .case-card {
+      background: #ffffff;
+      border: 2px solid #e2e8f0;
+      border-radius: 18px;
+      padding: 18px 14px;
+      text-align: center;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.03);
+      user-select: none;
+    }
+    .case-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+    }
+    .case-card.active {
+      border-color: #0284c7;
+      background: #f0f9ff;
+      box-shadow: 0 8px 26px rgba(2, 132, 199, 0.16);
+    }
+    .case-badge {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge-starter { background: #fed7aa; color: #9a3412; }
+    .badge-popular { background: #e2e8f0; color: #475569; }
+    .badge-high-tier { background: #fef08a; color: #854d0e; }
+    .badge-mega-jackpot { background: #a5f3fc; color: #0e7490; }
+
+    .case-icon-box {
+      width: 76px;
+      height: 76px;
+      margin: 10px auto 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 18px;
+      position: relative;
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .case-card:hover .case-icon-box {
+      transform: scale(1.08);
+    }
+    .icon-bronze { background: linear-gradient(135deg, #fed7aa 0%, #ea580c 100%); box-shadow: 0 6px 18px rgba(234, 88, 12, 0.25); }
+    .icon-silver { background: linear-gradient(135deg, #f1f5f9 0%, #64748b 100%); box-shadow: 0 6px 18px rgba(100, 116, 139, 0.25); }
+    .icon-golden { background: linear-gradient(135deg, #fef08a 0%, #d97706 100%); box-shadow: 0 6px 18px rgba(217, 119, 6, 0.25); }
+    .icon-diamond { background: linear-gradient(135deg, #a5f3fc 0%, #0284c7 100%); box-shadow: 0 6px 18px rgba(2, 132, 199, 0.25); }
+
+    .case-name {
+      font-size: 15px;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0 0 4px;
+    }
+    .case-price {
+      font-size: 16px;
+      font-weight: 900;
+      color: #0284c7;
+      margin-bottom: 4px;
+    }
+    .case-sub {
+      font-size: 11.5px;
+      color: #64748b;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    .btn-inspect-mini {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      color: #475569;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      padding: 4px 10px;
+      border-radius: 999px;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .btn-inspect-mini:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+
+    /* Unboxing Reel Stage (CS:GO / Roblox Horizontal Reel) */
+    .unboxing-stage-card {
+      background: #0f172a;
+      border: 2px solid #1e293b;
+      border-radius: 24px;
+      padding: 24px;
+      color: #ffffff;
+      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+    .stage-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+    .stage-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .active-case-tag {
+      font-size: 11px;
+      font-weight: 800;
+      padding: 4px 12px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      background: rgba(2, 132, 199, 0.2);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    .reel-viewport-container {
+      position: relative;
+      background: #090d16;
+      border: 2px solid #1e293b;
+      border-radius: 18px;
+      height: 170px;
+      overflow: hidden;
+      box-shadow: inset 0 4px 24px rgba(0, 0, 0, 0.6);
+    }
+    /* Reel Shadow Vignette */
+    .reel-viewport-container::before,
+    .reel-viewport-container::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 100px;
+      z-index: 10;
+      pointer-events: none;
+    }
+    .reel-viewport-container::before {
+      left: 0;
+      background: linear-gradient(90deg, #090d16 0%, rgba(9, 13, 22, 0) 100%);
+    }
+    .reel-viewport-container::after {
+      right: 0;
+      background: linear-gradient(270deg, #090d16 0%, rgba(9, 13, 22, 0) 100%);
+    }
+
+    /* Center Needle Pointer */
+    .reel-pointer-top,
+    .reel-pointer-bottom {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 25;
+      width: 0;
+      height: 0;
+      filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.9));
+    }
+    .reel-pointer-top {
+      top: 0;
+      border-left: 11px solid transparent;
+      border-right: 11px solid transparent;
+      border-top: 15px solid #f59e0b;
+    }
+    .reel-pointer-bottom {
+      bottom: 0;
+      border-left: 11px solid transparent;
+      border-right: 11px solid transparent;
+      border-bottom: 15px solid #f59e0b;
+    }
+    .reel-center-line {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      transform: translateX(-50%);
+      background: linear-gradient(180deg, rgba(245, 158, 11, 0.8) 0%, rgba(245, 158, 11, 0.15) 50%, rgba(245, 158, 11, 0.8) 100%);
+      z-index: 20;
+      pointer-events: none;
+    }
+
+    /* Sliding Reel Strip */
+    .reel-strip {
+      display: flex;
+      height: 100%;
+      align-items: center;
+      gap: 12px;
+      padding: 0 16px;
+      position: absolute;
+      left: 0;
+      top: 0;
+      will-change: transform;
+    }
+    .reel-item-card {
+      width: 116px;
+      height: 136px;
+      background: #141d2e;
+      border: 2px solid #243249;
+      border-radius: 14px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+      box-sizing: border-box;
+      position: relative;
+      transition: border-color 0.2s;
+    }
+    .reel-item-img {
+      width: 44px;
+      height: 44px;
+      object-fit: contain;
+      margin-bottom: 8px;
+    }
+    .reel-item-val {
+      font-size: 15px;
+      font-weight: 900;
+      color: #ffffff;
+      line-height: 1.1;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .reel-item-tag {
+      font-size: 10px;
+      font-weight: 700;
+      color: #94a3b8;
+      margin-top: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    /* Reel Controls Bar */
+    .stage-actions-bar {
+      margin-top: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .btn-action-open {
+      padding: 14px 24px;
+      font-size: 14.5px;
+      font-weight: 800;
+      border-radius: 14px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      border: none;
+      outline: none;
+      user-select: none;
+    }
+    .btn-open-wallet {
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      color: #ffffff;
+      box-shadow: 0 4px 18px rgba(2, 132, 199, 0.35);
+    }
+    .btn-open-wallet:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(2, 132, 199, 0.45);
+    }
+    .btn-open-khqr {
+      background: linear-gradient(135deg, #059669 0%, #047857 100%);
+      color: #ffffff;
+      box-shadow: 0 4px 18px rgba(5, 150, 105, 0.35);
+    }
+    .btn-open-khqr:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(5, 150, 105, 0.45);
+    }
+    .btn-open-free {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      color: #0f172a;
+      font-weight: 900;
+      box-shadow: 0 4px 18px rgba(245, 158, 11, 0.35);
+    }
+    .btn-open-free:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(245, 158, 11, 0.45);
+    }
+    .btn-action-open:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+
+    /* Unclaimed / Pending Rewards Card */
+    .unclaimed-card {
+      display: none;
+      background: #eff6ff;
+      border: 2px dashed #93c5fd;
+      border-radius: 18px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+    }
+    .unclaimed-card.rejected {
+      background: #fef2f2;
+      border-color: #fca5a5;
+    }
+
+    /* Live Winners Feed */
+    .winners-card {
+      background: #ffffff;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 20px;
+      padding: 22px 24px;
+      box-shadow: 0 4px 18px rgba(15, 23, 42, 0.03);
+    }
+    .winners-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .winner-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+    }
+    .winner-badge {
+      background: #fefce8;
+      color: #b45309;
+      border: 1px solid #fde047;
+      font-size: 12.5px;
+      font-weight: 800;
+      padding: 3px 10px;
+      border-radius: 999px;
+    }
+
+    /* Modal System */
+    .box-modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(5px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    .box-modal-backdrop.open {
+      display: flex;
+    }
+    .box-modal-box {
+      background: #ffffff;
+      border-radius: 24px;
+      width: 100%;
+      max-width: 440px;
+      padding: 26px;
+      box-shadow: 0 20px 48px rgba(15, 23, 42, 0.2);
+      text-align: center;
+      position: relative;
+      animation: modalPop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes modalPop {
+      0% { transform: scale(0.9); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .modal-close-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: #f1f5f9;
+      border: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      font-size: 16px;
+      font-weight: bold;
+      color: #64748b;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+    .modal-close-btn:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+
+    @media (max-width: 860px) {
+      .cases-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .box-shell {
+        margin: 14px auto 90px;
+        padding: 0 12px;
+      }
+    }
+    @media (max-width: 480px) {
+      .stage-actions-bar {
+        flex-direction: column;
+        width: 100%;
+      }
+      .btn-action-open {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="desktop-nav">
+  <a class="brand" href="/">
+    <img class="brand-logo" src="/media/logo.webp" alt="Rolea Topup">
+    <span class="brand-copy"><span class="brand-name">Rolea Topup</span></span>
+  </a>
+  <form class="nav-search" onsubmit="return false">
+    <span class="s-ico">
+      <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/>
+      </svg>
+    </span>
+    <input type="text" class="gq" placeholder="Search Game Topup & SMM Services..." autocomplete="off">
+  </form>
+  <div class="nav-links">
+    <a href="/">Home</a>
+    <a href="/#games">Products</a>
+    <a href="/my-account">My Account</a>
+    <a href="/check-order">Check order</a>
+    <a href="/#footer">Contact</a>
+  </div>
+</nav>
+
+<div class="app">
+  <header class="app-header">
+    <a class="brand" href="/">
+      <img class="brand-logo" src="/media/logo.webp" alt="Rolea Topup">
+      <span class="brand-copy"><span class="brand-name">Rolea Topup</span></span>
+    </a>
+    <div class="header-actions"></div>
+  </header>
+
+  <div class="box-shell">
+    <!-- Game Mode Switcher (Wheel vs Scratch vs Mystery Box) -->
+    <div class="game-mode-tabs">
+      <a href="/spin" class="game-mode-tab">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><circle cx="12" cy="12" r="10"/><path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M4.93 19.07L19.07 4.93"/></svg>
+        <span>Lucky Wheel</span>
+      </a>
+      <a href="/scratch" class="game-mode-tab">
+        <img src="/media/rolea-logo.webp" alt="Scratch" style="width:18px;height:18px;object-fit:cover;border-radius:50%;display:inline-block">
+        <span>Scratch Card</span>
+      </a>
+      <a href="/box" class="game-mode-tab active">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        <span>Mystery Box</span>
+      </a>
+    </div>
+
+    <!-- Hero Banner -->
+    <div class="box-hero-banner">
+      <div>
+        <h1 id="box-title">
+          <span>Roblox Mystery Box</span>
+        </h1>
+        <p id="box-sub">Open lucky cases to reveal instant Robux prizes directly to your account!</p>
+      </div>
+      <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:14px;padding:8px 16px;text-align:right">
+        <span style="font-size:11px;font-weight:800;color:#15803d;display:block;text-transform:uppercase">Daily Free Box</span>
+        <b id="daily-free-badge" style="font-size:13.5px;color:#166534">Ready to Open!</b>
+      </div>
+    </div>
+
+    <!-- Unclaimed Rewards Banner (Appears if user won Robux or needs to re-submit) -->
+    <div class="unclaimed-card" id="box-unclaimed-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+        <div>
+          <b id="box-unclaimed-title" style="font-size:15px;color:#1e3a8a;display:block">🎁 You have an unclaimed Mystery Box reward!</b>
+          <p id="box-unclaimed-sub" style="margin:3px 0 0;font-size:12.5px;color:#3b82f6">Submit your Roblox username to receive your Robux.</p>
+        </div>
+        <button type="button" class="btn-action-open btn-open-wallet" style="padding:8px 16px;font-size:13px" onclick="openClaimModalFromSaved()">
+          Claim Robux Now →
+        </button>
+      </div>
+    </div>
+
+    <!-- 4 Tiered Case Selector Cards -->
+    <div class="cases-grid" id="cases-grid">
+      <!-- Bronze Case -->
+      <div class="case-card active" data-case="bronze" onclick="selectCase('bronze')">
+        <span class="case-badge badge-starter">Starter</span>
+        <div class="case-icon-box icon-bronze">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        </div>
+        <h3 class="case-name">Bronze Case</h3>
+        <div class="case-price">$0.20</div>
+        <div class="case-sub">Up to 100 Robux</div>
+        <a href="javascript:void(0)" class="btn-inspect-mini" onclick="event.stopPropagation(); inspectCase('bronze')">Inspect Loot</a>
+      </div>
+
+      <!-- Silver Case -->
+      <div class="case-card" data-case="silver" onclick="selectCase('silver')">
+        <span class="case-badge badge-popular">Popular</span>
+        <div class="case-icon-box icon-silver">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        </div>
+        <h3 class="case-name">Silver Case</h3>
+        <div class="case-price">$0.50</div>
+        <div class="case-sub">Up to 350 Robux</div>
+        <a href="javascript:void(0)" class="btn-inspect-mini" onclick="event.stopPropagation(); inspectCase('silver')">Inspect Loot</a>
+      </div>
+
+      <!-- Golden Case -->
+      <div class="case-card" data-case="golden" onclick="selectCase('golden')">
+        <span class="case-badge badge-high-tier">High Tier</span>
+        <div class="case-icon-box icon-golden">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        </div>
+        <h3 class="case-name">Golden Case</h3>
+        <div class="case-price">$1.00</div>
+        <div class="case-sub">Up to 1,200 Robux</div>
+        <a href="javascript:void(0)" class="btn-inspect-mini" onclick="event.stopPropagation(); inspectCase('golden')">Inspect Loot</a>
+      </div>
+
+      <!-- Diamond Case -->
+      <div class="case-card" data-case="diamond" onclick="selectCase('diamond')">
+        <span class="case-badge badge-mega-jackpot">Jackpot</span>
+        <div class="case-icon-box icon-diamond">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        </div>
+        <h3 class="case-name">Diamond Case</h3>
+        <div class="case-price">$2.50</div>
+        <div class="case-sub">Up to 5,000 Robux</div>
+        <a href="javascript:void(0)" class="btn-inspect-mini" onclick="event.stopPropagation(); inspectCase('diamond')">Inspect Loot</a>
+      </div>
+    </div>
+
+    <!-- Unboxing Stage Container -->
+    <div class="unboxing-stage-card">
+      <div class="stage-header">
+        <div class="stage-title-wrap">
+          <span style="font-size:18px;font-weight:900" id="stage-case-name">Bronze Case</span>
+          <span class="active-case-tag" id="stage-case-price">$0.20 USD</span>
+        </div>
+        <div style="font-size:12.5px;color:#94a3b8" id="stage-status-text">
+          Select case and click Open to unbox instant Robux!
+        </div>
+      </div>
+
+      <!-- CS:GO / Roblox Reel Viewport -->
+      <div class="reel-viewport-container">
+        <div class="reel-pointer-top"></div>
+        <div class="reel-pointer-bottom"></div>
+        <div class="reel-center-line"></div>
+        <div class="reel-strip" id="reel-strip">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Actions Bar -->
+      <div class="stage-actions-bar">
+        <button type="button" class="btn-action-open btn-open-free" id="btn-open-free" onclick="openDailyFreeBox()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <span id="btn-open-free-text">Open Daily Free Case</span>
+        </button>
+
+        <button type="button" class="btn-action-open btn-open-wallet" id="btn-open-wallet" onclick="openBoxWithWallet()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 15h0M2 9.5h20"/></svg>
+          <span id="btn-open-wallet-text">Open with Rolea Wallet ($0.20)</span>
+        </button>
+
+        <button type="button" class="btn-action-open btn-open-khqr" id="btn-open-khqr" onclick="openBoxWithKHQR()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          <span id="btn-open-khqr-text">Open with ABA KHQR ($0.20)</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Live Recent Winners Feed -->
+    <div class="winners-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <div>
+          <h3 style="margin:0;font-size:17px;font-weight:900;color:#0f172a">Recent Mystery Box Winners</h3>
+          <p style="margin:4px 0 0;font-size:12.5px;color:#64748b">Real players unboxing Robux prizes on Rolea Topup</p>
+        </div>
+      </div>
+      <div class="winners-list" id="winners-list">
+        <!-- Live winners injected by JS -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Win Result / Claim Reward -->
+<div class="box-modal-backdrop" id="win-modal">
+  <div class="box-modal-box">
+    <button type="button" class="modal-close-btn" onclick="closeWinModal()">&times;</button>
+    <div style="width:80px;height:80px;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;background:#fefce8;border:2px solid #fde047;border-radius:50%;box-shadow:0 8px 24px rgba(245, 158, 11, 0.25)">
+      <img src="/media/robux-gold-coin.png" alt="Robux" style="width:52px;height:52px;object-fit:contain">
+    </div>
+    <h2 id="win-modal-title" style="margin:0 0 6px;font-size:22px;font-weight:900;color:#0f172a">You Won 100 Robux!</h2>
+    <p id="win-modal-desc" style="margin:0 0 18px;font-size:13.5px;color:#64748b">Enter your Roblox username below to receive your Robux delivery.</p>
+
+    <div id="win-claim-form" style="display:none;text-align:left">
+      <label style="display:block;font-size:12px;font-weight:800;color:#334155;margin-bottom:6px">Roblox Username (ឈ្មោះគណនី Roblox):</label>
+      <input type="text" id="claim-roblox-username" placeholder="e.g. Builderman" style="width:100%;box-sizing:border-box;padding:12px 14px;border:1.5px solid #cbd5e1;border-radius:12px;font-size:14px;font-weight:700;color:#0f172a;outline:none;margin-bottom:14px">
+      <button type="button" id="btn-submit-claim" class="btn-action-open btn-open-wallet" style="width:100%;padding:14px" onclick="submitBoxClaim()">
+        Submit Request to Admin →
+      </button>
+    </div>
+
+    <div id="win-no-claim-form" style="display:none">
+      <button type="button" class="btn-action-open btn-open-wallet" style="width:100%;padding:12px" onclick="closeWinModal()">
+        Try Another Box
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: KHQR Payment -->
+<div class="box-modal-backdrop" id="khqr-modal">
+  <div class="box-modal-box">
+    <button type="button" class="modal-close-btn" onclick="closeKHQRModal()">&times;</button>
+    <h3 style="margin:0 0 4px;font-size:18px;font-weight:900;color:#0f172a">Scan ABA KHQR to Open</h3>
+    <p id="khqr-modal-sub" style="margin:0 0 16px;font-size:12.5px;color:#64748b">Scan with Bakong, ABA, or any Mobile Banking App</p>
+
+    <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:16px;padding:16px;display:inline-block;margin-bottom:14px">
+      <img id="khqr-modal-qr" src="" alt="KHQR" style="width:200px;height:200px;display:block">
+    </div>
+
+    <div style="font-size:13px;font-weight:800;color:#0f172a;margin-bottom:8px">
+      Amount: <span id="khqr-modal-amount" style="color:#0284c7;font-size:16px">$0.20 USD</span>
+    </div>
+    <div style="font-size:12px;color:#64748b;margin-bottom:16px" id="khqr-timer-text">
+      Waiting for payment... (auto-detects in seconds)
+    </div>
+
+    <a id="khqr-aba-link" href="#" target="_blank" style="display:none;margin-bottom:10px" class="btn-action-open btn-open-wallet">
+      Open in ABA Mobile App
+    </a>
+  </div>
+</div>
+
+<!-- Modal: Inspect Loot Pool -->
+<div class="box-modal-backdrop" id="inspect-modal">
+  <div class="box-modal-box" style="max-width:480px">
+    <button type="button" class="modal-close-btn" onclick="closeInspectModal()">&times;</button>
+    <h3 id="inspect-case-title" style="margin:0 0 4px;font-size:18px;font-weight:900;color:#0f172a">Case Loot Pool</h3>
+    <p style="margin:0 0 16px;font-size:12.5px;color:#64748b">Transparent Drop Rates &amp; Fair Odds</p>
+    <div id="inspect-items-list" style="display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto;padding-right:4px">
+      <!-- Items dynamically injected -->
+    </div>
+  </div>
+</div>
+
+<!-- Bottom Mobile Navigation -->
+<nav class="bottom-nav">
+  <a class="nav-item" href="/">
+    <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 10.5L12 3l9 7.5V20a1.5 1.5 0 0 1-1.5 1.5H4.5A1.5 1.5 0 0 1 3 20v-9.5z"/></svg>
+    <span>Home</span>
+  </a>
+  <a class="nav-item active" href="/box">
+    <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+    <span>Boxes</span>
+  </a>
+  <a class="nav-item" href="/scratch">
+    <img src="/media/rolea-logo.webp" alt="Scratch" style="width:22px;height:22px;object-fit:cover;border-radius:50%;display:block;margin:0 auto 2px">
+    <span>Scratch</span>
+  </a>
+  <a class="nav-item" href="/check-order">
+    <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+    <span>Orders</span>
+  </a>
+  <a class="nav-item" href="/my-account">
+    <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    <span>Account</span>
+  </a>
+</nav>
+
+<script src="/page_loader.js?v=20261110_v1"></script>
+<script src="/auth_wallet.js?v=20261110_v4"></script>
+<script>
+let boxConfig = null;
+let currentCaseId = 'bronze';
+let isSpinning = false;
+let activeClaimOrder = null;
+let khqrPollTimer = null;
+let activeTicketId = null;
+
+const audioCtx = (window.AudioContext || window.webkitAudioContext) ? new (window.AudioContext || window.webkitAudioContext)() : null;
+function playTickSound() {
+  if (!audioCtx) return;
+  try {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(420, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.04);
+    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.04);
+  } catch(e) {}
+}
+
+function playWinSound() {
+  if (!audioCtx) return;
+  try {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+    osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1);
+    osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2);
+    gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.45);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.45);
+  } catch(e) {}
+}
+
+// Load Box Configuration
+async function loadBoxConfig() {
+  try {
+    const token = localStorage.getItem('rolea_token') || '';
+    const headers = {};
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    const res = await fetch('/api/box/config?_t=' + Date.now(), { headers, cache: 'no-store' });
+    const j = await res.json();
+    if (!res.ok || !j.ok) return;
+    boxConfig = j;
+
+    if (j.title) document.getElementById('box-title').firstElementChild.textContent = j.title;
+    if (j.subtitle) document.getElementById('box-sub').textContent = j.subtitle;
+
+    renderDailyFreeStatus(j.daily_free);
+    renderWinners(j.recent_winners || []);
+    checkUnclaimedRewards();
+    updateStageCaseDisplay();
+    populateInitialReel();
+  } catch (e) {}
+}
+
+function selectCase(caseId) {
+  if (isSpinning) return;
+  currentCaseId = caseId;
+  document.querySelectorAll('.case-card').forEach(el => {
+    el.classList.toggle('active', el.dataset.case === caseId);
+  });
+  updateStageCaseDisplay();
+  populateInitialReel();
+}
+
+function updateStageCaseDisplay() {
+  if (!boxConfig || !boxConfig.cases) return;
+  const c = boxConfig.cases[currentCaseId];
+  if (!c) return;
+
+  document.getElementById('stage-case-name').textContent = c.name;
+  const p = `$${Number(c.price_usd).toFixed(2)}`;
+  document.getElementById('stage-case-price').textContent = `${p} USD`;
+  document.getElementById('btn-open-wallet-text').textContent = `Open with Rolea Wallet (${p})`;
+  document.getElementById('btn-open-khqr-text').textContent = `Open with ABA KHQR (${p})`;
+}
+
+function populateInitialReel() {
+  const strip = document.getElementById('reel-strip');
+  strip.style.transition = 'none';
+  strip.style.transform = 'translateX(0px)';
+
+  if (!boxConfig || !boxConfig.cases) return;
+  const c = boxConfig.cases[currentCaseId];
+  const items = (c && c.items && c.items.length) ? c.items : [{ robux: 0, label: 'Thank You' }];
+
+  let html = '';
+  for (let i = 0; i < 45; i++) {
+    const it = items[i % items.length];
+    html += renderReelItemHTML(it);
+  }
+  strip.innerHTML = html;
+}
+
+function renderReelItemHTML(it) {
+  const isWin = Number(it.robux) > 0;
+  const borderColor = it.color || (isWin ? '#0284c7' : '#334155');
+  const imgUrl = isWin ? '/media/robux-gold-coin.png' : '/media/rolea-logo.webp';
+  return `
+    <div class="reel-item-card" style="border-color:${borderColor}">
+      <img src="${imgUrl}" alt="${it.label}" class="reel-item-img">
+      <div class="reel-item-val" style="color:${isWin ? '#38bdf8' : '#94a3b8'}">${isWin ? Number(it.robux).toLocaleString() + ' R$' : '0 R$'}</div>
+      <div class="reel-item-tag">${isWin ? 'Robux' : 'Thank You'}</div>
+    </div>
+  `;
+}
+
+function renderDailyFreeStatus(df) {
+  if (!df) return;
+  const badge = document.getElementById('daily-free-badge');
+  const btnFree = document.getElementById('btn-open-free');
+
+  if (df.can_open) {
+    badge.textContent = 'Ready to Open!';
+    badge.style.color = '#15803d';
+    btnFree.disabled = false;
+    btnFree.style.display = 'inline-flex';
+    document.getElementById('btn-open-free-text').textContent = 'Open Daily Free Case';
+  } else {
+    btnFree.disabled = true;
+    const hours = Math.floor(df.remaining_seconds / 3600);
+    const mins = Math.floor((df.remaining_seconds % 3600) / 60);
+    badge.textContent = `Claimed · ${hours}h ${mins}m left`;
+    badge.style.color = '#64748b';
+    document.getElementById('btn-open-free-text').textContent = `Next Free in ${hours}h ${mins}m`;
+  }
+}
+
+// Open via Rolea Wallet
+async function openBoxWithWallet() {
+  if (isSpinning) return;
+  const token = localStorage.getItem('rolea_token') || '';
+  if (!token) {
+    alert('Please sign in to open boxes using Rolea Wallet.');
+    if (window.RoleaAuth) window.RoleaAuth.openLoginModal();
+    return;
+  }
+
+  const btn = document.getElementById('btn-open-wallet');
+  btn.disabled = true;
+  btn.textContent = 'Opening...';
+
+  try {
+    const res = await fetch('/api/box/create-ticket', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({
+        case_id: currentCaseId,
+        payment_method: 'wallet'
+      })
+    });
+    const j = await res.json();
+    if (!res.ok || !j.ok) {
+      alert(j.error || 'Failed to open case.');
+      btn.disabled = false;
+      updateStageCaseDisplay();
+      return;
+    }
+
+    if (j.order_id && j.receipt_token) {
+      saveBoxOrder(j.order_id, j.receipt_token, j.result.robux);
+    }
+
+    startReelAnimation(j.reel, j.win_index, j.result, j.order_id, j.receipt_token);
+  } catch (e) {
+    alert('Network error. Please try again.');
+    btn.disabled = false;
+    updateStageCaseDisplay();
+  }
+}
+
+// Open Daily Free Case
+async function openDailyFreeBox() {
+  if (isSpinning) return;
+  const btn = document.getElementById('btn-open-free');
+  btn.disabled = true;
+  btn.textContent = 'Opening Free Case...';
+
+  try {
+    const token = localStorage.getItem('rolea_token') || '';
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+
+    const res = await fetch('/api/box/daily-free', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({})
+    });
+    const j = await res.json();
+    if (!res.ok || !j.ok) {
+      alert(j.error || 'Daily Free Case unavailable.');
+      btn.disabled = false;
+      return;
+    }
+
+    if (j.order_id && j.receipt_token) {
+      saveBoxOrder(j.order_id, j.receipt_token, j.result.robux);
+    }
+
+    selectCase('bronze');
+    startReelAnimation(j.reel, j.win_index, j.result, j.order_id, j.receipt_token);
+    loadBoxConfig();
+  } catch (e) {
+    alert('Network error. Please try again.');
+    btn.disabled = false;
+  }
+}
+
+// Open via ABA KHQR
+async function openBoxWithKHQR() {
+  if (isSpinning) return;
+  const btn = document.getElementById('btn-open-khqr');
+  btn.disabled = true;
+  btn.textContent = 'Generating KHQR...';
+
+  try {
+    const token = localStorage.getItem('rolea_token') || '';
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+
+    const res = await fetch('/api/box/create-ticket', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        case_id: currentCaseId,
+        payment_method: 'khqr'
+      })
+    });
+    const j = await res.json();
+    btn.disabled = false;
+    updateStageCaseDisplay();
+
+    if (!res.ok || !j.ok) {
+      alert(j.error || 'Failed to create KHQR.');
+      return;
+    }
+
+    activeTicketId = j.ticket_id;
+    document.getElementById('khqr-modal-qr').src = j.qr_image;
+    document.getElementById('khqr-modal-amount').textContent = `$${Number(j.price).toFixed(2)} USD`;
+    if (j.aba_deeplink) {
+      const abaBtn = document.getElementById('khqr-aba-link');
+      abaBtn.href = j.aba_deeplink;
+      abaBtn.style.display = 'inline-flex';
+    }
+    document.getElementById('khqr-modal').classList.add('open');
+
+    // Start auto polling
+    if (khqrPollTimer) clearInterval(khqrPollTimer);
+    khqrPollTimer = setInterval(() => pollKHQRStatus(j.ticket_id), 2500);
+  } catch (e) {
+    btn.disabled = false;
+    updateStageCaseDisplay();
+    alert('Network error. Please try again.');
+  }
+}
+
+async function pollKHQRStatus(ticketId) {
+  try {
+    const res = await fetch(`/api/box/ticket/${ticketId}?_t=` + Date.now());
+    const j = await res.json();
+    if (res.ok && j.ok && j.paid && j.opened) {
+      clearInterval(khqrPollTimer);
+      closeKHQRModal();
+
+      if (j.order_id && j.receipt_token) {
+        saveBoxOrder(j.order_id, j.receipt_token, j.result.robux);
+      }
+      startReelAnimation(j.reel, j.win_index, j.result, j.order_id, j.receipt_token);
+    }
+  } catch(e) {}
+}
+
+function closeKHQRModal() {
+  document.getElementById('khqr-modal').classList.remove('open');
+  if (khqrPollTimer) clearInterval(khqrPollTimer);
+}
+
+// CS:GO Unboxing Reel Animation
+function startReelAnimation(reel, winIndex, resultItem, orderId, receiptToken) {
+  isSpinning = true;
+  document.getElementById('btn-open-wallet').disabled = true;
+  document.getElementById('btn-open-khqr').disabled = true;
+  document.getElementById('btn-open-free').disabled = true;
+
+  const strip = document.getElementById('reel-strip');
+  strip.innerHTML = reel.map(it => renderReelItemHTML(it)).join('');
+
+  // Item card width: 116px + gap 12px = 128px per item
+  const itemWidth = 128;
+  const viewportWidth = document.querySelector('.reel-viewport-container').offsetWidth;
+  // Center pointer is at viewportWidth / 2
+  // We want item at winIndex centered
+  const targetOffset = (winIndex * itemWidth) + (116 / 2) - (viewportWidth / 2) + (Math.random() * 40 - 20);
+
+  strip.style.transition = 'none';
+  strip.style.transform = 'translateX(0px)';
+
+  // Force reflow
+  void strip.offsetWidth;
+
+  // Sound ticking loop
+  let tickCount = 0;
+  const tickInterval = setInterval(() => {
+    playTickSound();
+    tickCount++;
+    if (tickCount > 35) clearInterval(tickInterval);
+  }, 120);
+
+  strip.style.transition = 'transform 5.2s cubic-bezier(0.12, 0.8, 0.2, 1)';
+  strip.style.transform = `translateX(-${targetOffset}px)`;
+
+  setTimeout(() => {
+    isSpinning = false;
+    updateStageCaseDisplay();
+    document.getElementById('btn-open-free').disabled = false;
+    playWinSound();
+
+    showWinModal(resultItem, orderId, receiptToken);
+    loadBoxConfig();
+  }, 5400);
+}
+
+function showWinModal(resultItem, orderId, receiptToken) {
+  const modal = document.getElementById('win-modal');
+  const title = document.getElementById('win-modal-title');
+  const desc = document.getElementById('win-modal-desc');
+  const claimBox = document.getElementById('win-claim-form');
+  const noClaimBox = document.getElementById('win-no-claim-form');
+
+  if (resultItem.robux > 0) {
+    title.textContent = `🎉 You Won ${Number(resultItem.robux).toLocaleString()} Robux!`;
+    desc.textContent = `Enter your Roblox username below to submit your claim to Admin.`;
+    claimBox.style.display = 'block';
+    noClaimBox.style.display = 'none';
+    activeClaimOrder = { order_id: orderId, receipt_token: receiptToken, robux: resultItem.robux };
+  } else {
+    title.textContent = `🎁 Thank you for playing!`;
+    desc.textContent = `Better luck next time! Open another case for bigger chances.`;
+    claimBox.style.display = 'none';
+    noClaimBox.style.display = 'block';
+  }
+  modal.classList.add('open');
+}
+
+function closeWinModal() {
+  document.getElementById('win-modal').classList.remove('open');
+}
+
+async function submitBoxClaim() {
+  if (!activeClaimOrder) return;
+  const username = document.getElementById('claim-roblox-username').value.trim();
+  if (!username) {
+    alert('Please enter your Roblox username!');
+    return;
+  }
+
+  const btn = document.getElementById('btn-submit-claim');
+  btn.disabled = true;
+  btn.textContent = 'Submitting Claim...';
+
+  try {
+    const res = await fetch('/api/box/claim', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        order_id: activeClaimOrder.order_id,
+        receipt_token: activeClaimOrder.receipt_token,
+        roblox_username: username
+      })
+    });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      alert('🎉 Claim submitted successfully! Admin will send your Robux shortly.');
+      document.getElementById('box-unclaimed-card').style.display = 'none';
+      closeWinModal();
+    } else {
+      alert(j.error || 'Failed to submit claim.');
+      btn.disabled = false;
+      btn.textContent = 'Submit Request to Admin →';
+    }
+  } catch (e) {
+    alert('Network error.');
+    btn.disabled = false;
+    btn.textContent = 'Submit Request to Admin →';
+  }
+}
+
+function saveBoxOrder(orderId, token, robux) {
+  try {
+    const raw = localStorage.getItem('rolea_box_orders') || '[]';
+    const list = JSON.parse(raw);
+    if (!list.some(x => x.order_id === orderId)) {
+      list.unshift({ order_id: orderId, token, robux });
+      localStorage.setItem('rolea_box_orders', JSON.stringify(list.slice(0, 30)));
+    }
+  } catch (_) {}
+}
+
+async function checkUnclaimedRewards() {
+  try {
+    const raw = localStorage.getItem('rolea_box_orders') || '[]';
+    const local = JSON.parse(raw);
+    const token = localStorage.getItem('rolea_token') || '';
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+
+    const res = await fetch('/api/box/unclaimed', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ local_orders: local })
+    });
+    const j = await res.json();
+    if (res.ok && j.ok && j.unclaimed && j.unclaimed.length > 0) {
+      const first = j.unclaimed[0];
+      activeClaimOrder = { order_id: first.order_id, receipt_token: first.token, robux: first.robux_amount };
+      const card = document.getElementById('box-unclaimed-card');
+      const isRej = first.rejected || first.step === 'rejected_resubmit';
+      card.classList.toggle('rejected', isRej);
+      card.style.display = 'block';
+
+      if (isRej) {
+        document.getElementById('box-unclaimed-title').textContent = `⚠️ Claim Rejected by Admin (#${first.order_id}) — Click to Re-submit`;
+        document.getElementById('box-unclaimed-sub').textContent = `Your reward of ${Number(first.robux_amount).toLocaleString()} Robux is safe! Please update your Roblox Username and re-submit.`;
+      } else {
+        document.getElementById('box-unclaimed-title').textContent = `🎁 Order #${first.order_id} — Won ${Number(first.robux_amount).toLocaleString()} Robux`;
+        document.getElementById('box-unclaimed-sub').textContent = `Submit your Roblox username to receive your Robux delivery.`;
+      }
+    }
+  } catch (_) {}
+}
+
+function openClaimModalFromSaved() {
+  if (!activeClaimOrder) return;
+  showWinModal({ robux: activeClaimOrder.robux }, activeClaimOrder.order_id, activeClaimOrder.receipt_token);
+}
+
+function inspectCase(caseId) {
+  if (!boxConfig || !boxConfig.cases) return;
+  const c = boxConfig.cases[caseId];
+  if (!c) return;
+
+  document.getElementById('inspect-case-title').textContent = `${c.name} Loot Pool ($${Number(c.price_usd).toFixed(2)})`;
+  const list = document.getElementById('inspect-items-list');
+
+  const totalWeight = (c.items || []).reduce((acc, it) => acc + Number(it.weight || 0), 0);
+  list.innerHTML = (c.items || []).map(it => {
+    const isWin = Number(it.robux) > 0;
+    const pct = totalWeight > 0 ? ((Number(it.weight) / totalWeight) * 100).toFixed(1) : '0';
+    return `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <img src="${isWin ? '/media/robux-gold-coin.png' : '/media/rolea-logo.webp'}" style="width:24px;height:24px;object-fit:contain">
+          <b style="font-size:13.5px;color:#0f172a">${it.label}</b>
+        </div>
+        <span style="font-size:12px;font-weight:800;color:${isWin ? '#0284c7' : '#64748b'}">${pct}% Chance</span>
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('inspect-modal').classList.add('open');
+}
+
+function closeInspectModal() {
+  document.getElementById('inspect-modal').classList.remove('open');
+}
+
+function renderWinners(list) {
+  const box = document.getElementById('winners-list');
+  if (!box) return;
+  if (!list || list.length === 0) {
+    box.innerHTML = '<div style="font-size:13px;color:#94a3b8">No winners yet — be the first lucky case opener today!</div>';
+    return;
+  }
+  box.innerHTML = list.map(w => `
+    <div class="winner-item">
+      <div>
+        <b style="font-size:13.5px;color:#0f172a;display:block">@${w.username}</b>
+        <span style="font-size:11px;color:#64748b">${w.case_name || 'Mystery Box'} · ${w.created_at ? new Date(w.created_at).toLocaleTimeString() : 'Just now'}</span>
+      </div>
+      <span class="winner-badge">+${Number(w.robux).toLocaleString()} R$</span>
+    </div>
+  `).join('');
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  loadBoxConfig();
+});
+</script>
+
+</body>
+</html>

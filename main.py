@@ -82,6 +82,7 @@ BLACKLIST_PATH = DATA_DIR / "blacklist.json"
 ADMIN_SECURITY_PATH = DATA_DIR / "admin_security.json"
 SPIN_PATH = DATA_DIR / "spin.json"
 SCRATCH_PATH = DATA_DIR / "scratch.json"
+BOX_PATH = DATA_DIR / "box.json"
 FLASH_SALE_PATH = DATA_DIR / "flash_sale.json"
 
 # In-memory data store
@@ -776,6 +777,206 @@ pending_scratch_tickets: Dict[str, Dict[str, Any]] = {}
 
 def save_scratch_data():
     save_json(SCRATCH_PATH, scratch_data)
+
+box_data: Dict[str, Any] = load_json(BOX_PATH, {
+    "enabled": True,
+    "title": "Roblox Mystery Box",
+    "subtitle": "Open lucky cases to reveal instant Robux prizes!",
+    "daily_free_enabled": True,
+    "daily_free_cooldown_hours": 24,
+    "daily_free_max_robux": 25,
+    "cost_per_1k_robux_usd": 4.0,
+    "cases": {
+        "bronze": {
+            "id": "bronze",
+            "name": "Bronze Case",
+            "price_usd": 0.20,
+            "color": "#cd7f32",
+            "badge": "Starter",
+            "items": [
+                {"robux": 0, "label": "Thank You", "weight": 70.0, "color": "#94a3b8"},
+                {"robux": 10, "label": "10 Robux", "weight": 18.0, "color": "#10b981"},
+                {"robux": 15, "label": "15 Robux", "weight": 7.0, "color": "#0ea5e9"},
+                {"robux": 25, "label": "25 Robux", "weight": 3.5, "color": "#8b5cf6"},
+                {"robux": 50, "label": "50 Robux", "weight": 1.2, "color": "#f59e0b"},
+                {"robux": 100, "label": "100 Robux", "weight": 0.3, "color": "#ef4444"}
+            ]
+        },
+        "silver": {
+            "id": "silver",
+            "name": "Silver Case",
+            "price_usd": 0.50,
+            "color": "#94a3b8",
+            "badge": "Popular",
+            "items": [
+                {"robux": 0, "label": "Thank You", "weight": 68.0, "color": "#94a3b8"},
+                {"robux": 50, "label": "50 Robux", "weight": 18.0, "color": "#10b981"},
+                {"robux": 75, "label": "75 Robux", "weight": 8.0, "color": "#0ea5e9"},
+                {"robux": 100, "label": "100 Robux", "weight": 4.0, "color": "#8b5cf6"},
+                {"robux": 200, "label": "200 Robux", "weight": 1.5, "color": "#f59e0b"},
+                {"robux": 350, "label": "350 Robux", "weight": 0.5, "color": "#ef4444"}
+            ]
+        },
+        "golden": {
+            "id": "golden",
+            "name": "Golden Case",
+            "price_usd": 1.00,
+            "color": "#f59e0b",
+            "badge": "High Tier",
+            "items": [
+                {"robux": 0, "label": "Thank You", "weight": 66.0, "color": "#94a3b8"},
+                {"robux": 150, "label": "150 Robux", "weight": 18.0, "color": "#10b981"},
+                {"robux": 200, "label": "200 Robux", "weight": 9.0, "color": "#0ea5e9"},
+                {"robux": 350, "label": "350 Robux", "weight": 4.5, "color": "#8b5cf6"},
+                {"robux": 600, "label": "600 Robux", "weight": 2.0, "color": "#f59e0b"},
+                {"robux": 1200, "label": "1,200 Robux", "weight": 0.5, "color": "#ef4444"}
+            ]
+        },
+        "diamond": {
+            "id": "diamond",
+            "name": "Diamond Case",
+            "price_usd": 2.50,
+            "color": "#06b6d4",
+            "badge": "Mega Jackpot",
+            "items": [
+                {"robux": 0, "label": "Thank You", "weight": 65.0, "color": "#94a3b8"},
+                {"robux": 500, "label": "500 Robux", "weight": 18.0, "color": "#10b981"},
+                {"robux": 800, "label": "800 Robux", "weight": 10.0, "color": "#0ea5e9"},
+                {"robux": 1500, "label": "1,500 Robux", "weight": 4.5, "color": "#8b5cf6"},
+                {"robux": 3000, "label": "3,000 Robux", "weight": 2.0, "color": "#f59e0b"},
+                {"robux": 5000, "label": "5,000 Robux", "weight": 0.5, "color": "#ef4444"}
+            ]
+        }
+    },
+    "history": [],
+    "total_boxes_opened": 0,
+    "total_revenue_usd": 0.0,
+    "total_robux_awarded": 0
+})
+
+pending_box_tickets: Dict[str, Dict[str, Any]] = {}
+
+def save_box_data():
+    save_json(BOX_PATH, box_data)
+
+def roll_mystery_box(case_id: str, is_daily_free: bool = False, max_free_robux: int = 25) -> Tuple[Dict[str, Any], List[Dict[str, Any]], int]:
+    cases = box_data.get("cases", {})
+    case = cases.get(case_id) or cases.get("bronze") or {
+        "id": "bronze", "name": "Bronze Case", "price_usd": 0.20,
+        "items": [{"robux": 0, "label": "Thank You", "weight": 100, "color": "#94a3b8"}]
+    }
+    raw_items = case.get("items", [])
+    if not raw_items:
+        raw_items = [{"robux": 0, "label": "Thank You", "weight": 100, "color": "#94a3b8"}]
+
+    if is_daily_free:
+        candidate_items = [it for it in raw_items if int(it.get("robux", 0)) <= max_free_robux]
+        if not candidate_items:
+            candidate_items = [raw_items[0]]
+    else:
+        candidate_items = raw_items
+
+    sys_rng = secrets.SystemRandom()
+    weights = [float(it.get("weight", 1.0)) for it in candidate_items]
+    win_item = copy.deepcopy(sys_rng.choices(candidate_items, weights=weights, k=1)[0])
+
+    reel_len = 45
+    win_index = 32
+    reel: List[Dict[str, Any]] = []
+    all_weights = [float(it.get("weight", 1.0)) for it in raw_items]
+    for i in range(reel_len):
+        if i == win_index:
+            reel.append(win_item)
+        else:
+            dummy = sys_rng.choices(raw_items, weights=all_weights, k=1)[0]
+            reel.append(dummy)
+
+    return win_item, reel, win_index
+
+def _finalize_box_win_order(
+    case_id: str,
+    case_name: str,
+    buyer_user: str,
+    roblox_id: Optional[str],
+    avatar: str,
+    display_name: str,
+    pay_method: str,
+    ticket_id: str,
+    win_item: Dict[str, Any],
+    cur_user: Optional[Dict[str, Any]]
+) -> Tuple[Optional[str], Optional[str]]:
+    robux_won = int(win_item.get("robux", 0))
+    now_iso = datetime.now(timezone.utc).isoformat()
+    order_id = None
+    receipt_token = None
+    fallback_buyer = buyer_user or (cur_user["username"] if cur_user else "Lucky Player")
+    cases = box_data.get("cases", {})
+    c_info = cases.get(case_id, {})
+    price_val = float(c_info.get("price_usd", 0.20))
+
+    if robux_won > 0:
+        order_id = ticket_id
+        receipt_token = secrets.token_hex(16)
+        clean_user = _sanitize_plain(buyer_user or (cur_user["username"] if cur_user else ""), 60).lstrip("@")
+        new_order = {
+            "order_id": order_id,
+            "token": receipt_token,
+            "user_id": cur_user["id"] if cur_user else None,
+            "buyer_account": fallback_buyer,
+            "game": "roblox",
+            "product_name": f"Mystery Box ({case_name}) Robux",
+            "product_type": "roblox",
+            "package": f"Box Win ({case_name}): {robux_won} Robux",
+            "package_id": "box_reward",
+            "case_id": case_id,
+            "case_name": case_name,
+            "robux_amount": robux_won,
+            "original_amount": price_val,
+            "discount": 0.0,
+            "promo_code": None,
+            "amount": price_val,
+            "payment_method": pay_method,
+            "player_id": clean_user,
+            "roblox_username": clean_user,
+            "display_name": display_name or fallback_buyer,
+            "roblox_id": roblox_id,
+            "avatar": avatar or "/media/rolea-logo.webp",
+            "profile_url": f"https://www.roblox.com/users/{roblox_id}/profile" if roblox_id else "",
+            "status": "paid",
+            "step": "unclaimed",
+            "paid": True,
+            "delivered": False,
+            "claim_submitted": False,
+            "telegram_alerted": False,
+            "claim_note": "",
+            "created_at": now_iso,
+            "label": f"Mystery Box Winner ({robux_won} R$) - Waiting user claim"
+        }
+        orders.insert(0, new_order)
+        _prune_orders_safe(500)
+        save_orders()
+
+    hist_entry = {
+        "box_id": ticket_id,
+        "case_id": case_id,
+        "case_name": case_name,
+        "username": fallback_buyer,
+        "label": win_item.get("label", "Thank You"),
+        "robux": robux_won,
+        "price_usd": price_val,
+        "payment_method": pay_method,
+        "order_id": order_id,
+        "created_at": now_iso
+    }
+    box_data.setdefault("history", []).insert(0, hist_entry)
+    if len(box_data["history"]) > 300:
+        box_data["history"] = box_data["history"][:300]
+    box_data["total_boxes_opened"] = int(box_data.get("total_boxes_opened", 0)) + 1
+    box_data["total_revenue_usd"] = round(float(box_data.get("total_revenue_usd", 0.0)) + price_val, 2)
+    box_data["total_robux_awarded"] = int(box_data.get("total_robux_awarded", 0)) + robux_won
+    save_box_data()
+    return order_id, receipt_token
+
 
 def generate_scratch_card(is_daily_free: bool = False, max_free_robux: int = 10) -> Dict[str, Any]:
     """Generate authentic 3x2 (6 cells) scratch card with weighted outcome."""
@@ -2007,7 +2208,7 @@ async def notify_customer_order_refunded(order: Dict[str, Any]):
         return
 
     oid = str(order.get("order_id") or "")
-    if order.get("package_id") in ("spin_reward", "scratch_reward"):
+    if order.get("package_id") in ("spin_reward", "scratch_reward", "box_reward"):
         rob_won = int(order.get("robux_amount", 0))
         text = (
             f"⚠️ <b>[សំណើបើករង្វាន់ត្រូវបានបដិសេធ / CLAIM REJECTED]</b>\n\n"
@@ -2630,7 +2831,7 @@ def _build_tg_admin_home() -> tuple[str, Dict[str, Any]]:
         and o.get("type") != "wallet_topup" 
         and o.get("product_type") != "wallet" 
         and not str(o.get("order_id", "")).startswith("WLT")
-        and not (o.get("package_id") in ("spin_reward", "scratch_reward") and not o.get("claim_submitted"))
+        and not (o.get("package_id") in ("spin_reward", "scratch_reward", "box_reward") and not o.get("claim_submitted"))
     )
     total_users = len(users)
     total_wallet = sum(float(u.get("balance") or 0.0) for u in users)
@@ -2971,7 +3172,7 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
             and o.get("type") != "wallet_topup" 
             and o.get("product_type") != "wallet" 
             and not str(o.get("order_id", "")).startswith("WLT")
-            and not (o.get("package_id") == "spin_reward" and not o.get("claim_submitted"))
+            and not (o.get("package_id") in ("spin_reward", "scratch_reward", "box_reward") and not o.get("claim_submitted"))
         ]
         total = len(active_orders)
         if total == 0:
@@ -3592,7 +3793,7 @@ def process_order_refund(order: Dict[str, Any]) -> tuple[bool, str, Optional[Dic
     deposits the refunded amount into it, and links the order so the guest can 1-click claim it!
     """
     global users, wallet_transactions, orders
-    if order.get("package_id") in ("spin_reward", "scratch_reward"):
+    if order.get("package_id") in ("spin_reward", "scratch_reward", "box_reward"):
         ok_rej, rej_msg = process_reward_claim_reject(order)
         return ok_rej, rej_msg, None
 
@@ -3769,7 +3970,7 @@ async def handle_telegram_callback_query(query: Dict[str, Any], token: str):
                 await edit_telegram_message(token, msg["chat"]["id"], msg["message_id"], updated_text)
 
         elif action == "reject":
-            is_reward_claim = order.get("package_id") in ("spin_reward", "scratch_reward")
+            is_reward_claim = order.get("package_id") in ("spin_reward", "scratch_reward", "box_reward")
             if is_reward_claim:
                 ok_rej, rej_msg = process_reward_claim_reject(order)
                 if not ok_rej:
@@ -3779,7 +3980,7 @@ async def handle_telegram_callback_query(query: Dict[str, Any], token: str):
                 await answer_callback_query(token, query_id, f"⚠️ បានបដិសេធសំណើបើករង្វាន់! មិនបង្វិលលុយទេ ហើយអនុញ្ញាតឱ្យអតិថិជន Submit ម្តងទៀត។")
 
                 rob_amt = int(order.get("robux_amount", 0))
-                reward_type_name = "កងបង្វិល (Spin Reward)" if order.get("package_id") == "spin_reward" else "កាតកោស (Scratch Reward)"
+                reward_type_name = "កងបង្វិល (Spin Reward)" if order.get("package_id") == "spin_reward" else ("កាតកោស (Scratch Reward)" if order.get("package_id") == "scratch_reward" else "ប្រអប់សំណាង (Mystery Box)")
                 updated_text = (
                     f"❌ <b>[សំណើបើករង្វាន់ត្រូវបានបដិសេធ (REJECTED)]</b>\n"
                     f"🏪 <b>ហាង៖</b> {html.escape(str(settings.get('store_name', 'Rolea Topup')), quote=False)}\n"
@@ -4370,13 +4571,13 @@ def _get_rate_tier(path: str, is_authed_admin: bool = False) -> tuple[str, int, 
         return ("otp", 6, 60)
     if path in ("/api/auth/login", "/api/auth/register", "/api/auth/google", "/api/orders/claim-refund-wallet", "/api/auth/check-refund-autologin"):
         return ("auth", 10, 60)
-    if path in ("/api/spin/claim", "/api/spin/daily-free-spin", "/api/scratch/claim", "/api/scratch/daily-free"):
+    if path in ("/api/spin/claim", "/api/spin/daily-free-spin", "/api/scratch/claim", "/api/scratch/daily-free", "/api/box/claim", "/api/box/daily-free"):
         return ("spin_claim", 6, 60)
     if path == "/api/promo/apply":
         return ("promo_apply", 10, 60)
     if path == "/api/reviews/submit":
         return ("review_submit", 5, 60)
-    if path in ("/api/create-order", "/api/wallet/topup", "/api/spin/create-ticket", "/api/scratch/create-ticket"):
+    if path in ("/api/create-order", "/api/wallet/topup", "/api/spin/create-ticket", "/api/scratch/create-ticket", "/api/box/create-ticket"):
         return ("pay_create", 12, 60)
     if path in ("/api/check-id", "/api/check-order"):
         return ("lookup", 25, 60)
@@ -5102,7 +5303,7 @@ async def security_and_no_cache_middleware(request: Request, call_next):
         response.headers["Cache-Control"] = "public, max-age=86400, stale-while-revalidate=604800"
     elif norm_path in ("/api/settings", "/api/games", "/api/packages", "/api/flash-sale", "/api/reviews"):
         response.headers["Cache-Control"] = "public, max-age=15, stale-while-revalidate=60"
-    elif norm_path.startswith("/api/admin") or norm_path.startswith("/api/auth") or norm_path.startswith("/api/order-status") or norm_path.startswith("/api/spin") or norm_path.startswith("/api/scratch") or norm_path in ("/admin", "/admin/login", "/scratch"):
+    elif norm_path.startswith("/api/admin") or norm_path.startswith("/api/auth") or norm_path.startswith("/api/order-status") or norm_path.startswith("/api/spin") or norm_path.startswith("/api/scratch") or norm_path.startswith("/api/box") or norm_path in ("/admin", "/admin/login", "/scratch", "/box"):
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
@@ -6619,6 +6820,498 @@ async def admin_reset_scratch_stats():
     scratch_data["history"] = []
     save_scratch_data()
     return {"ok": True, "message": "Scratch statistics and history cleared."}
+
+# ==========================================
+# ROBLOX MYSTERY BOX / LUCKY CASES API
+# ==========================================
+
+@app.get("/api/box/config")
+async def get_box_config(request: Request):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "").strip()
+    cur_u = None
+    if token:
+        cur_u = next((u for u in users if u.get("token") == token), None)
+
+    recent_winners = []
+    for h in box_data.get("history", []):
+        if int(h.get("robux", 0)) > 0:
+            recent_winners.append({
+                "username": h.get("username", "Lucky Player"),
+                "case_name": h.get("case_name", "Mystery Case"),
+                "robux": h.get("robux", 0),
+                "created_at": h.get("created_at")
+            })
+            if len(recent_winners) >= 15:
+                break
+
+    client_ip = get_admin_effective_ip(request)
+    daily_enabled = bool(box_data.get("daily_free_enabled", True))
+    cooldown_hours = max(1, int(box_data.get("daily_free_cooldown_hours", 24)))
+    now = datetime.now(timezone.utc)
+
+    can_free = False
+    remaining_sec = 0
+
+    if daily_enabled:
+        last_dt = None
+        if cur_u and cur_u.get("last_daily_free_box_at"):
+            try:
+                last_dt = datetime.fromisoformat(cur_u["last_daily_free_box_at"])
+            except Exception:
+                pass
+        if not last_dt:
+            ip_str = _free_spin_ips.get("box:" + client_ip)
+            if ip_str:
+                try:
+                    last_dt = datetime.fromisoformat(ip_str)
+                except Exception:
+                    pass
+
+        if not last_dt:
+            can_free = True
+        else:
+            diff_sec = (now - last_dt).total_seconds()
+            total_cd = cooldown_hours * 3600
+            if diff_sec >= total_cd:
+                can_free = True
+            else:
+                remaining_sec = max(0, int(total_cd - diff_sec))
+
+    return {
+        "ok": True,
+        "enabled": bool(box_data.get("enabled", True)),
+        "title": box_data.get("title", "Roblox Mystery Box"),
+        "subtitle": box_data.get("subtitle", "Open lucky cases to reveal instant Robux prizes!"),
+        "cases": box_data.get("cases", {}),
+        "recent_winners": recent_winners,
+        "daily_free": {
+            "enabled": daily_enabled,
+            "case_id": "bronze",
+            "cooldown_hours": cooldown_hours,
+            "max_robux": int(box_data.get("daily_free_max_robux", 25)),
+            "can_open": can_free,
+            "remaining_seconds": remaining_sec,
+            "is_logged_in": bool(cur_u)
+        }
+    }
+
+@app.get("/api/box/recent-winners")
+async def get_box_recent_winners():
+    recent = []
+    for h in box_data.get("history", []):
+        if int(h.get("robux", 0)) > 0:
+            recent.append({
+                "username": h.get("username", "Lucky Player"),
+                "case_name": h.get("case_name", "Mystery Case"),
+                "robux": h.get("robux", 0),
+                "created_at": h.get("created_at")
+            })
+            if len(recent) >= 20:
+                break
+    return {"ok": True, "recent_winners": recent}
+
+@app.post("/api/box/daily-free")
+async def claim_daily_free_box(request: Request):
+    if not box_data.get("enabled", True):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Mystery Box is temporarily disabled by Admin."})
+    if not box_data.get("daily_free_enabled", True):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Daily Free Box is disabled by Admin."})
+
+    client_ip = get_admin_effective_ip(request)
+    cur_u = get_user_from_req(request)
+    body = await request.json() if (await request.body()) else {}
+    username = _sanitize_plain(body.get("username") or "", 60).lstrip("@")
+    display_name = _sanitize_plain(body.get("display_name") or username or (cur_u["username"] if cur_u else "Lucky Player"), 60)
+    avatar = "/media/rolea-logo.webp"
+
+    cooldown_hours = max(1, int(box_data.get("daily_free_cooldown_hours", 24)))
+    now = datetime.now(timezone.utc)
+    total_cd = cooldown_hours * 3600
+
+    last_dt = None
+    if cur_u and cur_u.get("last_daily_free_box_at"):
+        try:
+            last_dt = datetime.fromisoformat(cur_u["last_daily_free_box_at"])
+        except Exception:
+            pass
+    if not last_dt:
+        ip_str = _free_spin_ips.get("box:" + client_ip)
+        if ip_str:
+            try:
+                last_dt = datetime.fromisoformat(ip_str)
+            except Exception:
+                pass
+
+    if last_dt:
+        diff_sec = (now - last_dt).total_seconds()
+        if diff_sec < total_cd:
+            rem = int(total_cd - diff_sec)
+            return JSONResponse(status_code=429, content={"ok": False, "error": f"Daily Free Box already claimed. Try again in {rem // 3600}h {(rem % 3600) // 60}m.", "remaining_seconds": rem})
+
+    if cur_u:
+        cur_u["last_daily_free_box_at"] = now.isoformat()
+        save_users()
+    _free_spin_ips["box:" + client_ip] = now.isoformat()
+
+    max_free_r = max(1, int(box_data.get("daily_free_max_robux", 25)))
+    win_item, reel, win_idx = roll_mystery_box("bronze", is_daily_free=True, max_free_robux=max_free_r)
+    ticket_id = "BOXFREE" + secrets.token_hex(4).upper()
+    order_id, receipt_token = _finalize_box_win_order("bronze", "Bronze Case", username, None, avatar, display_name, "Daily Free", ticket_id, win_item, cur_u)
+
+    robux_won = int(win_item.get("robux", 0))
+    return {
+        "ok": True,
+        "paid": True,
+        "case_id": "bronze",
+        "case_name": "Bronze Case",
+        "ticket_id": ticket_id,
+        "result": win_item,
+        "reel": reel,
+        "win_index": win_idx,
+        "order_id": order_id,
+        "receipt_token": receipt_token,
+        "remaining_seconds": total_cd,
+        "message": f"Congratulations! You won {robux_won} Robux!" if robux_won > 0 else "Thank you for opening! Come back tomorrow for another Free Box."
+    }
+
+@app.post("/api/box/create-ticket")
+async def create_box_ticket(request: Request):
+    if not box_data.get("enabled", True):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Mystery Box is temporarily disabled by Admin."})
+
+    body = await request.json() if (await request.body()) else {}
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid payload"})
+
+    case_id = str(body.get("case_id") or "bronze").lower().strip()
+    cases = box_data.get("cases", {})
+    if case_id not in cases:
+        return JSONResponse(status_code=400, content={"ok": False, "error": f"Unknown case '{case_id}'"})
+
+    case_info = cases[case_id]
+    price = round(float(case_info.get("price_usd", 0.20)), 2)
+    pay_method = str(body.get("payment_method") or "wallet").lower().strip()
+    if pay_method not in ("wallet", "khqr"):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid payment method"})
+
+    current_user = get_user_from_req(request)
+    username = _sanitize_plain(body.get("username") or "", 60).lstrip("@")
+    display_name = _sanitize_plain(body.get("display_name") or username or (current_user["username"] if current_user else "Lucky Player"), 60)
+    avatar = "/media/rolea-logo.webp"
+
+    client_ip = get_admin_effective_ip(request)
+    blocked, b_reason = is_blacklisted(player_id=username or None, username=username or None, ip=client_ip)
+    if blocked:
+        return JSONResponse(status_code=403, content={"ok": False, "error": f"Account blocked: {b_reason}"})
+
+    ticket_id = "BOX" + secrets.token_hex(4).upper()
+
+    if pay_method == "wallet":
+        if not current_user:
+            return JSONResponse(status_code=401, content={"ok": False, "error": "Please sign in to open boxes with Rolea Wallet."})
+        async with _tx_lock:
+            wg_ok, wg_msg = _check_and_enforce_wallet_guard(current_user, price)
+            if not wg_ok:
+                return JSONResponse(status_code=403, content={"ok": False, "error": wg_msg})
+            if float(current_user.get("balance", 0.0)) < price:
+                return JSONResponse(status_code=400, content={"ok": False, "error": f"Insufficient Rolea Wallet balance (${float(current_user.get('balance', 0.0)):.2f}). Please top up first or use KHQR."})
+
+            current_user["balance"] = round(float(current_user.get("balance", 0.0)) - price, 2)
+            save_users()
+            wallet_transactions.insert(0, {
+                "id": "wtx_" + secrets.token_hex(4),
+                "user_id": current_user["id"],
+                "type": "spend",
+                "amount": -price,
+                "order_id": ticket_id,
+                "product": f"Mystery Box ({case_info.get('name', case_id)})",
+                "date": datetime.now(timezone.utc).isoformat()
+            })
+            save_wallet_tx()
+
+            win_item, reel, win_idx = roll_mystery_box(case_id, is_daily_free=False)
+            order_id, receipt_token = _finalize_box_win_order(case_id, case_info.get("name", case_id), username, None, avatar, display_name, "Rolea Wallet", ticket_id, win_item, current_user)
+            return {
+                "ok": True,
+                "paid": True,
+                "case_id": case_id,
+                "case_name": case_info.get("name", case_id),
+                "ticket_id": ticket_id,
+                "result": win_item,
+                "reel": reel,
+                "win_index": win_idx,
+                "order_id": order_id,
+                "receipt_token": receipt_token,
+                "remaining_balance": current_user["balance"]
+            }
+
+    # KHQR payment ticket
+    khqr_res = await create_khqrpay_order(price, ticket_id)
+    now = datetime.now(timezone.utc)
+    expires_at = (now + timedelta(minutes=5)).isoformat()
+    khqrpay_id = None
+    qr_url = ""
+    payment_url = ""
+    aba_deeplink = ""
+
+    if khqr_res and khqr_res.get("id"):
+        khqrpay_id = khqr_res["id"]
+        qr_url = khqr_res.get("qr_image", "")
+        payment_url = khqr_res.get("checkout_url") or f"https://khqrpay.site/pay/{khqrpay_id}"
+        aba_deeplink = khqr_res.get("aba_deeplink", "")
+        if khqr_res.get("expires_at"):
+            expires_at = khqr_res["expires_at"]
+    if not qr_url:
+        amt_str = f"{price:.2f}"
+        amt_len = f"{len(amt_str):02d}"
+        khqr_payload = f"00020101021229370016bakong@rolea010108{ticket_id}520459995303840540{amt_len}{amt_str}5802KH5911ROLEA TOPUP6010PHNOM PENH62240108{ticket_id}0708ROLEATOPUP6304"
+        qr_url = generate_khqr_data_url(khqr_payload)
+        payment_url = f"https://khqrpay.site/pay/{ticket_id}"
+
+    if len(pending_box_tickets) >= 2000:
+        unpaid_keys = [k for k, v in pending_box_tickets.items() if not v.get("paid") or v.get("opened")]
+        for k in unpaid_keys[:500]:
+            pending_box_tickets.pop(k, None)
+
+    pending_box_tickets[ticket_id] = {
+        "ticket_id": ticket_id,
+        "case_id": case_id,
+        "case_name": case_info.get("name", case_id),
+        "khqrpay_id": khqrpay_id,
+        "username": username,
+        "display_name": display_name,
+        "avatar": avatar,
+        "price": price,
+        "paid": False,
+        "opened": False,
+        "created_at": now.isoformat(),
+        "expires_at": expires_at,
+        "client_ip": client_ip,
+        "user_id": current_user["id"] if current_user else None
+    }
+
+    return {
+        "ok": True,
+        "paid": False,
+        "ticket_id": ticket_id,
+        "case_id": case_id,
+        "case_name": case_info.get("name", case_id),
+        "price": price,
+        "currency": "USD",
+        "qr_image": qr_url,
+        "payment_url": payment_url,
+        "aba_deeplink": aba_deeplink,
+        "expires_at": expires_at
+    }
+
+@app.get("/api/box/ticket/{ticket_id}")
+async def get_box_ticket_status(ticket_id: str):
+    ticket = pending_box_tickets.get(ticket_id)
+    if not ticket:
+        return JSONResponse(status_code=404, content={"ok": False, "error": "Mystery Box ticket not found."})
+
+    if ticket.get("paid"):
+        return {
+            "ok": True,
+            "paid": True,
+            "opened": bool(ticket.get("opened")),
+            "ticket_id": ticket_id,
+            "case_id": ticket.get("case_id"),
+            "case_name": ticket.get("case_name"),
+            "result": ticket.get("result"),
+            "reel": ticket.get("reel"),
+            "win_index": ticket.get("win_index"),
+            "order_id": ticket.get("order_id"),
+            "receipt_token": ticket.get("receipt_token")
+        }
+
+    khqrpay_id = ticket.get("khqrpay_id")
+    is_paid = False
+    if khqrpay_id:
+        try:
+            status_data = await verify_khqrpay_order(khqrpay_id)
+            if status_data and status_data.get("status") in ("paid", "completed", "success"):
+                is_paid = True
+        except Exception:
+            pass
+
+    if is_paid:
+        ticket["paid"] = True
+        ticket["opened"] = True
+        case_id = ticket.get("case_id", "bronze")
+        case_name = ticket.get("case_name", "Bronze Case")
+        cur_u = next((u for u in users if u.get("id") == ticket.get("user_id")), None) if ticket.get("user_id") else None
+
+        win_item, reel, win_idx = roll_mystery_box(case_id, is_daily_free=False)
+        order_id, receipt_token = _finalize_box_win_order(
+            case_id, case_name, ticket.get("username", ""), None,
+            ticket.get("avatar", ""), ticket.get("display_name", ""),
+            "ABA KHQR", ticket_id, win_item, cur_u
+        )
+
+        ticket["result"] = win_item
+        ticket["reel"] = reel
+        ticket["win_index"] = win_idx
+        ticket["order_id"] = order_id
+        ticket["receipt_token"] = receipt_token
+
+        return {
+            "ok": True,
+            "paid": True,
+            "opened": True,
+            "ticket_id": ticket_id,
+            "case_id": case_id,
+            "case_name": case_name,
+            "result": win_item,
+            "reel": reel,
+            "win_index": win_idx,
+            "order_id": order_id,
+            "receipt_token": receipt_token
+        }
+
+    return {"ok": True, "paid": False, "ticket_id": ticket_id}
+
+@app.post("/api/box/claim")
+async def claim_box_reward(request: Request):
+    body = await request.json() if (await request.body()) else {}
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid payload"})
+
+    order_id = str(body.get("order_id") or "").strip()
+    receipt_token = str(body.get("receipt_token") or "").strip()
+    roblox_username = _sanitize_plain(body.get("roblox_username") or "", 60).lstrip("@")
+    roblox_id = _sanitize_plain(body.get("roblox_id") or "", 40) or None
+
+    if not order_id or not receipt_token or not roblox_username:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Missing order ID, receipt token, or Roblox username."})
+
+    ord_match = next((o for o in orders if o.get("order_id") == order_id), None)
+    if not ord_match:
+        return JSONResponse(status_code=404, content={"ok": False, "error": "Reward order not found."})
+
+    if ord_match.get("token") != receipt_token:
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Unauthorized: Invalid receipt token."})
+
+    if ord_match.get("delivered") or ord_match.get("status") == "completed":
+        return JSONResponse(status_code=400, content={"ok": False, "error": "This reward has already been delivered."})
+
+    cur_u = get_user_from_req(request)
+    if cur_u and not ord_match.get("user_id"):
+        ord_match["user_id"] = cur_u["id"]
+
+    ord_match["roblox_username"] = roblox_username
+    ord_match["player_id"] = roblox_username
+    if roblox_id:
+        ord_match["roblox_id"] = roblox_id
+        ord_match["profile_url"] = f"https://www.roblox.com/users/{roblox_id}/profile"
+    ord_match["claim_submitted"] = True
+    ord_match["rejected"] = False
+    ord_match["status"] = "paid"
+    ord_match["step"] = "pending"
+    ord_match["label"] = f"Mystery Box Winner ({ord_match.get('robux_amount', 0)} R$) - Claim submitted (@{roblox_username})"
+    save_orders()
+
+    for h in box_data.get("history", []):
+        if h.get("order_id") == order_id or h.get("box_id") == order_id:
+            h["username"] = roblox_username
+            save_box_data()
+            break
+
+    if not ord_match.get("telegram_alerted"):
+        claim_markup = {
+            "inline_keyboard": [
+                [{"text": f"Roblox Profile (@{roblox_username})", "url": f"https://www.roblox.com/search/users?keyword={quote_plus(roblox_username)}"}],
+                [
+                    {"text": "Complete", "callback_data": f"complete:{order_id}"},
+                    {"text": "Reject", "callback_data": f"reject:{order_id}"}
+                ]
+            ]
+        }
+        async def _send_box_claim_tg():
+            rob_won = int(ord_match.get("robux_amount", 0))
+            case_label = html.escape(str(ord_match.get("case_name") or "Mystery Box"), quote=False)
+            alert_msg = (
+                "📦 <b>[MYSTERY BOX CLAIM] អតិថិជនស្នើសុំបើករង្វាន់ Robux</b>\n"
+                f"🆔 <b>Order ID:</b> <code>{html.escape(order_id, quote=False)}</code>\n"
+                f"🎁 <b>ប្រភេទប្រអប់៖</b> <b>{case_label}</b>\n"
+                f"👤 <b>ឈ្មោះគណនី Roblox:</b> <code>@{html.escape(roblox_username, quote=False)}</code>\n"
+                f"💎 <b>រង្វាន់ឈ្នះ៖</b> <b>+{rob_won:,} Robux</b>\n"
+                "⚡ សូមចូលទៅកាន់ Admin Orders Queue ដើម្បីបាញ់ Robux ជូនអតិថិជន!"
+            )
+            sent = await send_telegram_admin_alert(alert_msg, reply_markup=claim_markup)
+            if sent:
+                ord_match["telegram_alerted"] = True
+                save_orders()
+        asyncio.create_task(_send_box_claim_tg())
+
+    return {
+        "ok": True,
+        "message": "Claim submitted successfully! Admin will send your Robux shortly.",
+        "order": {
+            "order_id": ord_match["order_id"],
+            "roblox_username": ord_match["roblox_username"],
+            "robux_amount": ord_match.get("robux_amount", 0),
+            "status": ord_match["status"],
+            "step": ord_match["step"]
+        }
+    }
+
+@app.post("/api/box/unclaimed")
+async def get_unclaimed_box_rewards(request: Request):
+    body = await request.json() if (await request.body()) else {}
+    cur_u = get_user_from_req(request)
+    local_orders = body.get("local_orders", [])
+
+    unclaimed = []
+    for o in orders:
+        if o.get("package_id") == "box_reward" and (o.get("step") in ("unclaimed", "rejected_resubmit") or (not o.get("delivered") and not o.get("claim_submitted"))):
+            if cur_u and o.get("user_id") == cur_u["id"]:
+                unclaimed.append(o)
+            elif isinstance(local_orders, list):
+                for lo in local_orders:
+                    if lo.get("order_id") == o.get("order_id") and lo.get("token") == o.get("token"):
+                        unclaimed.append(o)
+                        break
+
+    return {"ok": True, "unclaimed": unclaimed}
+
+@app.get("/api/admin/box")
+async def admin_get_box():
+    return {
+        "ok": True,
+        "box_data": box_data
+    }
+
+@app.post("/api/admin/box/save")
+async def admin_save_box(request: Request):
+    body = await request.json() if (await request.body()) else {}
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid payload"})
+
+    box_data["enabled"] = bool(body.get("enabled", True))
+    box_data["title"] = str(body.get("title") or "Roblox Mystery Box").strip()
+    box_data["subtitle"] = str(body.get("subtitle") or "").strip()
+    if "daily_free_enabled" in body:
+        box_data["daily_free_enabled"] = bool(body["daily_free_enabled"])
+    if "daily_free_cooldown_hours" in body:
+        box_data["daily_free_cooldown_hours"] = int(body["daily_free_cooldown_hours"])
+    if "daily_free_max_robux" in body:
+        box_data["daily_free_max_robux"] = int(body["daily_free_max_robux"])
+    if "cases" in body and isinstance(body["cases"], dict):
+        box_data["cases"] = body["cases"]
+
+    save_box_data()
+    return {"ok": True, "box_data": box_data}
+
+@app.post("/api/admin/box/reset-stats")
+async def admin_reset_box_stats():
+    box_data["total_boxes_opened"] = 0
+    box_data["total_revenue_usd"] = 0.0
+    box_data["total_robux_awarded"] = 0
+    box_data["history"] = []
+    save_box_data()
+    return {"ok": True, "message": "Mystery Box statistics and history cleared."}
+
 
 # CUSTOMER AUTHENTICATION & PROFILE
 # ==========================================
@@ -10668,6 +11361,10 @@ async def page_spin():
 @app.get("/scratch")
 async def page_scratch():
     return FileResponse(PUBLIC_DIR / "scratch.html")
+
+@app.get("/box")
+async def page_box():
+    return FileResponse(PUBLIC_DIR / "box.html")
 
 @app.get("/check-order")
 async def page_check_order():
