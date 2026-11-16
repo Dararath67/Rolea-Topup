@@ -250,6 +250,17 @@
       align-items: center;
       justify-content: center;
       gap: 7px;
+      transition: all 0.25s ease;
+    }
+    .ticket-card.shake-prompt {
+      animation: shakeGlow 0.6s ease-in-out;
+      border-color: #0284c7 !important;
+      box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.25), 0 14px 34px rgba(2, 132, 199, 0.2) !important;
+    }
+    @keyframes shakeGlow {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-7px); }
+      40%, 80% { transform: translateX(7px); }
     }
     .quick-scratch-bar {
       margin-top: 14px;
@@ -584,8 +595,8 @@
 
           <!-- Status Bar -->
           <div class="card-footer-status" id="card-footer-status">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.3"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-            <span>យកចុងម្រាមដៃ ឬ Mouse អូសកោសផ្ទាំងប្រាក់ដើម្បីបើករង្វាន់!</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.3"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span>មិនទាន់ទូទាត់ប្រាក់ទេ — សូមជ្រើសរើសទិញកាត ($0.25) ឬចុច Free ខាងស្តាំ!</span>
           </div>
         </div>
 
@@ -752,6 +763,7 @@
 <script>
 let scratchConfig = null;
 let currentCard = null;
+let hasActiveCard = false;
 let activeClaimOrder = null;
 let dailyCountdownTimer = null;
 let khqrPollInterval = null;
@@ -857,7 +869,9 @@ function renderCardCells(cardData) {
   grid.innerHTML = '';
   cellCanvases = [];
   cellsCleared = [false, false, false, false, false, false];
-  document.getElementById('scratch-progress-text').textContent = 'Scratch to reveal';
+
+  const isCardActive = Boolean(hasActiveCard && currentCard && currentCard.card_id !== 'DEMO');
+  document.getElementById('scratch-progress-text').textContent = isCardActive ? 'Scratch to reveal' : 'Card Locked (ទាមទារទិញសំបុត្រ ឬ Free)';
 
   const cells = cardData.cells || defaultDemoCard.cells;
 
@@ -890,6 +904,29 @@ function renderCardCells(cardData) {
   setTimeout(() => {
     cellCanvases.forEach((c, i) => setupFoilCanvas(c, i));
   }, 50);
+}
+
+function promptMustPayOrFree() {
+  const statusEl = document.getElementById('card-footer-status');
+  if (statusEl) {
+    statusEl.style.background = '#fef2f2';
+    statusEl.style.borderColor = '#fca5a5';
+    statusEl.style.color = '#991b1b';
+    statusEl.innerHTML = `
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.3"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      <span><b>មិនទាន់ទូទាត់ប្រាក់ទេ!</b> សូមជ្រើសរើសទិញកាត ($0.25) ឬចុចកោស Free ប្រចាំថ្ងៃជាមុនសិន។</span>
+    `;
+  }
+
+  const ticketCard = document.querySelector('.ticket-card');
+  if (ticketCard) {
+    ticketCard.classList.remove('shake-prompt');
+    void ticketCard.offsetWidth;
+    ticketCard.classList.add('shake-prompt');
+    if (window.innerWidth <= 860) {
+      ticketCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
 }
 
 function setupFoilCanvas(canvas, cellIndex) {
@@ -961,12 +998,19 @@ function setupFoilCanvas(canvas, cellIndex) {
     ctx.fillText('R$', cx, cy);
   }
 
+  const isCardActive = Boolean(hasActiveCard && currentCard && currentCard.card_id !== 'DEMO');
+  canvas.style.cursor = isCardActive ? 'grab' : 'not-allowed';
+
   // Clean Typography below logo: "កោសទីនេះ" (No emoji!)
-  ctx.fillStyle = '#1e293b';
+  ctx.fillStyle = isCardActive ? '#1e293b' : '#64748b';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.font = '800 10px "Plus Jakarta Sans", sans-serif';
-  ctx.fillText('កោសទីនេះ', cx, cy + r + 13);
+  if (isCardActive) {
+    ctx.fillText('កោសទីនេះ', cx, cy + r + 13);
+  } else {
+    ctx.fillText('🔒 ទិញកាតមុនកោស', cx, cy + r + 13);
+  }
 
   let isDrawing = false;
   let lastPoint = null;
@@ -990,6 +1034,10 @@ function setupFoilCanvas(canvas, cellIndex) {
   }
 
   canvas.addEventListener('pointerdown', (e) => {
+    if (!hasActiveCard || !currentCard || currentCard.card_id === 'DEMO') {
+      promptMustPayOrFree();
+      return;
+    }
     isDrawing = true;
     canvas.setPointerCapture(e.pointerId);
     const r = canvas.getBoundingClientRect();
@@ -1041,6 +1089,10 @@ function checkCellCleared(canvas, cellIndex) {
 }
 
 function revealAllCells() {
+  if (!hasActiveCard || !currentCard || currentCard.card_id === 'DEMO') {
+    promptMustPayOrFree();
+    return;
+  }
   cellCanvases.forEach((c, i) => {
     cellsCleared[i] = true;
     c.classList.add('cleared');
@@ -1051,6 +1103,9 @@ function revealAllCells() {
 function checkAllCellsFinished() {
   const allRevealed = cellsCleared.every(Boolean);
   if (!allRevealed || !currentCard) return;
+
+  // Active ticket has been fully consumed
+  hasActiveCard = false;
 
   const statusEl = document.getElementById('card-footer-status');
 
@@ -1128,7 +1183,18 @@ async function claimDailyFreeScratch() {
     }
 
     // Render new interactive card
+    hasActiveCard = true;
     renderCardCells(j.card);
+    const statusEl = document.getElementById('card-footer-status');
+    if (statusEl) {
+      statusEl.style.background = '#f0fdf4';
+      statusEl.style.borderColor = '#86efac';
+      statusEl.style.color = '#15803d';
+      statusEl.innerHTML = `
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.3"><path d="M20 6L9 17l-5-5"/></svg>
+        <span><b>ទទួលបានកាត Free ជោគជ័យ!</b> សូមកោសផ្ទាំងប្រាក់ទាំង ៦ ដើម្បីបើកមើលរង្វាន់។</span>
+      `;
+    }
   } catch (err) {
     alert('Network error. Please try again.');
     if (btn) btn.disabled = false;
@@ -1177,7 +1243,18 @@ async function buyCard(method) {
       if (window.RoleaAuth && typeof window.RoleaAuth.checkCurrentUser === 'function') {
         window.RoleaAuth.checkCurrentUser();
       }
+      hasActiveCard = true;
       renderCardCells(j.card);
+      const statusEl = document.getElementById('card-footer-status');
+      if (statusEl) {
+        statusEl.style.background = '#f0fdf4';
+        statusEl.style.borderColor = '#86efac';
+        statusEl.style.color = '#15803d';
+        statusEl.innerHTML = `
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.3"><path d="M20 6L9 17l-5-5"/></svg>
+          <span><b>ទូទាត់ជោគជ័យ!</b> សំបុត្រសកម្មរួចរាល់ — សូមកោសផ្ទាំងប្រាក់ទាំង ៦ ដើម្បីបើករង្វាន់។</span>
+        `;
+      }
     } else {
       // Open KHQR Modal & Poll
       document.getElementById('khqr-qr-img').src = j.qr_image;
@@ -1205,7 +1282,18 @@ function startKhqrPolling(scratchId) {
           saveScratchOrder(j.order_id, j.receipt_token, j.card?.win_robux);
           activeClaimOrder = { order_id: j.order_id, receipt_token: j.receipt_token, robux: j.card?.win_robux };
         }
+        hasActiveCard = true;
         renderCardCells(j.card);
+        const statusEl = document.getElementById('card-footer-status');
+        if (statusEl) {
+          statusEl.style.background = '#f0fdf4';
+          statusEl.style.borderColor = '#86efac';
+          statusEl.style.color = '#15803d';
+          statusEl.innerHTML = `
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.3"><path d="M20 6L9 17l-5-5"/></svg>
+            <span><b>ទូទាត់ KHQR ជោគជ័យ!</b> សំបុត្រសកម្មរួចរាល់ — សូមកោសផ្ទាំងប្រាក់ទាំង ៦ ដើម្បីបើករង្វាន់។</span>
+          `;
+        }
         document.getElementById('btn-buy-wallet').disabled = false;
         document.getElementById('btn-buy-khqr').disabled = false;
       }
