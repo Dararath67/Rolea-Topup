@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Roblox Mystery Box - Rolea Topup</title>
   <link rel="icon" href="/favicon.png" type="image/png" sizes="64x64">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -928,25 +931,92 @@ function selectCase(caseId) {
   populateInitialReel();
 }
 
-function updateStageCaseDisplay() {
-  if (!boxConfig || !boxConfig.cases) return;
-  const c = boxConfig.cases[currentCaseId];
-  if (!c) return;
+const FALLBACK_CASES = {
+  bronze: {
+    id: "bronze",
+    name: "Bronze Case",
+    price_usd: 0.20,
+    items: [
+      { robux: 0, label: "Thank You", weight: 70, color: "#94a3b8" },
+      { robux: 10, label: "10 Robux", weight: 18, color: "#10b981" },
+      { robux: 15, label: "15 Robux", weight: 7, color: "#0ea5e9" },
+      { robux: 25, label: "25 Robux", weight: 3.5, color: "#8b5cf6" },
+      { robux: 50, label: "50 Robux", weight: 1.2, color: "#f59e0b" },
+      { robux: 100, label: "100 Robux", weight: 0.3, color: "#ef4444" }
+    ]
+  },
+  silver: {
+    id: "silver",
+    name: "Silver Case",
+    price_usd: 0.50,
+    items: [
+      { robux: 0, label: "Thank You", weight: 68, color: "#94a3b8" },
+      { robux: 50, label: "50 Robux", weight: 18, color: "#10b981" },
+      { robux: 75, label: "75 Robux", weight: 8, color: "#0ea5e9" },
+      { robux: 100, label: "100 Robux", weight: 4, color: "#8b5cf6" },
+      { robux: 200, label: "200 Robux", weight: 1.5, color: "#f59e0b" },
+      { robux: 350, label: "350 Robux", weight: 0.5, color: "#ef4444" }
+    ]
+  },
+  golden: {
+    id: "golden",
+    name: "Golden Case",
+    price_usd: 1.00,
+    items: [
+      { robux: 0, label: "Thank You", weight: 66, color: "#94a3b8" },
+      { robux: 150, label: "150 Robux", weight: 18, color: "#10b981" },
+      { robux: 200, label: "200 Robux", weight: 9, color: "#0ea5e9" },
+      { robux: 350, label: "350 Robux", weight: 4.5, color: "#8b5cf6" },
+      { robux: 600, label: "600 Robux", weight: 2, color: "#f59e0b" },
+      { robux: 1200, label: "1,200 Robux", weight: 0.5, color: "#ef4444" }
+    ]
+  },
+  diamond: {
+    id: "diamond",
+    name: "Diamond Case",
+    price_usd: 2.50,
+    items: [
+      { robux: 0, label: "Thank You", weight: 65, color: "#94a3b8" },
+      { robux: 500, label: "500 Robux", weight: 18, color: "#10b981" },
+      { robux: 800, label: "800 Robux", weight: 10, color: "#0ea5e9" },
+      { robux: 1500, label: "1,500 Robux", weight: 4.5, color: "#8b5cf6" },
+      { robux: 3000, label: "3,000 Robux", weight: 2, color: "#f59e0b" },
+      { robux: 5000, label: "5,000 Robux", weight: 0.5, color: "#ef4444" }
+    ]
+  }
+};
 
-  document.getElementById('stage-case-name').textContent = c.name;
-  const p = `$${Number(c.price_usd).toFixed(2)}`;
-  document.getElementById('stage-case-price').textContent = `${p} USD`;
-  document.getElementById('btn-open-wallet-text').textContent = `Open with Rolea Wallet (${p})`;
-  document.getElementById('btn-open-khqr-text').textContent = `Open with ABA KHQR (${p})`;
+function getActiveCase(cid) {
+  const targetId = cid || currentCaseId;
+  if (boxConfig && boxConfig.cases && boxConfig.cases[targetId]) {
+    return boxConfig.cases[targetId];
+  }
+  return FALLBACK_CASES[targetId] || FALLBACK_CASES.bronze;
+}
+
+function updateStageCaseDisplay() {
+  const c = getActiveCase();
+  const nameEl = document.getElementById('stage-case-name');
+  if (nameEl) nameEl.textContent = c.name;
+
+  const p = `$${Number(c.price_usd || 0.20).toFixed(2)}`;
+  const priceEl = document.getElementById('stage-case-price');
+  if (priceEl) priceEl.textContent = `${p} USD`;
+
+  const wText = document.getElementById('btn-open-wallet-text');
+  if (wText) wText.textContent = `Open with Rolea Wallet (${p})`;
+
+  const kText = document.getElementById('btn-open-khqr-text');
+  if (kText) kText.textContent = `Open with ABA KHQR (${p})`;
 }
 
 function populateInitialReel() {
   const strip = document.getElementById('reel-strip');
+  if (!strip) return;
   strip.style.transition = 'none';
   strip.style.transform = 'translateX(0px)';
 
-  if (!boxConfig || !boxConfig.cases) return;
-  const c = boxConfig.cases[currentCaseId];
+  const c = getActiveCase();
   const items = (c && c.items && c.items.length) ? c.items : [{ robux: 0, label: 'Thank You' }];
 
   let html = '';
@@ -1250,9 +1320,7 @@ function openClaimModalFromSaved() {
 }
 
 function inspectCase(caseId) {
-  if (!boxConfig || !boxConfig.cases) return;
-  const c = boxConfig.cases[caseId];
-  if (!c) return;
+  const c = getActiveCase(caseId);
 
   document.getElementById('inspect-case-title').textContent = `${c.name} Loot Pool ($${Number(c.price_usd).toFixed(2)})`;
   const list = document.getElementById('inspect-items-list');
