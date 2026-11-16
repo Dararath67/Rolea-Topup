@@ -1,7 +1,7 @@
 {
   "enabled": true,
   "title": "Golden Scratch Card",
-  "subtitle": "កោសផ្ទាំងប្រាក់សំណាង រកលេខ Robux ដូចគ្នា ៣ ដើម្បីឈ្នះ!",
+  "subtitle": "Match 3 Robux symbols on the lucky card to win up to 1,000 R$!",
   "card_price_usd": 0.25,
   "cost_per_1k_robux_usd": 4.0,
   "daily_free_scratch_enabled": true,

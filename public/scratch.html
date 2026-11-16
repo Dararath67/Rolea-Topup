@@ -568,7 +568,7 @@
     <div class="scratch-hero-banner">
       <div>
         <h1 id="scratch-title">Golden Scratch Card</h1>
-        <p id="scratch-sub">កោសផ្ទាំងប្រាក់សំណាង រកលេខ Robux ដូចគ្នា ៣ ដើម្បីឈ្នះរហូតដល់ 1,000 R$!</p>
+        <p id="scratch-sub">Match 3 Robux symbols on the lucky card to win up to 1,000 R$!</p>
       </div>
       <div class="scratch-price-pill">
         <span>Ticket Price</span>
@@ -596,7 +596,7 @@
           <!-- Status Bar -->
           <div class="card-footer-status" id="card-footer-status">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.3"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-            <span>យកចុងម្រាមដៃ ឬ Mouse អូសកោសផ្ទាំងប្រាក់ដើម្បីបើករង្វាន់!</span>
+            <span>Drag mouse or swipe finger across silver foil to scratch!</span>
           </div>
         </div>
 
@@ -604,16 +604,16 @@
           <span style="font-size:12px;color:#64748b;font-weight:700" id="scratch-progress-text">Scratch to reveal</span>
           <button type="button" class="btn-scratch-all" id="btn-scratch-all" onclick="revealAllCells()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            <span>Scratch All (កោសទាំងអស់)</span>
+            <span>Scratch All</span>
           </button>
         </div>
       </div>
 
       <!-- Right: Payment & Action Hub -->
       <div class="ticket-card">
-        <h3 class="ticket-step-title"><span class="ticket-step-num">1</span> ជ្រើសរើសជម្រើសកោសកាត (Choose Card)</h3>
+        <h3 class="ticket-step-title"><span class="ticket-step-num">1</span> Choose Scratch Card</h3>
         <p style="font-size:12.5px;color:#64748b;margin:0 0 16px;line-height:1.5">
-          កោសកាតសំណាងមុន — មិនបាច់វាយឈ្មោះ Roblox ជាមុនទេ។ នៅពេលកោសឈ្នះ Robux អាចបញ្ចូល Username ដើម្បី Submit សំណើជូន Admin ផ្ញើជូនភ្លាមៗ!
+          Scratch lucky card first — no Roblox username needed upfront. When you win Robux, submit your username for instant delivery!
         </p>
 
         <!-- Daily Free Scratch Box -->
@@ -622,13 +622,13 @@
             <button class="btn-action-primary free-btn" id="btn-daily-free" onclick="claimDailyFreeScratch()">
               <span style="display:inline-flex;align-items:center;gap:7px">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
-                <span id="btn-daily-free-label">កោសកាត Free ប្រចាំថ្ងៃ</span>
+                <span id="btn-daily-free-label">Claim 1 Free Scratch Today!</span>
               </span>
-              <span style="background:#fde047;color:#854d0e;font-size:11px;font-weight:900;padding:3px 8px;border-radius:6px">FREE 1/1</span>
+              <span style="background:#fde047;color:#854d0e;font-size:11px;font-weight:900;padding:3px 8px;border-radius:6px">FREE</span>
             </button>
           </div>
           <div id="daily-free-cooldown" class="cooldown-pill-box" style="display:none">
-            <span>បានកោស Free រួចហើយ • លើកក្រោយនៅសល់៖</span>
+            <span>Daily Free Scratch Claimed • Next in:</span>
             <span class="cooldown-timer-val" id="daily-free-timer">24h 00m 00s</span>
           </div>
         </div>
@@ -636,23 +636,23 @@
         <!-- Paid Purchase Options -->
         <button class="btn-action-primary wallet-btn" id="btn-buy-wallet" onclick="buyCard('wallet')">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/></svg>
-          <span>ទិញកាតជាមួយ Rolea Wallet ($0.25)</span>
+          <span id="lbl-buy-wallet">Pay with Rolea Wallet &amp; Scratch ($0.25)</span>
         </button>
 
         <button class="btn-action-primary khqr-btn" id="btn-buy-khqr" onclick="buyCard('khqr')">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-          <span>ទិញកាតតាម ABA KHQR ($0.25)</span>
+          <span id="lbl-buy-khqr">Pay with ABA KHQR &amp; Scratch ($0.25)</span>
         </button>
 
         <!-- Unclaimed Rewards Section -->
         <div id="scratch-unclaimed-card" style="display:none;margin-top:20px;padding:14px;background:#fefce8;border:1.5px solid #fef08a;border-radius:16px">
           <div style="font-weight:800;font-size:13px;color:#854d0e;margin-bottom:6px;display:flex;align-items:center;gap:6px">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.3"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
-            <span>អ្នកមានរង្វាន់មិនទាន់ Claim (Unclaimed Reward)</span>
+            <span>You have an unclaimed reward!</span>
           </div>
           <div style="font-size:12px;color:#a16207" id="scratch-unclaimed-info"></div>
           <button type="button" class="btn-action-primary" style="margin-top:8px;padding:9px;background:#d97706;color:#fff;font-size:12.5px" onclick="openClaimModalFromSaved()">
-            Submit ឈ្មោះ Roblox ឥឡូវនេះ →
+            Submit Roblox Username Now →
           </button>
         </div>
       </div>
@@ -660,7 +660,7 @@
 
     <!-- Prize Table -->
     <div class="card-display-box prizes-card">
-      <h3 class="ticket-step-title"><span class="ticket-step-num">2</span> តារាងរង្វាន់ដែលអាចឈ្នះបាន (Possible Robux Prizes)</h3>
+      <h3 class="ticket-step-title"><span class="ticket-step-num">2</span> Possible Robux Prizes</h3>
       <div class="prize-pills-wrap" id="prize-pills-wrap">
         <div class="prize-badge-item"><b>1,000 R$</b><span>Grand Jackpot</span></div>
         <div class="prize-badge-item"><b>500 R$</b><span>Mega Prize</span></div>
@@ -678,7 +678,7 @@
       <h3 class="ticket-step-title" style="justify-content:space-between;flex-wrap:wrap;gap:10px">
         <span style="display:inline-flex;align-items:center;gap:8px">
           <span class="ticket-step-num">3</span>
-          <span>អ្នកឈ្នះកាតកោសថ្មីៗ (Recent Scratch Winners)</span>
+          <span>Recent Scratch Winners</span>
         </span>
         <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;color:#059669;background:#ecfdf5;border:1px solid #a7f3d0;padding:3px 10px;border-radius:999px;letter-spacing:0.3px">
           <span style="width:7px;height:7px;border-radius:50%;background:#10b981;display:inline-block;animation:pulseLiveDot 1.5s infinite"></span>
@@ -688,8 +688,8 @@
       <div id="scratch-winners-list">
         <div style="text-align:center;padding:26px 16px;color:#64748b;background:#f8fafc;border:1.5px dashed #e2e8f0;border-radius:18px">
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" style="margin:0 auto 8px;display:block"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-          <div style="font-size:13.5px;font-weight:800;color:#334155;margin-bottom:3px">មិនទាន់មានអ្នកឈ្នះនៅឡើយទេ</div>
-          <div style="font-size:12px;color:#94a3b8">ក្លាយជាអ្នកកោសឈ្នះរង្វាន់ដំបូងគេថ្ងៃនេះ!</div>
+          <div style="font-size:13.5px;font-weight:800;color:#334155;margin-bottom:3px">No winners yet</div>
+          <div style="font-size:12px;color:#94a3b8">Be the first lucky winner today!</div>
         </div>
       </div>
     </div>
@@ -702,21 +702,21 @@
     <div class="result-icon-circle" id="res-icon-wrap">
       <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
     </div>
-    <h2 class="result-modal-title" id="res-title">អបអរសាទរ!</h2>
-    <p class="result-modal-desc" id="res-desc">អ្នកបានកោសត្រូវរង្វាន់ជោគជ័យ!</p>
+    <h2 class="result-modal-title" id="res-title">Congratulations!</h2>
+    <p class="result-modal-desc" id="res-desc">You successfully matched 3 and won!</p>
 
     <!-- Claim Box -->
     <div id="claim-form-box" style="display:none;text-align:left;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:18px;padding:16px;margin-bottom:16px">
-      <label style="display:block;font-size:12px;font-weight:800;color:#334155;margin-bottom:6px">បញ្ចូលឈ្មោះគណនី Roblox របស់អ្នក៖</label>
-      <input type="text" id="claim-roblox-username" placeholder="Roblox Username (ឧ. player123)" style="width:100%;padding:11px 14px;border:1.5px solid #cbd5e1;border-radius:12px;font-size:14px;font-weight:700;box-sizing:border-box">
-      <div style="font-size:11px;color:#64748b;margin-top:6px">Admin នឹងពិនិត្យ និងផ្ញើ Robux ចូលគណនីនេះ។</div>
+      <label style="display:block;font-size:12px;font-weight:800;color:#334155;margin-bottom:6px">Confirm Roblox Username for Admin:</label>
+      <input type="text" id="claim-roblox-username" placeholder="Roblox Username (e.g. player123)" style="width:100%;padding:11px 14px;border:1.5px solid #cbd5e1;border-radius:12px;font-size:14px;font-weight:700;box-sizing:border-box">
+      <div style="font-size:11px;color:#64748b;margin-top:6px">Admin will review and send Robux directly to this account.</div>
       <button type="button" class="btn-action-primary" style="margin-top:12px;background:#059669;color:#fff" id="btn-submit-claim" onclick="submitScratchClaim()">
-        Submit សំណើទៅកាន់ Admin →
+        Submit Claim to Admin →
       </button>
     </div>
 
     <button type="button" class="btn-action-primary" style="background:#f1f5f9;color:#334155" onclick="closeResultModal()">
-      បិទផ្ទាំង (Close)
+      Claim Later / Close
     </button>
   </div>
 </div>
@@ -724,16 +724,16 @@
 <!-- KHQR MODAL -->
 <div class="result-modal-backdrop" id="khqr-modal">
   <div class="result-modal-box" style="max-width:380px">
-    <h3 style="font-size:18px;font-weight:900;margin-bottom:8px">ស្កេន ABA KHQR ដើម្បីកោសកាត</h3>
-    <p style="font-size:12px;color:#64748b;margin-bottom:16px">តម្លៃសំបុត្រ: <b style="color:#0284c7" id="khqr-price-text">$0.25 USD</b></p>
+    <h3 style="font-size:18px;font-weight:900;margin-bottom:8px">Scan ABA KHQR to Scratch</h3>
+    <p style="font-size:12px;color:#64748b;margin-bottom:16px">Ticket Price: <b style="color:#0284c7" id="khqr-price-text">$0.25 USD</b></p>
     <div style="background:#fff;padding:12px;border:2px solid #e2e8f0;border-radius:16px;display:inline-block;margin-bottom:14px">
       <img id="khqr-qr-img" src="" style="width:200px;height:200px;display:block" alt="KHQR">
     </div>
     <div style="font-size:12px;color:#059669;font-weight:700;margin-bottom:14px" id="khqr-poll-status">
-      កំពុងរង់ចាំការទូទាត់ប្រាក់...
+      Waiting for payment confirmation...
     </div>
     <button type="button" class="btn-action-primary" style="background:#f1f5f9;color:#334155" onclick="closeKhqrModal()">
-      Cancel (បោះបង់)
+      Cancel
     </button>
   </div>
 </div>
@@ -799,7 +799,14 @@ async function loadScratchConfig() {
 
     if (j.title) document.getElementById('scratch-title').textContent = j.title;
     if (j.subtitle) document.getElementById('scratch-sub').textContent = j.subtitle;
-    if (j.card_price_usd) document.getElementById('scratch-price-display').textContent = `$${Number(j.card_price_usd).toFixed(2)} USD`;
+    if (j.card_price_usd) {
+      const p = `$${Number(j.card_price_usd).toFixed(2)}`;
+      document.getElementById('scratch-price-display').textContent = `${p} USD`;
+      const w = document.getElementById('lbl-buy-wallet');
+      if (w) w.textContent = `Pay with Rolea Wallet & Scratch (${p})`;
+      const k = document.getElementById('lbl-buy-khqr');
+      if (k) k.textContent = `Pay with ABA KHQR & Scratch (${p})`;
+    }
 
     renderDailyFreeStatus(j.daily_free_scratch);
     renderWinners(j.recent_winners || []);
@@ -913,7 +920,7 @@ function promptMustPayOrFree() {
     statusEl.style.color = '#991b1b';
     statusEl.innerHTML = `
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.3"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-      <span><b>មិនទាន់ទូទាត់ប្រាក់ទេ!</b> សូមជ្រើសរើសទិញកាត ($0.25) ឬចុចកោស Free ប្រចាំថ្ងៃជាមុនសិន។</span>
+      <span><b>Payment Required!</b> Please choose a payment option ($0.25) or claim daily free first.</span>
     `;
   }
 
@@ -999,12 +1006,12 @@ function setupFoilCanvas(canvas, cellIndex) {
 
   canvas.style.cursor = 'grab';
 
-  // Clean Typography below logo: "កោសទីនេះ" (No emoji!)
+  // Clean Typography below logo: "Scratch Here"
   ctx.fillStyle = '#1e293b';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.font = '800 10px "Plus Jakarta Sans", sans-serif';
-  ctx.fillText('កោសទីនេះ', cx, cy + r + 13);
+  ctx.fillText('Scratch Here', cx, cy + r + 13);
 
   let isDrawing = false;
   let lastPoint = null;
@@ -1110,7 +1117,7 @@ function checkAllCellsFinished() {
       statusEl.style.background = '#ecfdf5';
       statusEl.style.borderColor = '#a7f3d0';
       statusEl.style.color = '#065f46';
-      statusEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.4"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H7"/><path d="M14 14.66V17c0 .55.45 1 1 1h2"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg> អបអរសាទរ! កោសត្រូវរង្វាន់ <b>${currentCard.win_robux.toLocaleString()} Robux</b> ជោគជ័យ!</span>`;
+      statusEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.4"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H7"/><path d="M14 14.66V17c0 .55.45 1 1 1h2"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg> Congratulations! You won <b>${currentCard.win_robux.toLocaleString()} Robux</b>!</span>`;
     }
 
     // Immediately reflect win in live real-time winners feed
@@ -1131,7 +1138,7 @@ function checkAllCellsFinished() {
       statusEl.style.background = '#f8fafc';
       statusEl.style.borderColor = '#e2e8f0';
       statusEl.style.color = '#64748b';
-      statusEl.innerHTML = `<span>មិនមានលេខដូចគ្នា ៣ ឡើយ — សូមព្យាយាមម្តងទៀតនៅកាតបន្ទាប់!</span>`;
+      statusEl.innerHTML = `<span>No 3 matching numbers — better luck on your next scratch!</span>`;
     }
   }
 }
@@ -1186,7 +1193,7 @@ async function claimDailyFreeScratch() {
       statusEl.style.color = '#15803d';
       statusEl.innerHTML = `
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.3"><path d="M20 6L9 17l-5-5"/></svg>
-        <span><b>ទទួលបានកាត Free ជោគជ័យ!</b> សូមកោសផ្ទាំងប្រាក់ទាំង ៦ ដើម្បីបើកមើលរង្វាន់។</span>
+        <span><b>Free Card Claimed!</b> Card is ready — scratch all 6 cells to reveal your prizes!</span>
       `;
     }
   } catch (err) {
@@ -1246,7 +1253,7 @@ async function buyCard(method) {
         statusEl.style.color = '#15803d';
         statusEl.innerHTML = `
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.3"><path d="M20 6L9 17l-5-5"/></svg>
-          <span><b>ទូទាត់ជោគជ័យ!</b> សំបុត្រសកម្មរួចរាល់ — សូមកោសផ្ទាំងប្រាក់ទាំង ៦ ដើម្បីបើករង្វាន់។</span>
+          <span><b>Payment Successful!</b> Ticket is active — scratch all 6 cells to reveal your prizes!</span>
         `;
       }
     } else {
@@ -1285,7 +1292,7 @@ function startKhqrPolling(scratchId) {
           statusEl.style.color = '#15803d';
           statusEl.innerHTML = `
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.3"><path d="M20 6L9 17l-5-5"/></svg>
-            <span><b>ទូទាត់ KHQR ជោគជ័យ!</b> សំបុត្រសកម្មរួចរាល់ — សូមកោសផ្ទាំងប្រាក់ទាំង ៦ ដើម្បីបើករង្វាន់។</span>
+            <span><b>KHQR Payment Successful!</b> Ticket is active — scratch all 6 cells to reveal your prizes!</span>
           `;
         }
         document.getElementById('btn-buy-wallet').disabled = false;
@@ -1339,12 +1346,12 @@ function showWinnerModal(card) {
   const claimBox = document.getElementById('claim-form-box');
 
   if (card.win_robux > 0) {
-    title.textContent = `អ្នកបានឈ្នះ ${card.win_robux.toLocaleString()} Robux!`;
-    desc.textContent = `សូមបញ្ចូលឈ្មោះគណនី Roblox របស់អ្នកដើម្បីឱ្យ Admin ផ្ញើ Robux ជូនភ្លាមៗ!`;
+    title.textContent = `You Won ${card.win_robux.toLocaleString()} Robux!`;
+    desc.textContent = `Please enter your Roblox username so Admin can deliver your Robux!`;
     claimBox.style.display = 'block';
   } else {
-    title.textContent = `សូមព្យាយាមម្តងទៀត!`;
-    desc.textContent = `សូមអរគុណសម្រាប់ការលេងកាតកោសសំណាង!`;
+    title.textContent = `Better Luck Next Time!`;
+    desc.textContent = `Thank you for playing Rolea Lucky Scratch!`;
     claimBox.style.display = 'none';
   }
   modal.classList.add('open');
@@ -1363,13 +1370,13 @@ async function submitScratchClaim() {
   if (!activeClaimOrder) return;
   const username = document.getElementById('claim-roblox-username').value.trim();
   if (!username) {
-    alert('សូមបញ្ចូលឈ្មោះ Roblox Username របស់អ្នក!');
+    alert('Please enter your Roblox Username!');
     return;
   }
 
   const btn = document.getElementById('btn-submit-claim');
   btn.disabled = true;
-  btn.textContent = 'កំពុង Submit...';
+  btn.textContent = 'Submitting...';
 
   try {
     const res = await fetch('/api/scratch/claim', {
@@ -1383,19 +1390,19 @@ async function submitScratchClaim() {
     });
     const j = await res.json();
     if (res.ok && j.ok) {
-      alert('បាន Submit សំណើរួចរាល់! Admin នឹងពិនិត្យ និងផ្ញើ Robux ជូនអ្នកឆាប់ៗនេះ។');
+      alert('Claim submitted successfully! Admin will review and send your Robux soon.');
       document.getElementById('scratch-unclaimed-card').style.display = 'none';
       closeResultModal();
       pollRealtimeScratchWinners();
     } else {
       alert(j.error || 'Failed to submit claim.');
       btn.disabled = false;
-      btn.textContent = 'Submit សំណើទៅកាន់ Admin →';
+      btn.textContent = 'Submit Claim to Admin →';
     }
   } catch (e) {
     alert('Network error.');
     btn.disabled = false;
-    btn.textContent = 'Submit សំណើទៅកាន់ Admin →';
+    btn.textContent = 'Submit Claim to Admin →';
   }
 }
 
@@ -1409,8 +1416,8 @@ function renderWinners(list) {
     box.innerHTML = `
       <div style="text-align:center;padding:26px 16px;color:#64748b;background:#f8fafc;border:1.5px dashed #e2e8f0;border-radius:18px">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" style="margin:0 auto 8px;display:block"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-        <div style="font-size:13.5px;font-weight:800;color:#334155;margin-bottom:3px">មិនទាន់មានអ្នកឈ្នះនៅឡើយទេ</div>
-        <div style="font-size:12px;color:#94a3b8">ក្លាយជាអ្នកកោសឈ្នះរង្វាន់ដំបូងគេថ្ងៃនេះ!</div>
+        <div style="font-size:13.5px;font-weight:800;color:#334155;margin-bottom:3px">No winners yet</div>
+        <div style="font-size:12px;color:#94a3b8">Be the first lucky winner today!</div>
       </div>
     `;
     return;
