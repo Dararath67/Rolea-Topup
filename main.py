@@ -3722,17 +3722,25 @@ def _is_https_request(request: Request) -> bool:
 def _get_rate_tier(path: str, is_authed_admin: bool = False) -> tuple[str, int, int]:
     if path in ("/api/webhook/khqrpay", "/api/khqrpay/callback", "/api/telegram/webhook"):
         return ("webhook", 1200, 60)
+    if path == "/api/admin/login":
+        return ("admin_login", 5, 60)
     if path in (
         "/api/auth/forgot-password", "/api/auth/verify-reset-code", "/api/auth/reset-password",
         "/api/admin/forgot-password", "/api/admin/verify-reset-code", "/api/admin/reset-password"
     ):
-        return ("otp", 8, 60)
-    if path in ("/api/auth/login", "/api/auth/register", "/api/auth/google", "/api/admin/login", "/api/orders/claim-refund-wallet", "/api/auth/check-refund-autologin"):
-        return ("auth", 15, 60)
+        return ("otp", 6, 60)
+    if path in ("/api/auth/login", "/api/auth/register", "/api/auth/google", "/api/orders/claim-refund-wallet", "/api/auth/check-refund-autologin"):
+        return ("auth", 10, 60)
+    if path in ("/api/spin/claim", "/api/spin/daily-free-spin"):
+        return ("spin_claim", 6, 60)
+    if path == "/api/promo/apply":
+        return ("promo_apply", 10, 60)
+    if path == "/api/reviews/submit":
+        return ("review_submit", 5, 60)
     if path in ("/api/create-order", "/api/wallet/topup", "/api/spin/create-ticket"):
-        return ("pay_create", 15, 60)
-    if path in ("/api/check-id", "/api/promo/apply", "/api/check-order", "/api/reviews/submit"):
-        return ("lookup", 30, 60)
+        return ("pay_create", 12, 60)
+    if path in ("/api/check-id", "/api/check-order"):
+        return ("lookup", 25, 60)
     if is_authed_admin and path.startswith("/api/admin/"):
         return ("admin_authed", 600, 60)
     if path in ("/api/settings", "/api/games", "/api/packages") or path.startswith("/api/game/"):
@@ -5896,6 +5904,12 @@ async def check_refund_autologin(request: Request):
             continue
 
         if order.get("status") == "refunded":
+            # Cryptographic token verification: require matching receipt token for this order
+            exp_tok = str(order.get("token") or "")
+            prov_tok = str(tokens_map.get(oid) or tokens_map.get(clean_id) or "").strip()
+            if exp_tok and (not prov_tok or not hmac.compare_digest(exp_tok, prov_tok)):
+                continue
+
             # Ensure wallet refund is processed (credits existing user or creates guest account)
             if not order.get("wallet_refunded"):
                 process_order_refund(order)
@@ -6727,9 +6741,9 @@ async def get_order_status(order_id: str, request: Request):
         "refunded_balance": (float(ref_usr.get("balance", 0.0)) if ref_usr else None)
     }
 
-    # Auto-Login & Wallet Credit: instantly authenticate user when viewing refunded order!
+    # Auto-Login & Wallet Credit: ONLY authenticate if request has verified ownership (is_owner == True)
     auto_login_token = None
-    if order.get("status") == "refunded":
+    if order.get("status") == "refunded" and is_owner:
         # If wallet refund wasn't credited yet (e.g. older refunded order or skipped step), process it now
         if not order.get("wallet_refunded"):
             process_order_refund(order)
@@ -6829,11 +6843,11 @@ async def claim_refund_wallet(request: Request):
     if not target_user:
         return JSONResponse(status_code=404, content={"ok": False, "error": "User account not found."})
 
-    # Validate receipt token if provided and order has token set
+    # Validate receipt token: strictly required to prevent unauthorized claim hijacking
     exp_tok = str(order.get("token") or "")
-    if receipt_token and exp_tok:
-        if not hmac.compare_digest(exp_tok, receipt_token):
-            return JSONResponse(status_code=403, content={"ok": False, "error": "Invalid receipt token."})
+    if exp_tok:
+        if not receipt_token or not hmac.compare_digest(exp_tok, receipt_token):
+            return JSONResponse(status_code=403, content={"ok": False, "error": "Invalid or missing receipt token."})
 
     token = secrets.token_hex(32)
     sessions[token] = {
