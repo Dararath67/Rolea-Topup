@@ -2323,53 +2323,53 @@ def _build_tg_admin_home() -> tuple[str, Dict[str, Any]]:
     total_users = len(users)
     total_wallet = sum(float(u.get("balance") or 0.0) for u in users)
     store_name = html.escape(str(settings.get("store_name", "Rolea Topup")), quote=False)
-    maint_str = "កំពុងជួសជុល (MAINTENANCE)" if settings.get("maintenance_mode") else "កំពុងដំណើរការ (ONLINE)"
-    spin_str = "បើក (ON)" if spin_data.get("enabled", True) else "បិទ (OFF)"
+    maint_str = "🛠️ កំពុងជួសជុល (MAINTENANCE)" if settings.get("maintenance_mode") else "🟢 កំពុងដំណើរការ (ONLINE)"
+    spin_str = "🟢 បើក (ON)" if spin_data.get("enabled", True) else "⛔ បិទ (OFF)"
     fs_active = is_flash_sale_active()
     fs_rem = get_flash_sale_remaining_seconds()
     fs_h = fs_rem // 3600
     fs_m = (fs_rem % 3600) // 60
-    fs_str = f"បើកដំណើរការ (នៅសល់ {fs_h}h {fs_m}m)" if fs_active else "បិទដំណើរការ"
+    fs_str = f"⚡ បើកដំណើរការ (នៅសល់ {fs_h}h {fs_m}m)" if fs_active else "⛔ បិទដំណើរការ"
     text = (
-        f"<b>{store_name} — ផ្ទាំងគ្រប់គ្រង Admin (Telegram Panel)</b>\n\n"
-        f"<b>ស្ថានភាពហាង៖</b> {maint_str}\n"
-        f"<b>ស្ថានភាព Spin៖</b> {spin_str}\n"
-        f"<b>ស្ថានភាព Flash Sale៖</b> {fs_str}\n"
-        f"<b>អតិថិជនសរុប៖</b> {total_users} នាក់  |  <b>លុយក្នុង Wallet៖</b> ${total_wallet:.2f}\n"
-        f"<b>Order កំពុងរង់ចាំ៖</b> {pending_cnt} កុម្ម៉ង់\n\n"
-        f"<i>សូមចុចប៊ូតុងខាងក្រោមដើម្បីគ្រប់គ្រង (មិនបាច់វាយអក្សរ)៖</i>"
+        f"🛡️ <b>{store_name} — ផ្ទាំងគ្រប់គ្រង Admin (Telegram Panel)</b>\n\n"
+        f"🌐 <b>ស្ថានភាពហាង៖</b> {maint_str}\n"
+        f"🎡 <b>ស្ថានភាព Spin៖</b> {spin_str}\n"
+        f"⚡ <b>ស្ថានភាព Flash Sale៖</b> {fs_str}\n"
+        f"👥 <b>អតិថិជនសរុប៖</b> {total_users} នាក់  |  💳 <b>លុយក្នុង Wallet៖</b> ${total_wallet:.2f}\n"
+        f"📦 <b>Order កំពុងរង់ចាំ៖</b> {pending_cnt} កុម្ម៉ង់\n\n"
+        f"👇 <i>សូមចុចប៊ូតុងខាងក្រោមដើម្បីគ្រប់គ្រង (មិនបាច់វាយអក្សរ)៖</i>"
     )
     markup = {
         "inline_keyboard": [
-            [{"text": "បញ្ចូល / កាត់លុយ Wallet អតិថិជន", "callback_data": "adm:users:0"}],
+            [{"text": "💰 បញ្ចូល / កាត់លុយ Wallet អតិថិជន", "callback_data": "adm:users:0"}],
             [
-                {"text": "ស្វែងរកតាម User ID", "callback_data": "adm:find"},
-                {"text": "ស្វែងរកតាម Order ID", "callback_data": "adm:find_ord"}
+                {"text": "🔍 ស្វែងរកតាម User ID", "callback_data": "adm:find"},
+                {"text": "🔎 ស្វែងរកតាម Order ID", "callback_data": "adm:find_ord"}
             ],
             [
-                {"text": f"Order កំពុងរង់ចាំ ({pending_cnt})", "callback_data": "adm:pending:0"},
-                {"text": "ស្ថិតិហាងសរុប", "callback_data": "adm:stats"}
+                {"text": f"📦 Order កំពុងរង់ចាំ ({pending_cnt})", "callback_data": "adm:pending:0"},
+                {"text": "📊 ស្ថិតិហាងសរុប", "callback_data": "adm:stats"}
             ],
             [
-                {"text": "របាយការណ៍លក់ថ្ងៃនេះ", "callback_data": "adm:daily_rep"},
-                {"text": "Backup Data ចូល Telegram", "callback_data": "adm:backup_now"}
+                {"text": "📊 របាយការណ៍លក់ថ្ងៃនេះ", "callback_data": "adm:daily_rep"},
+                {"text": "💾 Backup Data ចូល Telegram", "callback_data": "adm:backup_now"}
             ],
             [
-                {"text": "បិទ/បើក ហ្គេមនីមួយៗ", "callback_data": "adm:games"},
-                {"text": "គ្រប់គ្រង Spin Robux", "callback_data": "adm:spin"}
+                {"text": "🏪 បិទ/បើក ហ្គេមនីមួយៗ", "callback_data": "adm:games"},
+                {"text": "🎡 គ្រប់គ្រង Spin Robux", "callback_data": "adm:spin"}
             ],
             [
-                {"text": "Roblox Bot & Cookie", "callback_data": "adm:bot"},
-                {"text": f"Flash Sale ({'ON' if fs_active else 'OFF'})", "callback_data": "adm:fsale"}
+                {"text": "📦 Roblox Bot & Cookie", "callback_data": "adm:bot"},
+                {"text": f"⚡ Flash Sale ({'ON' if fs_active else 'OFF'})", "callback_data": "adm:fsale"}
             ],
             [
-                {"text": "កូដបញ្ចុះតម្លៃ (Promo)", "callback_data": "adm:promos:0"},
-                {"text": "Blacklist / ប្លុក", "callback_data": "adm:blk"}
+                {"text": "🎟️ កូដបញ្ចុះតម្លៃ (Promo)", "callback_data": "adm:promos:0"},
+                {"text": "🚫 Blacklist / ប្លុក", "callback_data": "adm:blk"}
             ],
             [
-                {"text": "ផ្ញើសារ Broadcast / បិទបើកហាង", "callback_data": "adm:store_ctrl"}
+                {"text": "📢 ផ្ញើសារ Broadcast / បិទបើកហាង", "callback_data": "adm:store_ctrl"}
             ],
-            [{"text": "Refresh ផ្ទាំងបញ្ជា", "callback_data": "adm:home"}]
+            [{"text": "🔄 Refresh ផ្ទាំងបញ្ជា", "callback_data": "adm:home"}]
         ]
     }
     return text, markup
@@ -2917,29 +2917,29 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         fs_rem = get_flash_sale_remaining_seconds()
         fs_h = fs_rem // 3600
         fs_m = (fs_rem % 3600) // 60
-        st_label = f"បើកដំណើរការ (នៅសល់ {fs_h}h {fs_m}m)" if fs_active else "បិទដំណើរការ (OFF)"
+        st_label = f"🟢 បើកដំណើរការ (នៅសល់ {fs_h}h {fs_m}m)" if fs_active else "⛔ បិទដំណើរការ (OFF)"
         deals_cnt = len(flash_sale.get("deals", {}))
         end_display = flash_sale.get("end_time") or "មិនទាន់កំណត់"
 
         fs_text = (
-            "<b>[គ្រប់គ្រង FLASH SALE & COUNTDOWN TIMER]</b>\n\n"
+            "⚡ <b>[គ្រប់គ្រង FLASH SALE & COUNTDOWN TIMER]</b>\n\n"
             f"<b>ស្ថានភាព៖</b> {st_label}\n"
-            f"<b>ចំណងជើង៖</b> {html.escape(flash_sale.get('title', 'FLASH SALE'), quote=False)}\n"
-            f"<b>កញ្ចប់ក្នុង Deal៖</b> {deals_cnt} កញ្ចប់\n"
-            f"<b>ពេលបញ្ចប់៖</b> <code>{html.escape(str(end_display), quote=False)}</code>\n\n"
-            "<i>ជ្រើសរើសពាក្យបញ្ជាខាងក្រោម៖</i>"
+            f"🏷️ <b>ចំណងជើង៖</b> {html.escape(flash_sale.get('title', 'FLASH SALE'), quote=False)}\n"
+            f"📦 <b>កញ្ចប់ក្នុង Deal៖</b> {deals_cnt} កញ្ចប់\n"
+            f"🕒 <b>ពេលបញ្ចប់៖</b> <code>{html.escape(str(end_display), quote=False)}</code>\n\n"
+            "👇 <i>ជ្រើសរើសពាក្យបញ្ជាខាងក្រោម៖</i>"
         )
         fs_rows = [
-            [{"text": f"{'បិទ Flash Sale' if fs_active else 'បើក Flash Sale ភ្លាមៗ'}", "callback_data": "adm:fstog"}],
+            [{"text": f"{'⛔ បិទ Flash Sale' if fs_active else '⚡ បើក Flash Sale ភ្លាមៗ'}", "callback_data": "adm:fstog"}],
             [
-                {"text": "កំណត់ +2 ម៉ោង", "callback_data": "adm:fstime:2"},
-                {"text": "កំណត់ +6 ម៉ោង", "callback_data": "adm:fstime:6"}
+                {"text": "🕒 កំណត់ +2 ម៉ោង", "callback_data": "adm:fstime:2"},
+                {"text": "🕒 កំណត់ +6 ម៉ោង", "callback_data": "adm:fstime:6"}
             ],
             [
-                {"text": "កំណត់ +24 ម៉ោង", "callback_data": "adm:fstime:24"},
-                {"text": "កំណត់ +48 ម៉ោង", "callback_data": "adm:fstime:48"}
+                {"text": "🕒 កំណត់ +24 ម៉ោង", "callback_data": "adm:fstime:24"},
+                {"text": "🕒 កំណត់ +48 ម៉ោង", "callback_data": "adm:fstime:48"}
             ],
-            [{"text": "ត្រឡប់ទៅម៉ឺនុយដើម", "callback_data": "adm:home"}]
+            [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]
         ]
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, fs_text, {"inline_keyboard": fs_rows})
@@ -2949,13 +2949,13 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         if sub == "pauto":
             await answer_callback_query(token, query_id, "")
             rows = [
-                [{"text": "បញ្ចុះ 10% (Auto)", "callback_data": "adm:pgen:p10"}, {"text": "បញ្ចុះ 20% (Auto)", "callback_data": "adm:pgen:p20"}],
-                [{"text": "បញ្ចុះ $1.00 USD (Auto)", "callback_data": "adm:pgen:f1"}, {"text": "បញ្ចុះ $2.00 USD (Auto)", "callback_data": "adm:pgen:f2"}],
-                [{"text": "ថយក្រោយ (Promo Codes)", "callback_data": "adm:promos:0"}]
+                [{"text": "✨ បញ្ចុះ 10% (Auto)", "callback_data": "adm:pgen:p10"}, {"text": "✨ បញ្ចុះ 20% (Auto)", "callback_data": "adm:pgen:p20"}],
+                [{"text": "💵 បញ្ចុះ $1.00 USD (Auto)", "callback_data": "adm:pgen:f1"}, {"text": "💵 បញ្ចុះ $2.00 USD (Auto)", "callback_data": "adm:pgen:f2"}],
+                [{"text": "🔙 ថយក្រោយ (Promo Codes)", "callback_data": "adm:promos:0"}]
             ]
             text = (
-                "<b>[AUTO GENERATE PROMO CODE]</b>\n\n"
-                "ជ្រើសរើសប្រភេទបញ្ចុះតម្លៃដើម្បីបង្កើតកូដ Promo ដោយស្វ័យប្រវត្តិតែម្ដង (ចុចភ្លាម បង្កើតភ្លាម):"
+                "🎟️ <b>[AUTO GENERATE PROMO CODE]</b>\n\n"
+                "👇 ជ្រើសរើសប្រភេទបញ្ចុះតម្លៃដើម្បីបង្កើតកូដ Promo ដោយស្វ័យប្រវត្តិតែម្ដង (ចុចភ្លាម បង្កើតភ្លាម):"
             )
             if msg_id:
                 await edit_telegram_message(token, chat_id, msg_id, text, {"inline_keyboard": rows})
@@ -2989,16 +2989,16 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
             save_coupons()
             await answer_callback_query(token, query_id, f"បានបង្កើតកូដ {new_code} ជោគជ័យ!")
             res_rows = [
-                [{"text": "បង្កើតកូដ Auto ថែមទៀត", "callback_data": "adm:pauto"}],
-                [{"text": "មើលកូដទាំងអស់", "callback_data": "adm:promos:0"}, {"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}]
+                [{"text": "✨ បង្កើតកូដ Auto ថែមទៀត", "callback_data": "adm:pauto"}],
+                [{"text": "🎟️ មើលកូដទាំងអស់", "callback_data": "adm:promos:0"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]
             ]
             res_text = (
-                "<b>[ជោគជ័យ - បានបង្កើតកូដ PROMO AUTO]</b>\n\n"
-                f"កូដ Promo (ចុច Copy): <code>{new_code}</code>\n"
-                f"ប្រភេទ: <b>{d_label}</b>\n"
-                f"លក្ខខណ្ឌចំណាយអប្បបរមា: <b>${min_s:.2f} USD</b>\n"
-                f"ចំនួនប្រើប្រាស់បាន: <b>{max_u} ដង</b>\n"
-                "ស្ថានភាព: <b>បើកដំណើរការ (Active)</b>"
+                "🎉 <b>[ជោគជ័យ - បានបង្កើតកូដ PROMO AUTO]</b>\n\n"
+                f"🎟️ កូដ Promo (ចុច Copy): <code>{new_code}</code>\n"
+                f"🏷️ ប្រភេទ: <b>{d_label}</b>\n"
+                f"💵 លក្ខខណ្ឌចំណាយអប្បបរមា: <b>${min_s:.2f} USD</b>\n"
+                f"👥 ចំនួនប្រើប្រាស់បាន: <b>{max_u} ដង</b>\n"
+                "🟢 ស្ថានភាព: <b>បើកដំណើរការ (Active)</b>"
             )
             if msg_id:
                 await edit_telegram_message(token, chat_id, msg_id, res_text, {"inline_keyboard": res_rows})
@@ -3025,18 +3025,18 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         for c in sl:
             en = c.get("enabled", True)
             val_str = f"${c.get('value')}" if c.get("type") == "fixed" else f"{c.get('value')}%"
-            st_badge = "[ON]" if en else "[OFF]"
-            rows.append([{"text": f"{st_badge} {c.get('code')} ({val_str}) · ប្រើបាន {c.get('used_count', 0)}", "callback_data": f"adm:ptog:{c.get('id')}"}])
+            st_badge = "🟢" if en else "⛔"
+            rows.append([{"text": f"{st_badge} {c.get('code')} ({val_str}) · ប្រើ {c.get('used_count', 0)} ដង", "callback_data": f"adm:ptog:{c.get('id')}"}])
         nav = []
         if page > 0:
-            nav.append({"text": "ថយក្រោយ", "callback_data": f"adm:promos:{page - 1}"})
+            nav.append({"text": "⬅️ ថយក្រោយ", "callback_data": f"adm:promos:{page - 1}"})
         if page < max_p:
-            nav.append({"text": "បន្ទាប់", "callback_data": f"adm:promos:{page + 1}"})
+            nav.append({"text": "➡️ បន្ទាប់", "callback_data": f"adm:promos:{page + 1}"})
         if nav:
             rows.append(nav)
-        rows.append([{"text": "Auto-Generate Promo (បង្កើតកូដ Auto)", "callback_data": "adm:pauto"}])
-        rows.append([{"text": "បង្កើតកូដ Promo ថ្មី (បញ្ចូលដៃ)", "callback_data": "adm:promo_new"}, {"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}])
-        text = f"<b>កូដបញ្ចុះតម្លៃ Promo Codes ({len(coupons)})</b>\nចុចលើកូដដើម្បី បិទ/បើក:"
+        rows.append([{"text": "✨ Auto-Generate Promo (បង្កើតកូដ Auto)", "callback_data": "adm:pauto"}])
+        rows.append([{"text": "➕ បង្កើតកូដ Promo ថ្មី (បញ្ចូលដៃ)", "callback_data": "adm:promo_new"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}])
+        text = f"🎟️ <b>កូដបញ្ចុះតម្លៃ Promo Codes ({len(coupons)})</b>\n👇 ចុចលើកូដដើម្បី បិទ/បើក:"
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, text, {"inline_keyboard": rows})
 
