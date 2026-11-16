@@ -1071,14 +1071,15 @@ async function openBoxWithWallet() {
         payment_method: 'wallet'
       })
     });
-    const j = await res.json();
+    const j = await res.json().catch(() => ({}));
     if (!res.ok || !j.ok) {
       if (j.error && j.error.toLowerCase().includes('insufficient') && window.RoleaAuth && typeof window.RoleaAuth.openWalletModal === 'function') {
         if (confirm(j.error + '\n\nDo you want to top up your Rolea Wallet now?')) {
           window.RoleaAuth.openWalletModal();
         }
       } else {
-        alert(j.error || 'Failed to open case.');
+        const msg = j.error || j.detail || (res.status === 404 || res.status === 405 ? 'Server API is not active yet. Please restart Python App in Apsara hosting (cPanel > Setup Python App > Restart).' : 'Failed to open case.');
+        alert(msg);
       }
       btn.disabled = false;
       updateStageCaseDisplay();
