@@ -123,11 +123,11 @@
 
     /* THE PHYSICAL LUXURY SCRATCH CARD */
     .golden-card-shell {
-      background: linear-gradient(145deg, #101c30 0%, #080f1c 100%);
-      border: 2.5px solid #f59e0b;
-      border-radius: 28px;
-      padding: 22px 18px 20px;
-      box-shadow: 0 20px 45px rgba(0,0,0,0.45), inset 0 0 28px rgba(245,158,11,0.18);
+      background: #ffffff;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 26px;
+      padding: 22px 20px 20px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.04);
       position: relative;
       user-select: none;
     }
@@ -135,27 +135,35 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 1.5px dashed rgba(245,158,11,0.4);
-      padding-bottom: 12px;
-      margin-bottom: 16px;
+      border-bottom: 1.5px solid #f1f5f9;
+      padding-bottom: 14px;
+      margin-bottom: 18px;
     }
     .card-brand-label {
-      font-size: 14px;
+      font-size: 14.5px;
       font-weight: 900;
-      color: #fde047;
-      letter-spacing: 0.8px;
+      color: #0f172a;
+      letter-spacing: -0.2px;
       display: flex;
       align-items: center;
-      gap: 7px;
+      gap: 9px;
+    }
+    .card-brand-label img {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      object-fit: cover;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     }
     .card-rule-badge {
       font-size: 11.5px;
       font-weight: 800;
-      color: #cbd5e1;
-      background: rgba(255,255,255,0.08);
+      color: #0284c7;
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
       padding: 4px 12px;
       border-radius: 999px;
-      letter-spacing: 0.3px;
+      letter-spacing: 0.2px;
     }
 
     /* 3x2 Grid */
@@ -166,7 +174,7 @@
       margin-bottom: 16px;
     }
     .scratch-cell-unit {
-      height: 96px;
+      height: 98px;
       border-radius: 18px;
       position: relative;
       overflow: hidden;
@@ -174,14 +182,15 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      background: radial-gradient(circle, #064e3b 0%, #022c22 100%);
-      border: 2px solid #065f46;
-      box-shadow: inset 0 0 12px rgba(0,0,0,0.5);
+      background: #f8fafc;
+      border: 1.5px solid #e2e8f0;
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.03);
       transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
     }
     .scratch-cell-unit.is-winner-match {
-      border-color: #34d399 !important;
-      box-shadow: 0 0 18px rgba(52,211,153,0.6), inset 0 0 14px rgba(52,211,153,0.3) !important;
+      border-color: #10b981 !important;
+      background: #ecfdf5 !important;
+      box-shadow: 0 0 18px rgba(16, 185, 129, 0.35), inset 0 0 10px rgba(16, 185, 129, 0.15) !important;
       animation: pulseMatch 1.6s infinite ease-in-out;
     }
     @keyframes pulseMatch {
@@ -193,17 +202,20 @@
     .cell-under-val {
       font-size: 24px;
       font-weight: 900;
-      color: #34d399;
+      color: #0f172a;
       line-height: 1;
       letter-spacing: -0.5px;
       font-family: 'JetBrains Mono', 'Plus Jakarta Sans', monospace;
     }
+    .scratch-cell-unit.is-winner-match .cell-under-val {
+      color: #059669;
+    }
     .cell-under-tag {
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 800;
-      color: #a7f3d0;
+      color: #64748b;
       text-transform: uppercase;
-      margin-top: 4px;
+      margin-top: 5px;
       letter-spacing: 0.5px;
     }
 
@@ -226,18 +238,18 @@
 
     /* Card Status & Hint */
     .card-footer-status {
-      background: rgba(245,158,11,0.12);
-      border: 1px solid rgba(245,158,11,0.3);
+      background: #f8fafc;
+      border: 1.5px solid #e2e8f0;
       border-radius: 14px;
-      padding: 10px 14px;
+      padding: 11px 14px;
       font-size: 12.5px;
       font-weight: 700;
-      color: #fde047;
+      color: #475569;
       text-align: center;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 6px;
+      gap: 7px;
     }
     .quick-scratch-bar {
       margin-top: 14px;
@@ -246,9 +258,9 @@
       align-items: center;
     }
     .btn-scratch-all {
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.15);
-      color: #ffffff;
+      background: #ffffff;
+      border: 1.5px solid #cbd5e1;
+      color: #334155;
       padding: 8px 16px;
       border-radius: 999px;
       font-size: 12px;
@@ -260,9 +272,9 @@
       transition: all 0.2s;
     }
     .btn-scratch-all:hover {
-      background: rgba(255,255,255,0.16);
-      border-color: #f59e0b;
-      color: #fde047;
+      background: #f0f9ff;
+      border-color: #0284c7;
+      color: #0284c7;
     }
 
     /* Step Titles */
@@ -555,8 +567,8 @@
         <div class="golden-card-shell">
           <div class="card-header-bar">
             <span class="card-brand-label">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fde047" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              ROLEA LUCKY SCRATCH
+              <img src="/media/rolea-logo.webp" alt="Rolea">
+              <span>Rolea Lucky Scratch</span>
             </span>
             <span class="card-rule-badge">Match 3 to Win</span>
           </div>
@@ -568,6 +580,7 @@
 
           <!-- Status Bar -->
           <div class="card-footer-status" id="card-footer-status">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.3"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
             <span>យកចុងម្រាមដៃ ឬ Mouse អូសកោសផ្ទាំងប្រាក់ដើម្បីបើករង្វាន់!</span>
           </div>
         </div>
@@ -618,7 +631,10 @@
 
         <!-- Unclaimed Rewards Section -->
         <div id="scratch-unclaimed-card" style="display:none;margin-top:20px;padding:14px;background:#fefce8;border:1.5px solid #fef08a;border-radius:16px">
-          <div style="font-weight:800;font-size:13px;color:#854d0e;margin-bottom:6px">🎁 អ្នកមានរង្វាន់មិនទាន់ Claim (Unclaimed Reward)</div>
+          <div style="font-weight:800;font-size:13px;color:#854d0e;margin-bottom:6px;display:flex;align-items:center;gap:6px">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.3"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+            <span>អ្នកមានរង្វាន់មិនទាន់ Claim (Unclaimed Reward)</span>
+          </div>
           <div style="font-size:12px;color:#a16207" id="scratch-unclaimed-info"></div>
           <button type="button" class="btn-action-primary" style="margin-top:8px;padding:9px;background:#d97706;color:#fff;font-size:12.5px" onclick="openClaimModalFromSaved()">
             Submit ឈ្មោះ Roblox ឥឡូវនេះ →
@@ -808,6 +824,16 @@ function renderDailyFreeStatus(dfs) {
   }
 }
 
+const roleaLogoImg = new Image();
+roleaLogoImg.src = '/media/rolea-logo.webp';
+roleaLogoImg.onload = () => {
+  if (cellCanvases.length && !cellsCleared.some(Boolean)) {
+    cellCanvases.forEach((c, i) => {
+      if (!cellsCleared[i]) setupFoilCanvas(c, i);
+    });
+  }
+};
+
 function renderCardCells(cardData) {
   currentCard = cardData;
   const grid = document.getElementById('scratch-cells-grid');
@@ -826,7 +852,10 @@ function renderCardCells(cardData) {
     const under = document.createElement('div');
     under.style.textAlign = 'center';
     under.innerHTML = `
-      <div class="cell-under-val">${cell.robux ? cell.robux.toLocaleString() : '0'}</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:4px">
+        <div class="cell-under-val">${cell.robux ? cell.robux.toLocaleString() : '0'}</div>
+        ${cell.robux > 0 ? '<img src="/media/robux-coin.svg" alt="R$" style="width:16px;height:16px;display:inline-block">' : ''}
+      </div>
       <div class="cell-under-tag">${cell.robux > 0 ? 'Robux' : 'Thank You'}</div>
     `;
     wrap.appendChild(under);
@@ -856,31 +885,71 @@ function setupFoilCanvas(canvas, cellIndex) {
   const ctx = canvas.getContext('2d');
   ctx.scale(2, 2);
 
-  // Draw metallic silver holographic foil
+  // Draw clean modern metallic platinum-silver foil
   const grad = ctx.createLinearGradient(0, 0, w, h);
-  grad.addColorStop(0, '#e2e8f0');
-  grad.addColorStop(0.3, '#cbd5e1');
-  grad.addColorStop(0.7, '#94a3b8');
-  grad.addColorStop(1, '#64748b');
+  grad.addColorStop(0, '#f8fafc');
+  grad.addColorStop(0.3, '#e2e8f0');
+  grad.addColorStop(0.65, '#cbd5e1');
+  grad.addColorStop(1, '#94a3b8');
 
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, w, h);
 
   // Brushed foil sparkles
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-  ctx.lineWidth = 1.5;
-  for (let i = -w; i < w * 2; i += 12) {
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+  ctx.lineWidth = 1;
+  for (let i = -w; i < w * 2; i += 10) {
     ctx.beginPath();
     ctx.moveTo(i, 0);
-    ctx.lineTo(i + 20, h);
+    ctx.lineTo(i + 22, h);
     ctx.stroke();
   }
 
-  // Draw clean vector star icon
-  ctx.fillStyle = '#0f172a';
+  // Draw circular badge for Rolea Logo in center (No AI emoji)
+  const cx = w / 2;
+  const cy = h / 2 - 8;
+  const r = 16;
+
+  ctx.save();
+  ctx.shadowColor = 'rgba(15, 23, 42, 0.12)';
+  ctx.shadowBlur = 5;
+  ctx.shadowOffsetY = 2;
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // Thin ring border
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Draw Rolea logo image clipped inside circle
+  if (roleaLogoImg.complete && roleaLogoImg.naturalWidth > 0) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r - 1.5, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(roleaLogoImg, cx - (r - 1.5), cy - (r - 1.5), (r - 1.5) * 2, (r - 1.5) * 2);
+    ctx.restore();
+  } else {
+    // Clean fallback while image is loading
+    ctx.fillStyle = '#0284c7';
+    ctx.font = '900 11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('R$', cx, cy);
+  }
+
+  // Clean Typography below logo: "កោសទីនេះ" (No emoji!)
+  ctx.fillStyle = '#1e293b';
   ctx.textAlign = 'center';
-  ctx.font = '800 11px "Plus Jakarta Sans", sans-serif';
-  ctx.fillText('⭐ កោសទីនេះ', w / 2, h / 2 + 4);
+  ctx.textBaseline = 'middle';
+  ctx.font = '800 10px "Plus Jakarta Sans", sans-serif';
+  ctx.fillText('កោសទីនេះ', cx, cy + r + 13);
 
   let isDrawing = false;
   let lastPoint = null;
@@ -972,20 +1041,20 @@ function checkAllCellsFinished() {
     // Highlight the 3 matching cells
     document.querySelectorAll('.winner-target').forEach(el => el.classList.add('is-winner-match'));
     if (statusEl) {
-      statusEl.style.background = 'rgba(52, 211, 153, 0.2)';
-      statusEl.style.borderColor = '#10b981';
-      statusEl.style.color = '#34d399';
-      statusEl.innerHTML = `🎉 អបអរសាទរ! កោសត្រូវរង្វាន់ <b>${currentCard.win_robux.toLocaleString()} Robux</b> ជោគជ័យ!`;
+      statusEl.style.background = '#ecfdf5';
+      statusEl.style.borderColor = '#a7f3d0';
+      statusEl.style.color = '#065f46';
+      statusEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.4"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H7"/><path d="M14 14.66V17c0 .55.45 1 1 1h2"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg> អបអរសាទរ! កោសត្រូវរង្វាន់ <b>${currentCard.win_robux.toLocaleString()} Robux</b> ជោគជ័យ!</span>`;
     }
     setTimeout(() => {
       showWinnerModal(currentCard);
     }, 600);
   } else {
     if (statusEl) {
-      statusEl.style.background = 'rgba(148, 163, 184, 0.15)';
-      statusEl.style.borderColor = '#64748b';
-      statusEl.style.color = '#cbd5e1';
-      statusEl.innerHTML = `មិនមានលេខដូចគ្នា ៣ ឡើយ — សូមព្យាយាមម្តងទៀតនៅថ្ងៃស្អែក!`;
+      statusEl.style.background = '#f8fafc';
+      statusEl.style.borderColor = '#e2e8f0';
+      statusEl.style.color = '#64748b';
+      statusEl.innerHTML = `<span>មិនមានលេខដូចគ្នា ៣ ឡើយ — សូមព្យាយាមម្តងទៀតនៅកាតបន្ទាប់!</span>`;
     }
   }
 }
@@ -1160,7 +1229,7 @@ function showWinnerModal(card) {
   const claimBox = document.getElementById('claim-form-box');
 
   if (card.win_robux > 0) {
-    title.textContent = `🎉 អ្នកបានឈ្នះ ${card.win_robux.toLocaleString()} Robux!`;
+    title.textContent = `អ្នកបានឈ្នះ ${card.win_robux.toLocaleString()} Robux!`;
     desc.textContent = `សូមបញ្ចូលឈ្មោះគណនី Roblox របស់អ្នកដើម្បីឱ្យ Admin ផ្ញើ Robux ជូនភ្លាមៗ!`;
     claimBox.style.display = 'block';
   } else {
@@ -1204,7 +1273,7 @@ async function submitScratchClaim() {
     });
     const j = await res.json();
     if (res.ok && j.ok) {
-      alert('🎉 បាន Submit សំណើរួចរាល់! Admin នឹងពិនិត្យ និងផ្ញើ Robux ជូនអ្នកឆាប់ៗនេះ។');
+      alert('បាន Submit សំណើរួចរាល់! Admin នឹងពិនិត្យ និងផ្ញើ Robux ជូនអ្នកឆាប់ៗនេះ។');
       document.getElementById('scratch-unclaimed-card').style.display = 'none';
       closeResultModal();
     } else {
