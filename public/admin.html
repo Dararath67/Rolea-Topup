@@ -1367,6 +1367,10 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M7 8h10M7 12h6M7 16h4"/></svg>
         <span class="nav-label">Golden Scratch Card</span>
       </a>
+      <a data-tab="box" id="nav-box" title="Roblox Mystery Box">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span class="nav-label">Roblox Mystery Box</span>
+      </a>
       <a data-tab="inventory" id="nav-inventory" title="Robux Bot & Cookie">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
           <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
@@ -2587,6 +2591,167 @@
                 </tr>
               </thead>
               <tbody id="scratch-history-tbody">
+                <!-- Populated via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- TAB: ROBLOX MYSTERY BOX -->
+    <div class="tab-content" id="tab-box" style="display:none">
+      <!-- KPI Cards -->
+      <div class="stats-row" style="grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));margin-bottom:22px">
+        <div class="kpi-card">
+          <div>
+            <div class="kpi-label">Total Cases Unboxed</div>
+            <div class="kpi-value" id="box-kpi-total">0</div>
+            <div class="kpi-sub">Total mystery boxes opened</div>
+          </div>
+          <div class="kpi-icon blue">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div>
+            <div class="kpi-label">Mystery Box Revenue</div>
+            <div class="kpi-value" id="box-kpi-rev" style="color:#059669">$0.00</div>
+            <div class="kpi-sub">Total revenue collected</div>
+          </div>
+          <div class="kpi-icon emerald">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div>
+            <div class="kpi-label">Robux Awarded</div>
+            <div class="kpi-value" id="box-kpi-robux">0 R$</div>
+            <div class="kpi-sub">Total prize Robux won</div>
+          </div>
+          <div class="kpi-icon purple">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+        </div>
+
+        <div class="kpi-card" style="border:1.5px solid #bbf7d0;background:linear-gradient(145deg,#ffffff 0%,#f0fdf4 100%)">
+          <div>
+            <div class="kpi-label" style="color:#15803d;font-weight:800">Expected House Margin</div>
+            <div class="kpi-value" id="box-kpi-margin" style="color:#16a34a">0%</div>
+            <div class="kpi-sub" id="box-kpi-profit">Net profit: $0.00</div>
+          </div>
+          <div class="kpi-icon emerald" style="background:#dcfce7;color:#16a34a">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top Configuration -->
+      <div class="card-panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <h3>Roblox Mystery Box Settings &amp; Case Manager</h3>
+            <span>Control 4 tiered cases (Bronze, Silver, Golden, Diamond), drop chances, prices, and Telegram alerts</span>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" class="btn-top" onclick="runBoxSimulation()" style="font-weight:700">Simulate 1,000 Cases</button>
+            <button type="button" class="btn-top primary" onclick="saveBoxConfig()" style="font-weight:700">Save Mystery Box Config</button>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));gap:16px;margin-bottom:18px">
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <b style="font-size:13px;color:#0f172a;display:block">Enable Mystery Box (បើកដំណើរការ)</b>
+              <span style="font-size:11.5px;color:#64748b">Toggle Mystery Box tab and unboxing on frontend</span>
+            </div>
+            <label class="switch"><input type="checkbox" id="box-set-enabled"><span class="slider"></span></label>
+          </div>
+
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <b style="font-size:13px;color:#0f172a;display:block">Telegram Alert on Win (ជូនដំណឹង Telegram)</b>
+              <span style="font-size:11.5px;color:#64748b">Send order alert to Admin group with Complete/Reject buttons</span>
+            </div>
+            <label class="switch"><input type="checkbox" id="box-set-telegram"><span class="slider"></span></label>
+          </div>
+
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px">
+            <b style="font-size:13px;color:#0f172a;display:block;margin-bottom:4px">Cost per 1,000 Robux ($ USD)</b>
+            <span style="font-size:11.5px;color:#64748b;display:block;margin-bottom:6px">Your wholesale cost to deliver 1,000 Robux</span>
+            <input type="number" step="0.10" id="box-set-cost1k" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-weight:700">
+          </div>
+        </div>
+
+        <!-- Case Selector Tabs (Bronze, Silver, Golden, Diamond) -->
+        <div style="margin:20px 0 14px;padding:12px;background:#f1f5f9;border-radius:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" class="btn-top" id="btn-case-bronze" onclick="switchBoxCase('bronze')" style="padding:8px 16px;border-radius:10px;font-weight:800;background:#0284c7;color:#fff">🥉 Bronze Case ($0.20)</button>
+            <button type="button" class="btn-top" id="btn-case-silver" onclick="switchBoxCase('silver')" style="padding:8px 16px;border-radius:10px;font-weight:800">🥈 Silver Case ($0.50)</button>
+            <button type="button" class="btn-top" id="btn-case-golden" onclick="switchBoxCase('golden')" style="padding:8px 16px;border-radius:10px;font-weight:800">🥇 Golden Case ($1.00)</button>
+            <button type="button" class="btn-top" id="btn-case-diamond" onclick="switchBoxCase('diamond')" style="padding:8px 16px;border-radius:10px;font-weight:800">💎 Diamond Case ($2.50)</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <b style="font-size:12.5px;color:#334155">Case Price ($ USD):</b>
+            <input type="number" step="0.05" id="box-case-price" oninput="updateActiveCasePrice(this.value)" style="width:90px;padding:6px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-weight:800;color:#0284c7">
+          </div>
+        </div>
+
+        <!-- Case Items / Odds Table -->
+        <div style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:18px">
+          <div style="padding:10px 14px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center">
+            <b id="box-case-heading" style="font-size:14px;color:#0f172a">Bronze Case Prize Pool &amp; Probabilities</b>
+            <button type="button" class="btn-top" onclick="addBoxItemRow()" style="padding:5px 12px;font-size:12px">+ Add Prize Tier</button>
+          </div>
+          <table class="data-table" style="width:100%">
+            <thead>
+              <tr>
+                <th style="width:70px">Icon</th>
+                <th>Prize Label</th>
+                <th>Robux Win</th>
+                <th>Weight (Chances)</th>
+                <th>Drop Rate (%)</th>
+                <th style="width:80px">Action</th>
+              </tr>
+            </thead>
+            <tbody id="box-items-tbody">
+              <!-- Populated via JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Simulation Box (Hidden by default) -->
+        <div id="box-sim-box" style="display:none;background:#f0fdf4;border:1.5px solid #86efac;border-radius:14px;padding:16px;margin-bottom:18px;font-size:13px;color:#166534">
+          <!-- Populated via JS -->
+        </div>
+
+        <!-- Recent Unboxings Feed & Reset Stats -->
+        <div style="margin-top:24px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+            <div>
+              <h4 style="margin:0;font-size:15px;font-weight:800;color:#0f172a">Recent Customer Unboxings (Live Feed)</h4>
+              <span style="font-size:12px;color:#64748b">Real-time record of all Mystery Box tickets opened by players</span>
+            </div>
+            <button type="button" class="btn-top" onclick="resetBoxStats()" style="color:#dc2626;border-color:#fecaca">Reset Box Stats</button>
+          </div>
+          <div style="overflow-x:auto;max-height:360px">
+            <table class="data-table" style="width:100%">
+              <thead>
+                <tr>
+                  <th>Ticket / Order ID</th>
+                  <th>Player Username</th>
+                  <th>Case Tier</th>
+                  <th>Result Prize</th>
+                  <th>Ticket Paid</th>
+                  <th>Payment</th>
+                  <th>Claim Status</th>
+                  <th>Played At</th>
+                </tr>
+              </thead>
+              <tbody id="box-history-tbody">
                 <!-- Populated via JS -->
               </tbody>
             </table>
@@ -3966,6 +4131,8 @@ function switchTab(tabId, updateUrl = true) {
     loadAdminSpinData();
   } else if (tabId === 'scratch' && typeof loadAdminScratchData === 'function') {
     loadAdminScratchData();
+  } else if (tabId === 'box' && typeof loadAdminBoxData === 'function') {
+    loadAdminBoxData();
   }
 }
 
@@ -3980,7 +4147,7 @@ function restoreActiveTab() {
     } catch (e) {}
   }
 
-  const validTabs = ['plans', 'roblox', 'tiktok', 'spin', 'scratch', 'inventory', 'blacklist', 'orders', 'overview', 'banners', 'settings', 'security', 'promos', 'users', 'flashsale'];
+  const validTabs = ['plans', 'roblox', 'tiktok', 'spin', 'scratch', 'box', 'inventory', 'blacklist', 'orders', 'overview', 'banners', 'settings', 'security', 'promos', 'users', 'flashsale'];
   if (tab && validTabs.includes(tab)) {
     switchTab(tab, false);
   }
@@ -7265,6 +7432,235 @@ async function resetScratchStats() {
   try {
     const res = await fetch('/api/admin/scratch/reset-stats', { method: 'POST' });
     if (res.ok) { toast('Scratch stats reset!'); loadAdminScratchData(); }
+
+
+let adminBoxData = null;
+let activeAdminCaseId = 'bronze';
+
+async function loadAdminBoxData() {
+  try {
+    const res = await fetch('/api/admin/box?_t=' + Date.now());
+    const j = await res.json();
+    if (!res.ok || !j.ok) return;
+
+    adminBoxData = j.box_data;
+    const totalOpened = Number(adminBoxData.total_boxes_opened || 0);
+    const totalRev = Number(adminBoxData.total_revenue_usd || 0);
+    const totalRobux = Number(adminBoxData.total_robux_awarded || 0);
+    const cost1k = Number(adminBoxData.cost_per_1k_robux_usd || 4.0);
+    const estCost = (totalRobux / 1000) * cost1k;
+    const netProfit = totalRev - estCost;
+    const margin = totalRev > 0 ? (((totalRev - estCost) / totalRev) * 100).toFixed(1) : '0.0';
+
+    const kpiTot = document.getElementById('box-kpi-total');
+    if (kpiTot) kpiTot.textContent = totalOpened;
+    const kpiRev = document.getElementById('box-kpi-rev');
+    if (kpiRev) kpiRev.textContent = '$' + totalRev.toFixed(2);
+    const kpiRbx = document.getElementById('box-kpi-robux');
+    if (kpiRbx) kpiRbx.textContent = totalRobux.toLocaleString() + ' R$';
+    const kpiMar = document.getElementById('box-kpi-margin');
+    if (kpiMar) kpiMar.textContent = margin + '%';
+    const kpiProf = document.getElementById('box-kpi-profit');
+    if (kpiProf) kpiProf.textContent = 'Net profit: $' + netProfit.toFixed(2);
+
+    const setEn = document.getElementById('box-set-enabled');
+    if (setEn) setEn.checked = adminBoxData.enabled !== false;
+    const setTg = document.getElementById('box-set-telegram');
+    if (setTg) setTg.checked = adminBoxData.telegram_alert_enabled !== false;
+    const setCost = document.getElementById('box-set-cost1k');
+    if (setCost) setCost.value = adminBoxData.cost_per_1k_robux_usd ?? 4.00;
+
+    switchBoxCase(activeAdminCaseId);
+
+    const hBody = document.getElementById('box-history-tbody');
+    if (hBody) {
+      const hist = adminBoxData.history || [];
+      if (hist.length === 0) {
+        hBody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:20px">No customer unboxings recorded yet.</td></tr>';
+      } else {
+        hBody.innerHTML = hist.slice(0, 50).map(h => {
+          const isThank = Number(h.robux || 0) === 0;
+          const resBadge = isThank
+            ? '<span style="background:#f1f5f9;color:#475569;padding:3px 9px;border-radius:8px;font-weight:700">Thank You (0 R$)</span>'
+            : `<span style="background:#dcfce7;color:#15803d;padding:3px 9px;border-radius:8px;font-weight:800">+${Number(h.robux).toLocaleString()} Robux</span>`;
+          const claimBadge = isThank
+            ? '<span style="color:#94a3b8">—</span>'
+            : (h.delivered
+                ? '<span style="color:#10b981;font-weight:700">✓ Delivered</span>'
+                : '<span style="color:#f59e0b;font-weight:700">⏳ Pending Claim</span>');
+          const dt = h.created_at ? new Date(h.created_at).toLocaleString() : 'Just now';
+          const cName = h.case_name || (h.case_id ? h.case_id.toUpperCase() : 'Mystery Case');
+          return `
+            <tr>
+              <td><code style="font-weight:700">${h.order_id || h.box_id || 'BOX'}</code></td>
+              <td><b>${escHtml(h.username || 'Lucky Player')}</b></td>
+              <td><span style="font-weight:800;color:#0284c7">${escHtml(cName)}</span></td>
+              <td>${resBadge}</td>
+              <td>$${Number(h.price || 0.20).toFixed(2)}</td>
+              <td><span style="text-transform:uppercase;font-size:11px;font-weight:700">${h.payment_method || 'Wallet'}</span></td>
+              <td>${claimBadge}</td>
+              <td style="font-size:12px;color:#64748b">${dt}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+  } catch (e) {
+    console.error('loadAdminBoxData error:', e);
+  }
+}
+
+function switchBoxCase(caseId) {
+  activeAdminCaseId = caseId;
+  const cases = ['bronze', 'silver', 'golden', 'diamond'];
+  cases.forEach(cid => {
+    const btn = document.getElementById('btn-case-' + cid);
+    if (btn) {
+      if (cid === caseId) {
+        btn.style.background = '#0284c7';
+        btn.style.color = '#fff';
+      } else {
+        btn.style.background = '#fff';
+        btn.style.color = '#334155';
+      }
+    }
+  });
+
+  if (!adminBoxData || !adminBoxData.cases) return;
+  const cinfo = adminBoxData.cases[caseId] || {};
+  const heading = document.getElementById('box-case-heading');
+  if (heading) heading.textContent = (cinfo.name || caseId.toUpperCase()) + ' Prize Pool & Probabilities';
+  const priceInput = document.getElementById('box-case-price');
+  if (priceInput) priceInput.value = Number(cinfo.price_usd || 0.20).toFixed(2);
+  renderAdminBoxItems();
+}
+
+function updateActiveCasePrice(val) {
+  if (!adminBoxData || !adminBoxData.cases || !adminBoxData.cases[activeAdminCaseId]) return;
+  adminBoxData.cases[activeAdminCaseId].price_usd = parseFloat(val) || 0.20;
+}
+
+function renderAdminBoxItems() {
+  if (!adminBoxData || !adminBoxData.cases || !adminBoxData.cases[activeAdminCaseId]) return;
+  const items = adminBoxData.cases[activeAdminCaseId].items || [];
+  const tbody = document.getElementById('box-items-tbody');
+  if (!tbody) return;
+  const totalW = items.reduce((s, x) => s + Math.max(0, parseFloat(x.weight || 0)), 0) || 1;
+
+  tbody.innerHTML = items.map((it, idx) => {
+    const w = Math.max(0, parseFloat(it.weight || 0));
+    const pct = ((w / totalW) * 100).toFixed(1);
+    const isWin = Number(it.robux || 0) > 0;
+    const imgUrl = isWin ? '/media/robux-gold-coin.png' : '/media/rolea-logo.webp';
+    return `
+      <tr>
+        <td>
+          <img src="${imgUrl}" alt="${it.label}" style="width:30px;height:30px;object-fit:contain;border-radius:6px">
+        </td>
+        <td>
+          <input type="text" value="${escHtml(it.label || '')}" onchange="updateBoxItem(${idx}, 'label', this.value)" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;font-weight:700">
+        </td>
+        <td>
+          <input type="number" value="${Number(it.robux || 0)}" onchange="updateBoxItem(${idx}, 'robux', Number(this.value))" style="width:90px;padding:6px;border:1px solid #cbd5e1;border-radius:6px;font-weight:700">
+        </td>
+        <td>
+          <input type="number" step="0.1" value="${w}" onchange="updateBoxItem(${idx}, 'weight', parseFloat(this.value))" style="width:90px;padding:6px;border:1px solid #cbd5e1;border-radius:6px;font-weight:700">
+        </td>
+        <td><b style="color:${isWin ? '#0284c7' : '#64748b'}">${pct}%</b></td>
+        <td>
+          <button type="button" class="btn-top" onclick="removeBoxItemRow(${idx})" style="color:#dc2626;padding:4px 8px;font-size:11px">Delete</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function updateBoxItem(idx, key, val) {
+  if (!adminBoxData || !adminBoxData.cases || !adminBoxData.cases[activeAdminCaseId]) return;
+  adminBoxData.cases[activeAdminCaseId].items[idx][key] = val;
+  renderAdminBoxItems();
+}
+
+function addBoxItemRow() {
+  if (!adminBoxData || !adminBoxData.cases || !adminBoxData.cases[activeAdminCaseId]) return;
+  adminBoxData.cases[activeAdminCaseId].items.push({
+    robux: 50,
+    label: '50 Robux',
+    weight: 5.0,
+    color: '#0ea5e9'
+  });
+  renderAdminBoxItems();
+}
+
+function removeBoxItemRow(idx) {
+  if (!adminBoxData || !adminBoxData.cases || !adminBoxData.cases[activeAdminCaseId]) return;
+  if (adminBoxData.cases[activeAdminCaseId].items.length <= 2) {
+    toast('Each case must have at least 2 prize tiers!');
+    return;
+  }
+  adminBoxData.cases[activeAdminCaseId].items.splice(idx, 1);
+  renderAdminBoxItems();
+}
+
+async function saveBoxConfig() {
+  if (!adminBoxData) return;
+  try {
+    const payload = {
+      enabled: document.getElementById('box-set-enabled').checked,
+      telegram_alert_enabled: document.getElementById('box-set-telegram').checked,
+      cost_per_1k_robux_usd: parseFloat(document.getElementById('box-set-cost1k').value) || 4.0,
+      cases: adminBoxData.cases
+    };
+    const res = await fetch('/api/admin/box/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      toast('Roblox Mystery Box configuration saved!');
+      loadAdminBoxData();
+    } else {
+      toast(j.error || 'Failed to save box settings');
+    }
+  } catch (e) {
+    toast('Error saving box settings');
+  }
+}
+
+async function runBoxSimulation() {
+  try {
+    toast(`Running 1,000-box simulation for ${activeAdminCaseId.toUpperCase()}...`);
+    const res = await fetch('/api/admin/box/test-roll', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ case_id: activeAdminCaseId })
+    });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      const box = document.getElementById('box-sim-box');
+      const bk = Object.entries(j.prize_counts || {}).map(([k, v]) => `<b>${k}</b>: ${v}×`).join(' &nbsp;|&nbsp; ');
+      box.style.display = 'block';
+      box.innerHTML = `
+        <b>1,000 ${j.case_name || activeAdminCaseId.toUpperCase()} Simulation Results:</b><br>
+        Revenue: <b>$${Number(j.revenue_usd).toFixed(2)}</b> · Robux Given: <b>${Number(j.robux_awarded).toLocaleString()} R$</b> (Cost: $${Number(j.estimated_cost_usd).toFixed(2)}) ·
+        <b style="color:#059669">Net Store Profit: $${Number(j.estimated_profit_usd).toFixed(2)} (${j.profit_margin_pct}%)</b><br>
+        <div style="margin-top:6px;font-size:12px">${bk}</div>
+      `;
+    }
+  } catch (e) {
+    toast('Simulation failed');
+  }
+}
+
+async function resetBoxStats() {
+  if (!(await adminDialog.confirm('Reset Mystery Box Stats?', 'Reset all Mystery Box stats and unboxing history?', 'danger', 'Reset Stats'))) return;
+  try {
+    const res = await fetch('/api/admin/box/reset-stats', { method: 'POST' });
+    if (res.ok) { toast('Mystery Box stats reset!'); loadAdminBoxData(); }
+  } catch (e) {}
+}
+
   } catch (e) {}
 }
 

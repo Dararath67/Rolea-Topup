@@ -2822,6 +2822,104 @@ def _build_tg_admin_scratch(status_note: str = "") -> tuple[str, Dict[str, Any]]
     }
     return text, markup
 
+def _build_tg_admin_box(status_note: str = "") -> tuple[str, Dict[str, Any]]:
+    global box_data
+    en = bool(box_data.get("enabled", True))
+    st_en = "🟢 បើកដំណើរការ (ON)" if en else "⛔ បិទដំណើរការ (OFF)"
+    tot_boxes = int(box_data.get("total_boxes_opened", 0))
+    tot_rev = float(box_data.get("total_revenue_usd", 0.0))
+    tot_rbx = int(box_data.get("total_robux_awarded", 0))
+    cases = box_data.get("cases", {})
+
+    cases_summary = []
+    for cid in ("bronze", "silver", "golden", "diamond"):
+        cinfo = cases.get(cid, {})
+        cname = cinfo.get("name", cid.title())
+        cprice = float(cinfo.get("price_usd", 0.20))
+        items = cinfo.get("items", [])
+        top_prize = max([int(x.get("robux", 0)) for x in items] or [0])
+        cases_summary.append(f"• <b>{cname}</b>: <code>${cprice:.2f} USD</code> (រហូតដល់ {top_prize:,} R$)")
+
+    cases_str = "\n".join(cases_summary)
+
+    text = (
+        f"📦 <b>[ផ្ទាំងគ្រប់គ្រង ROBLOX MYSTERY BOX]</b>\n\n"
+        + (f"🔔 {status_note}\n\n" if status_note else "")
+        + f"• <b>ស្ថានភាពប្រព័ន្ធ៖</b> {st_en}\n"
+        f"• <b>បើកប្រអប់សរុប៖</b> {tot_boxes} ដង | <b>ចំណូល៖</b> ${tot_rev:.2f} USD\n"
+        f"• <b>Robux ចេញសរុប៖</b> {tot_rbx:,} R$\n\n"
+        f"🎁 <b>កម្រិតប្រអប់សំណាងទាំង ៤ (Case Tiers)៖</b>\n"
+        f"{cases_str}\n\n"
+        f"👇 <i>សូមជ្រើសរើសប៊ូតុងខាងក្រោមដើម្បីគ្រប់គ្រង (មិនបាច់វាយអក្សរ)៖</i>"
+    )
+
+    markup = {
+        "inline_keyboard": [
+            [
+                {"text": "⛔ បិទ Mystery Box" if en else "🟢 បើក Mystery Box", "callback_data": "adm:box_tog"},
+                {"text": "📊 Simulate 1,000 Boxes", "callback_data": "adm:box_sim:bronze"}
+            ],
+            [
+                {"text": "🥉 Bronze $0.20", "callback_data": "adm:box_view:bronze"},
+                {"text": "🥈 Silver $0.50", "callback_data": "adm:box_view:silver"}
+            ],
+            [
+                {"text": "🥇 Golden $1.00", "callback_data": "adm:box_view:golden"},
+                {"text": "💎 Diamond $2.50", "callback_data": "adm:box_view:diamond"}
+            ],
+            [
+                {"text": "🔄 Reset ស្ថិតិប្រអប់", "callback_data": "adm:box_reset_stats"},
+                {"text": "🏠 ម៉ឺនុយដើម (Admin Home)", "callback_data": "adm:home"}
+            ]
+        ]
+    }
+    return text, markup
+
+def _build_tg_admin_box_case(case_id: str, status_note: str = "") -> tuple[str, Dict[str, Any]]:
+    global box_data
+    cases = box_data.get("cases", {})
+    if case_id not in cases:
+        case_id = "bronze"
+    cinfo = cases.get(case_id, {})
+    cname = cinfo.get("name", case_id.title())
+    cprice = float(cinfo.get("price_usd", 0.20))
+    items = cinfo.get("items", [])
+    total_w = sum(max(0.0, float(x.get("weight", 0))) for x in items) or 1.0
+
+    lines = []
+    for it in items:
+        w = max(0.0, float(it.get("weight", 0)))
+        pct = (w / total_w) * 100
+        lbl = it.get("label", "Prize")
+        rob = int(it.get("robux", 0))
+        icon = "❌" if rob == 0 else ("🏆" if rob >= 1000 else "🎁")
+        lines.append(f"{icon} <b>{lbl}</b>: <code>{w:g}</code> ({pct:.1f}%)")
+
+    items_str = "\n".join(lines)
+
+    text = (
+        f"📦 <b>[កំណត់រង្វាន់ {cname.upper()}]</b>\n\n"
+        + (f"🔔 {status_note}\n\n" if status_note else "")
+        + f"• <b>តម្លៃបើកប្រអប់៖</b> <code>${cprice:.2f} USD</code>\n"
+        f"• <b>ចំនួនរង្វាន់សរុប៖</b> {len(items)} កម្រិត\n\n"
+        f"📊 <b>ឱកាសឈ្នះរង្វាន់ (Chances & Weights)៖</b>\n"
+        f"{items_str}\n\n"
+        f"👇 <i>សូមជ្រើសរើស៖</i>"
+    )
+
+    markup = {
+        "inline_keyboard": [
+            [
+                {"text": "📊 Simulate 1,000 Boxes", "callback_data": f"adm:box_sim:{case_id}"}
+            ],
+            [
+                {"text": "⬅️ ត្រឡប់ទៅ Mystery Box", "callback_data": "adm:box"},
+                {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}
+            ]
+        ]
+    }
+    return text, markup
+
 def _build_tg_admin_home() -> tuple[str, Dict[str, Any]]:
     pending_cnt = sum(
         1 for o in orders 
@@ -2839,6 +2937,7 @@ def _build_tg_admin_home() -> tuple[str, Dict[str, Any]]:
     maint_str = "🛠️ កំពុងជួសជុល (MAINTENANCE)" if settings.get("maintenance_mode") else "🟢 កំពុងដំណើរការ (ONLINE)"
     spin_str = "🟢 បើក (ON)" if spin_data.get("enabled", True) else "⛔ បិទ (OFF)"
     scratch_str = "🟢 បើក (ON)" if scratch_data.get("enabled", True) else "⛔ បិទ (OFF)"
+    box_str = "🟢 បើក (ON)" if box_data.get("enabled", True) else "⛔ បិទ (OFF)"
     fs_active = is_flash_sale_active()
     fs_rem = get_flash_sale_remaining_seconds()
     fs_h = fs_rem // 3600
@@ -2847,7 +2946,7 @@ def _build_tg_admin_home() -> tuple[str, Dict[str, Any]]:
     text = (
         f"🛡️ <b>{store_name} — ផ្ទាំងគ្រប់គ្រង Admin (Telegram Panel)</b>\n\n"
         f"🌐 <b>ស្ថានភាពហាង៖</b> {maint_str}\n"
-        f"🎡 <b>Spin៖</b> {spin_str}  |  🎫 <b>Scratch៖</b> {scratch_str}\n"
+        f"🎡 <b>Spin៖</b> {spin_str}  |  🎫 <b>Scratch៖</b> {scratch_str}  |  📦 <b>Box៖</b> {box_str}\n"
         f"⚡ <b>ស្ថានភាព Flash Sale៖</b> {fs_str}\n"
         f"👥 <b>អតិថិជនសរុប៖</b> {total_users} នាក់  |  💳 <b>លុយក្នុង Wallet៖</b> ${total_wallet:.2f}\n"
         f"📦 <b>Order កំពុងរង់ចាំ៖</b> {pending_cnt} កុម្ម៉ង់\n\n"
@@ -2874,6 +2973,9 @@ def _build_tg_admin_home() -> tuple[str, Dict[str, Any]]:
             ],
             [
                 {"text": "🎫 គ្រប់គ្រង Scratch Card", "callback_data": "adm:scratch"},
+                {"text": "📦 គ្រប់គ្រង Mystery Box", "callback_data": "adm:box"}
+            ],
+            [
                 {"text": f"⚡ Flash Sale ({'ON' if fs_active else 'OFF'})", "callback_data": "adm:fsale"}
             ],
             [
@@ -3469,6 +3571,46 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
             await answer_callback_query(token, query_id, "")
 
         text, markup = _build_tg_admin_scratch(status_note)
+        if msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, text, markup)
+
+    elif sub.startswith("box"):
+        if sub == "box_tog":
+            box_data["enabled"] = not box_data.get("enabled", True)
+            save_box_data()
+            st = "បើកដំណើរការ (ON)" if box_data["enabled"] else "បិទដំណើរការ (OFF)"
+            status_note = f"✅ Mystery Box ត្រូវបាន {st}!"
+            await answer_callback_query(token, query_id, f"Mystery Box: {st}")
+        elif sub == "box_reset_stats":
+            box_data["total_boxes_opened"] = 0
+            box_data["total_revenue_usd"] = 0.0
+            box_data["total_robux_awarded"] = 0
+            box_data["history"] = []
+            save_box_data()
+            status_note = "🔄 បាន Reset ស្ថិតិ Mystery Box ទាំងអស់ទៅ 0 រួចរាល់!"
+            await answer_callback_query(token, query_id, "Stats Reset Done!")
+        elif sub.startswith("box_sim") and len(parts) >= 3:
+            cid = parts[2]
+            cinfo = box_data.get("cases", {}).get(cid, {})
+            price = float(cinfo.get("price_usd", 0.20))
+            cost_r = float(box_data.get("cost_per_1k_robux_usd", 4.0)) / 1000.0
+            tot_r = sum(int(roll_mystery_box(cid).get("robux", 0)) for _ in range(1000))
+            sim_rev = 1000 * price
+            sim_cost = tot_r * cost_r
+            prof = sim_rev - sim_cost
+            status_note = f"📊 1,000 {cinfo.get('name', cid)}: ចំណូល ${sim_rev:.2f} | Robux: {tot_r:,} R$ (${sim_cost:.2f}) | ចំណេញសុទ្ធ: ${prof:.2f}"
+            await answer_callback_query(token, query_id, f"Profit: ${prof:.2f}")
+        elif sub.startswith("box_view") and len(parts) >= 3:
+            cid = parts[2]
+            await answer_callback_query(token, query_id, "")
+            c_text, c_markup = _build_tg_admin_box_case(cid)
+            if msg_id:
+                await edit_telegram_message(token, chat_id, msg_id, c_text, c_markup)
+            return
+        else:
+            await answer_callback_query(token, query_id, "")
+
+        text, markup = _build_tg_admin_box(status_note)
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, text, markup)
 
@@ -4181,6 +4323,48 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                 else:
                     sc_txt, sc_markup = _build_tg_admin_scratch()
                     asyncio.create_task(send_telegram_direct_message(token, chat_id, sc_txt, sc_markup))
+        elif text == "/box" or text.startswith("/box ") or text.startswith("/box@") or text == "/mysterybox" or text.startswith("/mysterybox "):
+            if not is_telegram_admin(from_id, from_uname, chat_id):
+                asyncio.create_task(record_unauthorized_bot_attempt(from_id, from_uname, chat_id, text))
+                asyncio.create_task(send_telegram_direct_message(token, chat_id, "Access Denied: Admin authentication required."))
+            else:
+                arg = text.split(" ", 1)[1].strip().lower() if " " in text else ""
+                if arg == "on":
+                    box_data["enabled"] = True
+                    save_box_data()
+                    bx_txt, bx_markup = _build_tg_admin_box("✅ Mystery Box ត្រូវបានបើកដំណើរការ (ON)!")
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, bx_txt, bx_markup))
+                elif arg == "off":
+                    box_data["enabled"] = False
+                    save_box_data()
+                    bx_txt, bx_markup = _build_tg_admin_box("⛔ Mystery Box ត្រូវបានបិទដំណើរការ (OFF)!")
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, bx_txt, bx_markup))
+                elif arg.startswith("price "):
+                    p_parts = arg.split()
+                    if len(p_parts) >= 3 and p_parts[1] in box_data.get("cases", {}):
+                        try:
+                            cid = p_parts[1]
+                            pval = round(float(p_parts[2].replace("$", "")), 2)
+                            box_data["cases"][cid]["price_usd"] = pval
+                            save_box_data()
+                            bx_txt, bx_markup = _build_tg_admin_box(f"✅ បានប្តូរតម្លៃ {cid.title()} Case ទៅ៖ ${pval:.2f} USD")
+                            asyncio.create_task(send_telegram_direct_message(token, chat_id, bx_txt, bx_markup))
+                        except Exception:
+                            asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ ទម្រង់មិនត្រឹមត្រូវ ឧទាហរណ៍៖ <code>/box price bronze 0.25</code>"))
+                    else:
+                        asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ ឧទាហរណ៍៖ <code>/box price bronze 0.25</code> ឬ <code>/box price diamond 3.00</code>"))
+                elif arg == "reset":
+                    box_data["total_boxes_opened"] = 0
+                    box_data["total_revenue_usd"] = 0.0
+                    box_data["total_robux_awarded"] = 0
+                    box_data["history"] = []
+                    save_box_data()
+                    bx_txt, bx_markup = _build_tg_admin_box("🔄 បាន Reset ស្ថិតិ Mystery Box ទាំងអស់ទៅ 0 រួចរាល់!")
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, bx_txt, bx_markup))
+                else:
+                    bx_txt, bx_markup = _build_tg_admin_box()
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, bx_txt, bx_markup))
+
         elif text in ("/testbug", "/test_bug", "/bugtest") or text.startswith("/testbug"):
             if not is_telegram_admin(from_id, from_uname, chat_id):
                 asyncio.create_task(record_unauthorized_bot_attempt(from_id, from_uname, chat_id, text))
@@ -7293,17 +7477,52 @@ async def admin_save_box(request: Request):
     box_data["enabled"] = bool(body.get("enabled", True))
     box_data["title"] = str(body.get("title") or "Roblox Mystery Box").strip()
     box_data["subtitle"] = str(body.get("subtitle") or "").strip()
-    if "daily_free_enabled" in body:
-        box_data["daily_free_enabled"] = bool(body["daily_free_enabled"])
-    if "daily_free_cooldown_hours" in body:
-        box_data["daily_free_cooldown_hours"] = int(body["daily_free_cooldown_hours"])
-    if "daily_free_max_robux" in body:
-        box_data["daily_free_max_robux"] = int(body["daily_free_max_robux"])
+    if "cost_per_1k_robux_usd" in body:
+        box_data["cost_per_1k_robux_usd"] = round(float(body["cost_per_1k_robux_usd"]), 2)
+    if "telegram_alert_enabled" in body:
+        box_data["telegram_alert_enabled"] = bool(body["telegram_alert_enabled"])
     if "cases" in body and isinstance(body["cases"], dict):
         box_data["cases"] = body["cases"]
 
     save_box_data()
     return {"ok": True, "box_data": box_data}
+
+@app.post("/api/admin/box/test-roll")
+async def admin_test_box_roll(request: Request):
+    """Runs a 1,000-box simulation for a given case tier."""
+    body = await request.json() if (await request.body()) else {}
+    target_case_id = str(body.get("case_id") or "bronze").lower().strip()
+    cases = box_data.get("cases", {})
+    if target_case_id not in cases:
+        target_case_id = "bronze"
+    case_info = cases.get(target_case_id, {})
+    price = float(case_info.get("price_usd", 0.20))
+    cost_per_r = float(box_data.get("cost_per_1k_robux_usd", 4.0)) / 1000.0
+
+    counts: Dict[str, int] = {}
+    total_robux = 0
+    for _ in range(1000):
+        res_item = roll_mystery_box(target_case_id)
+        lbl = res_item.get("label", "Thank You")
+        counts[lbl] = counts.get(lbl, 0) + 1
+        total_robux += int(res_item.get("robux", 0))
+
+    sim_rev = round(price * 1000, 2)
+    sim_cost = round(total_robux * cost_per_r, 2)
+    sim_prof = round(sim_rev - sim_cost, 2)
+
+    return {
+        "ok": True,
+        "case_id": target_case_id,
+        "case_name": case_info.get("name", target_case_id),
+        "cards_simulated": 1000,
+        "revenue_usd": sim_rev,
+        "robux_awarded": total_robux,
+        "estimated_cost_usd": sim_cost,
+        "estimated_profit_usd": sim_prof,
+        "profit_margin_pct": round((sim_prof / sim_rev * 100), 1) if sim_rev > 0 else 0,
+        "prize_counts": counts
+    }
 
 @app.post("/api/admin/box/reset-stats")
 async def admin_reset_box_stats():
