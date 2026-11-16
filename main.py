@@ -2586,14 +2586,19 @@ def _build_tg_admin_scratch(status_note: str = "") -> tuple[str, Dict[str, Any]]
                 {"text": "💲 $1.00", "callback_data": "adm:sc_p:1.00"}
             ],
             [
-                {"text": "🔒 ដាក់ Thank You 85% (តឹង/ចំណេញ)", "callback_data": "adm:sc_pre:hard"},
+                {"text": "✏️ ដាក់តម្លៃតាមចិត្ត (Custom)", "callback_data": "adm:sc_p_custom"},
+                {"text": f"🎁 Max Free: {free_max} R$", "callback_data": "adm:sc_fmax_menu"}
+            ],
+            [
+                {"text": "🔒 ដាក់ 85% Thank You (តឹង)", "callback_data": "adm:sc_pre:hard"},
                 {"text": "⚖️ 70% (មធ្យម)", "callback_data": "adm:sc_pre:mid"}
             ],
             [
-                {"text": "🎉 ដាក់ Thank You 50% (ងាយឈ្នះ)", "callback_data": "adm:sc_pre:easy"},
+                {"text": "🎉 ដាក់ 50% (ងាយឈ្នះ)", "callback_data": "adm:sc_pre:easy"},
                 {"text": "📊 ស្ថិតិ & អ្នកឈ្នះថ្មីៗ", "callback_data": "adm:sc_winners"}
             ],
             [
+                {"text": "🔄 Reset ស្ថិតិសរុប", "callback_data": "adm:sc_reset_stats"},
                 {"text": "🏠 ម៉ឺនុយដើម (Admin Home)", "callback_data": "adm:home"}
             ]
         ]
@@ -3100,7 +3105,7 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, text, markup)
 
-    elif sub in ("scratch", "sc_tog", "sc_free_tog", "sc_p", "sc_pre", "sc_winners"):
+    elif sub in ("scratch", "sc_tog", "sc_free_tog", "sc_p", "sc_p_custom", "sc_fmax_menu", "sc_fmax", "sc_reset_stats", "sc_pre", "sc_winners"):
         status_note = ""
         if sub == "sc_tog":
             scratch_data["enabled"] = not scratch_data.get("enabled", True)
@@ -3123,6 +3128,70 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
                 await answer_callback_query(token, query_id, f"Price: ${np:.2f}")
             except Exception:
                 await answer_callback_query(token, query_id, "Invalid price")
+        elif sub == "sc_p_custom":
+            await answer_callback_query(token, query_id, "")
+            _tg_admin_state[chat_id] = {"mode": "scratch_price"}
+            c_price = float(scratch_data.get("card_price_usd", 0.25))
+            c_txt = (
+                "✏️ <b>កំណត់តម្លៃកាតកោស Scratch Card តាមចិត្ត៖</b>\n\n"
+                f"• តម្លៃបច្ចុប្បន្ន៖ <code>${c_price:.2f} USD</code>\n\n"
+                "👉 សូម Reply ឬវាយបញ្ចូលតម្លៃថ្មីគិតជា USD (ឧទាហរណ៍៖ <code>0.35</code> ឬ <code>1.50</code>)៖"
+            )
+            c_markup = {"inline_keyboard": [
+                [{"text": "⬅️ ត្រឡប់ទៅ Scratch", "callback_data": "adm:scratch"}],
+                [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]
+            ]}
+            if msg_id:
+                await edit_telegram_message(token, chat_id, msg_id, c_txt, c_markup)
+            return
+        elif sub == "sc_fmax_menu":
+            await answer_callback_query(token, query_id, "")
+            cur_max = int(scratch_data.get("daily_free_scratch_max_robux", 10))
+            fmax_text = (
+                "🎁 <b>កំណត់រង្វាន់ Robux អតិបរមាសម្រាប់កាត Free ប្រចាំថ្ងៃ៖</b>\n\n"
+                f"• បច្ចុប្បន្ន៖ <b>{cur_max} R$</b>\n\n"
+                "<i>(នៅពេលកោសកាត Free ប្រចាំថ្ងៃ អ្នកលេងអាចឈ្នះច្រើនបំផុតត្រឹមចំនួននេះ មិនអាចត្រូវរង្វាន់ធំលើសនេះឡើយ)</i>\n\n"
+                "សូមចុចជ្រើសរើសចំនួន Robux អតិបរមា៖"
+            )
+            fmax_markup = {"inline_keyboard": [
+                [
+                    {"text": f"{'✅ ' if cur_max == 0 else ''}0 R$ (Thanks Only)", "callback_data": "adm:sc_fmax:0"},
+                    {"text": f"{'✅ ' if cur_max == 10 else ''}10 R$", "callback_data": "adm:sc_fmax:10"}
+                ],
+                [
+                    {"text": f"{'✅ ' if cur_max == 25 else ''}25 R$", "callback_data": "adm:sc_fmax:25"},
+                    {"text": f"{'✅ ' if cur_max == 50 else ''}50 R$", "callback_data": "adm:sc_fmax:50"}
+                ],
+                [
+                    {"text": f"{'✅ ' if cur_max == 100 else ''}100 R$", "callback_data": "adm:sc_fmax:100"},
+                    {"text": f"{'✅ ' if cur_max == 500 else ''}500 R$ (No Limit)", "callback_data": "adm:sc_fmax:500"}
+                ],
+                [{"text": "⬅️ ត្រឡប់ទៅ Scratch", "callback_data": "adm:scratch"}]
+            ]}
+            if msg_id:
+                await edit_telegram_message(token, chat_id, msg_id, fmax_text, fmax_markup)
+            return
+        elif sub == "sc_fmax" and len(parts) >= 3:
+            try:
+                new_max = int(parts[2])
+                scratch_data["daily_free_scratch_max_robux"] = new_max
+                save_scratch_data()
+                status_note = f"✅ បានកំណត់ Free Max Robux ទៅ៖ {new_max} R$"
+                await answer_callback_query(token, query_id, f"Max Free: {new_max} R$")
+            except Exception:
+                await answer_callback_query(token, query_id, "Error")
+        elif sub == "sc_reset_stats":
+            scratch_data["total_cards_scratched"] = 0
+            scratch_data["total_revenue_usd"] = 0.0
+            scratch_data["total_robux_awarded"] = 0
+            scratch_data["total_scratched"] = 0
+            scratch_data["total_free_scratched"] = 0
+            scratch_data["total_paid_scratched"] = 0
+            scratch_data["total_robux_won"] = 0
+            scratch_data["total_usd_spent"] = 0.0
+            save_scratch_data()
+            status_note = "🔄 បាន Reset ស្ថិតិ Scratch Card សរុបទៅ 0 រួចរាល់!"
+            await answer_callback_query(token, query_id, "Stats Reset Done!")
         elif sub == "sc_pre" and len(parts) >= 3:
             pre = parts[2]
             prizes = scratch_data.get("prizes", [])
@@ -3751,19 +3820,98 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                 if arg == "on":
                     scratch_data["enabled"] = True
                     save_scratch_data()
-                    asyncio.create_task(send_telegram_direct_message(token, chat_id, "✅ <b>Golden Scratch Card ត្រូវបានបើកដំណើរការ (ON)!</b>"))
+                    sc_txt, sc_markup = _build_tg_admin_scratch("✅ Golden Scratch Card ត្រូវបានបើកដំណើរការ (ON)!")
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, sc_txt, sc_markup))
                 elif arg == "off":
                     scratch_data["enabled"] = False
                     save_scratch_data()
-                    asyncio.create_task(send_telegram_direct_message(token, chat_id, "⛔ <b>Golden Scratch Card ត្រូវបានបិទដំណើរការ (OFF)!</b>"))
+                    sc_txt, sc_markup = _build_tg_admin_scratch("⛔ Golden Scratch Card ត្រូវបានបិទដំណើរការ (OFF)!")
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, sc_txt, sc_markup))
+                elif arg == "free on":
+                    scratch_data["daily_free_scratch_enabled"] = True
+                    save_scratch_data()
+                    sc_txt, sc_markup = _build_tg_admin_scratch("✅ កាត Free ប្រចាំថ្ងៃត្រូវបានបើក (ON)!")
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, sc_txt, sc_markup))
+                elif arg == "free off":
+                    scratch_data["daily_free_scratch_enabled"] = False
+                    save_scratch_data()
+                    sc_txt, sc_markup = _build_tg_admin_scratch("⛔ កាត Free ប្រចាំថ្ងៃត្រូវបានបិទ (OFF)!")
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, sc_txt, sc_markup))
                 elif arg.startswith("price "):
                     try:
-                        p_val = round(float(arg[6:].strip()), 2)
+                        p_val = round(float(arg[6:].strip().replace("$", "")), 2)
+                        if p_val <= 0: raise ValueError()
                         scratch_data["card_price_usd"] = p_val
                         save_scratch_data()
-                        asyncio.create_task(send_telegram_direct_message(token, chat_id, f"✅ <b>តម្លៃសំបុត្រ Scratch Card ត្រូវបានប្តូរទៅ៖ ${p_val:.2f} USD</b>"))
+                        sc_txt, sc_markup = _build_tg_admin_scratch(f"✅ បានប្តូរតម្លៃសំបុត្រទៅ៖ ${p_val:.2f} USD")
+                        asyncio.create_task(send_telegram_direct_message(token, chat_id, sc_txt, sc_markup))
                     except Exception:
                         asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ ទម្រង់តម្លៃមិនត្រឹមត្រូវ ឧទាហរណ៍៖ <code>/scratch price 0.25</code>"))
+                elif arg.startswith("max "):
+                    try:
+                        m_val = int(arg[4:].strip())
+                        scratch_data["daily_free_scratch_max_robux"] = m_val
+                        save_scratch_data()
+                        sc_txt, sc_markup = _build_tg_admin_scratch(f"✅ បានកំណត់ Daily Free Max Robux ទៅ៖ {m_val} R$")
+                        asyncio.create_task(send_telegram_direct_message(token, chat_id, sc_txt, sc_markup))
+                    except Exception:
+                        asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ ទម្រង់មិនត្រឹមត្រូវ ឧទាហរណ៍៖ <code>/scratch max 25</code>"))
+                elif arg.startswith("cooldown "):
+                    try:
+                        cd_val = int(arg[9:].strip())
+                        scratch_data["daily_free_scratch_cooldown_hours"] = cd_val
+                        save_scratch_data()
+                        sc_txt, sc_markup = _build_tg_admin_scratch(f"✅ បានកំណត់ Daily Free Cooldown ទៅ៖ {cd_val} ម៉ោង")
+                        asyncio.create_task(send_telegram_direct_message(token, chat_id, sc_txt, sc_markup))
+                    except Exception:
+                        asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ ទម្រង់មិនត្រឹមត្រូវ ឧទាហរណ៍៖ <code>/scratch cooldown 24</code>"))
+                elif arg.startswith("preset "):
+                    p_type = arg[7:].strip()
+                    prizes = scratch_data.get("prizes", [])
+                    if p_type == "hard":
+                        for p in prizes:
+                            r = int(p.get("robux", 0))
+                            if r == 0: p["weight"] = 85.0
+                            elif r <= 25: p["weight"] = 8.0
+                            elif r <= 100: p["weight"] = 5.0
+                            else: p["weight"] = 0.5
+                        save_scratch_data()
+                        sc_txt, sc_markup = _build_tg_admin_scratch("🔒 បានកំណត់ Preset: 85% Thank You (House Safe/ចំណេញខ្ពស់)")
+                        asyncio.create_task(send_telegram_direct_message(token, chat_id, sc_txt, sc_markup))
+                    elif p_type == "mid":
+                        for p in prizes:
+                            r = int(p.get("robux", 0))
+                            if r == 0: p["weight"] = 70.0
+                            elif r <= 25: p["weight"] = 18.0
+                            elif r <= 100: p["weight"] = 9.0
+                            else: p["weight"] = 1.0
+                        save_scratch_data()
+                        sc_txt, sc_markup = _build_tg_admin_scratch("⚖️ បានកំណត់ Preset: 70% Thank You (មធ្យម/Balanced)")
+                        asyncio.create_task(send_telegram_direct_message(token, chat_id, sc_txt, sc_markup))
+                    elif p_type == "easy":
+                        for p in prizes:
+                            r = int(p.get("robux", 0))
+                            if r == 0: p["weight"] = 50.0
+                            elif r <= 25: p["weight"] = 28.0
+                            elif r <= 100: p["weight"] = 16.0
+                            else: p["weight"] = 3.0
+                        save_scratch_data()
+                        sc_txt, sc_markup = _build_tg_admin_scratch("🎉 បានកំណត់ Preset: 50% Thank You (ងាយឈ្នះ/Promo Event)")
+                        asyncio.create_task(send_telegram_direct_message(token, chat_id, sc_txt, sc_markup))
+                    else:
+                        asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ Preset មិនត្រឹមត្រូវ។ ជ្រើសរើស៖ <code>/scratch preset hard</code>, <code>mid</code>, ឬ <code>easy</code>"))
+                elif arg == "reset":
+                    scratch_data["total_cards_scratched"] = 0
+                    scratch_data["total_revenue_usd"] = 0.0
+                    scratch_data["total_robux_awarded"] = 0
+                    scratch_data["total_scratched"] = 0
+                    scratch_data["total_free_scratched"] = 0
+                    scratch_data["total_paid_scratched"] = 0
+                    scratch_data["total_robux_won"] = 0
+                    scratch_data["total_usd_spent"] = 0.0
+                    save_scratch_data()
+                    sc_txt, sc_markup = _build_tg_admin_scratch("🔄 បាន Reset ស្ថិតិ Scratch Card សរុបទៅ 0 រួចរាល់!")
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, sc_txt, sc_markup))
                 else:
                     sc_txt, sc_markup = _build_tg_admin_scratch()
                     asyncio.create_task(send_telegram_direct_message(token, chat_id, sc_txt, sc_markup))
@@ -3839,6 +3987,21 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                     asyncio.create_task(send_telegram_direct_message(token, chat_id, st_txt, st_markup))
                 else:
                     asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ រកមិនឃើញរង្វាន់នេះទេ។", {"inline_keyboard": [[{"text": "⬅️ ត្រឡប់ក្រោយ", "callback_data": "adm:spin_slices"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
+            elif mode == "scratch_price":
+                try:
+                    p_val = round(float(text.replace("$", "").strip()), 2)
+                    if p_val <= 0 or not math.isfinite(p_val):
+                        raise ValueError()
+                    scratch_data["card_price_usd"] = p_val
+                    save_scratch_data()
+                    sc_txt, sc_markup = _build_tg_admin_scratch(f"✅ បានកំណត់តម្លៃសំបុត្រ Scratch Card ទៅ៖ ${p_val:.2f} USD")
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, sc_txt, sc_markup))
+                except Exception:
+                    asyncio.create_task(send_telegram_direct_message(
+                        token, chat_id,
+                        "❌ តម្លៃមិនត្រឹមត្រូវ។ សូមបញ្ចូលលេខវិជ្ជមាន (ឧទាហរណ៍៖ <code>0.25</code> ឬ <code>1.00</code>)។",
+                        {"inline_keyboard": [[{"text": "⬅️ ត្រឡប់ទៅ Scratch", "callback_data": "adm:scratch"}]]}
+                    ))
             elif mode == "bot_cookie_add":
                 clean_c = text.strip()
                 if clean_c.startswith(".ROBLOSECURITY="):
