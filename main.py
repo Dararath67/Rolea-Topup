@@ -69,6 +69,7 @@ INVENTORY_PATH = DATA_DIR / "inventory.json"
 BLACKLIST_PATH = DATA_DIR / "blacklist.json"
 ADMIN_SECURITY_PATH = DATA_DIR / "admin_security.json"
 SPIN_PATH = DATA_DIR / "spin.json"
+FLASH_SALE_PATH = DATA_DIR / "flash_sale.json"
 
 # In-memory data store
 orders: List[Dict[str, Any]] = []
@@ -680,6 +681,14 @@ if not spin_data or not isinstance(spin_data.get("slices"), list) or len(spin_da
     spin_data = init_default_spin_data()
     save_json(SPIN_PATH, spin_data)
 
+flash_sale = load_json(FLASH_SALE_PATH, {
+    "enabled": False,
+    "title": "FLASH SALE ពិសេសចុងសប្តាហ៍",
+    "subtitle": "កញ្ចប់ Robux បញ្ចុះតម្លៃពិសេស មានកំណត់ម៉ោង!",
+    "end_time": "",
+    "deals": {}
+})
+
 pending_spin_tickets: Dict[str, Dict[str, Any]] = {}
 
 def save_spin_data():
@@ -855,6 +864,46 @@ def save_users(): save_json(USERS_PATH, users)
 def save_coupons(): save_json(COUPONS_PATH, coupons)
 def save_reviews(): save_json(REVIEWS_PATH, reviews)
 def save_wallet_tx(): save_json(WALLET_TX_PATH, wallet_transactions)
+def save_flash_sale(): save_json(FLASH_SALE_PATH, flash_sale)
+
+def is_flash_sale_active() -> bool:
+    """Returns True if Flash Sale is currently enabled and within active time window."""
+    if not flash_sale.get("enabled"):
+        return False
+    end_t = str(flash_sale.get("end_time") or "").strip()
+    if not end_t:
+        return False
+    try:
+        end_dt = datetime.fromisoformat(end_t.replace("Z", "+00:00"))
+        now_dt = datetime.now(timezone.utc)
+        if end_dt <= now_dt:
+            if flash_sale.get("enabled"):
+                flash_sale["enabled"] = False
+                save_flash_sale()
+            return False
+        return True
+    except Exception:
+        return False
+
+def get_flash_sale_remaining_seconds() -> int:
+    """Return seconds remaining until flash sale ends, or 0 if inactive."""
+    if not is_flash_sale_active():
+        return 0
+    end_t = str(flash_sale.get("end_time") or "").strip()
+    try:
+        end_dt = datetime.fromisoformat(end_t.replace("Z", "+00:00"))
+        now_dt = datetime.now(timezone.utc)
+        rem = int((end_dt - now_dt).total_seconds())
+        return max(0, rem)
+    except Exception:
+        return 0
+
+def get_active_flash_sale_deal(package_id: str) -> Optional[Dict[str, Any]]:
+    """Return the flash sale deal for a package if flash sale is active, else None."""
+    if not is_flash_sale_active():
+        return None
+    deals = flash_sale.get("deals", {})
+    return deals.get(package_id)
 
 # Admin Security & Session Management
 admin_failed_attempts: Dict[str, List[float]] = {}
@@ -2274,44 +2323,53 @@ def _build_tg_admin_home() -> tuple[str, Dict[str, Any]]:
     total_users = len(users)
     total_wallet = sum(float(u.get("balance") or 0.0) for u in users)
     store_name = html.escape(str(settings.get("store_name", "Rolea Topup")), quote=False)
-    maint_str = "🛠️ កំពុងជួសជុល (MAINTENANCE)" if settings.get("maintenance_mode") else "🟢 កំពុងដំណើរការ (ONLINE)"
-    spin_str = "🟢 បើក (ON)" if spin_data.get("enabled", True) else "⛔ បិទ (OFF)"
+    maint_str = "កំពុងជួសជុល (MAINTENANCE)" if settings.get("maintenance_mode") else "កំពុងដំណើរការ (ONLINE)"
+    spin_str = "បើក (ON)" if spin_data.get("enabled", True) else "បិទ (OFF)"
+    fs_active = is_flash_sale_active()
+    fs_rem = get_flash_sale_remaining_seconds()
+    fs_h = fs_rem // 3600
+    fs_m = (fs_rem % 3600) // 60
+    fs_str = f"បើកដំណើរការ (នៅសល់ {fs_h}h {fs_m}m)" if fs_active else "បិទដំណើរការ"
     text = (
-        f"🛡️ <b>{store_name} — ផ្ទាំងគ្រប់គ្រង Admin (Telegram Panel)</b>\n\n"
-        f"🌐 <b>ស្ថានភាពហាង៖</b> {maint_str}\n"
-        f"🎡 <b>ស្ថានភាព Spin៖</b> {spin_str}\n"
-        f"👥 <b>អតិថិជនសរុប៖</b> {total_users} នាក់  |  💳 <b>លុយក្នុង Wallet៖</b> ${total_wallet:.2f}\n"
-        f"📦 <b>Order កំពុងរង់ចាំ៖</b> {pending_cnt} កុម្ម៉ង់\n\n"
-        f"👇 <i>សូមចុចប៊ូតុងខាងក្រោមដើម្បីគ្រប់គ្រង (មិនបាច់វាយអក្សរ)៖</i>"
+        f"<b>{store_name} — ផ្ទាំងគ្រប់គ្រង Admin (Telegram Panel)</b>\n\n"
+        f"<b>ស្ថានភាពហាង៖</b> {maint_str}\n"
+        f"<b>ស្ថានភាព Spin៖</b> {spin_str}\n"
+        f"<b>ស្ថានភាព Flash Sale៖</b> {fs_str}\n"
+        f"<b>អតិថិជនសរុប៖</b> {total_users} នាក់  |  <b>លុយក្នុង Wallet៖</b> ${total_wallet:.2f}\n"
+        f"<b>Order កំពុងរង់ចាំ៖</b> {pending_cnt} កុម្ម៉ង់\n\n"
+        f"<i>សូមចុចប៊ូតុងខាងក្រោមដើម្បីគ្រប់គ្រង (មិនបាច់វាយអក្សរ)៖</i>"
     )
     markup = {
         "inline_keyboard": [
-            [{"text": "💰 បញ្ចូល / កាត់លុយ Wallet អតិថិជន", "callback_data": "adm:users:0"}],
+            [{"text": "បញ្ចូល / កាត់លុយ Wallet អតិថិជន", "callback_data": "adm:users:0"}],
             [
-                {"text": "🔍 ស្វែងរកតាម User ID", "callback_data": "adm:find"},
-                {"text": "🔎 ស្វែងរកតាម Order ID", "callback_data": "adm:find_ord"}
+                {"text": "ស្វែងរកតាម User ID", "callback_data": "adm:find"},
+                {"text": "ស្វែងរកតាម Order ID", "callback_data": "adm:find_ord"}
             ],
             [
-                {"text": f"📦 Order កំពុងរង់ចាំ ({pending_cnt})", "callback_data": "adm:pending:0"},
-                {"text": "📊 ស្ថិតិហាងសរុប", "callback_data": "adm:stats"}
+                {"text": f"Order កំពុងរង់ចាំ ({pending_cnt})", "callback_data": "adm:pending:0"},
+                {"text": "ស្ថិតិហាងសរុប", "callback_data": "adm:stats"}
             ],
             [
-                {"text": "📊 របាយការណ៍លក់ថ្ងៃនេះ", "callback_data": "adm:daily_rep"},
-                {"text": "💾 Backup Data ចូល Telegram", "callback_data": "adm:backup_now"}
+                {"text": "របាយការណ៍លក់ថ្ងៃនេះ", "callback_data": "adm:daily_rep"},
+                {"text": "Backup Data ចូល Telegram", "callback_data": "adm:backup_now"}
             ],
             [
-                {"text": "🎮 បិទ/បើក ហ្គេមនីមួយៗ", "callback_data": "adm:games"},
-                {"text": "🎡 គ្រប់គ្រង Spin Robux", "callback_data": "adm:spin"}
+                {"text": "បិទ/បើក ហ្គេមនីមួយៗ", "callback_data": "adm:games"},
+                {"text": "គ្រប់គ្រង Spin Robux", "callback_data": "adm:spin"}
             ],
             [
-                {"text": "📦 Roblox Bot & Cookie", "callback_data": "adm:bot"},
-                {"text": "🎟️ កូដបញ្ចុះតម្លៃ (Promo)", "callback_data": "adm:promos:0"}
+                {"text": "Roblox Bot & Cookie", "callback_data": "adm:bot"},
+                {"text": f"Flash Sale ({'ON' if fs_active else 'OFF'})", "callback_data": "adm:fsale"}
             ],
             [
-                {"text": "🚫 Blacklist / ប្លុក", "callback_data": "adm:blk"},
-                {"text": "📢 ផ្ញើសារ Broadcast / បិទបើកហាង", "callback_data": "adm:store_ctrl"}
+                {"text": "កូដបញ្ចុះតម្លៃ (Promo)", "callback_data": "adm:promos:0"},
+                {"text": "Blacklist / ប្លុក", "callback_data": "adm:blk"}
             ],
-            [{"text": "🔄 Refresh ផ្ទាំងបញ្ជា", "callback_data": "adm:home"}]
+            [
+                {"text": "ផ្ញើសារ Broadcast / បិទបើកហាង", "callback_data": "adm:store_ctrl"}
+            ],
+            [{"text": "Refresh ផ្ទាំងបញ្ជា", "callback_data": "adm:home"}]
         ]
     }
     return text, markup
@@ -2831,6 +2889,61 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         await answer_callback_query(token, query_id, "🔕 បានបិទ Low Stock Alert ជោគជ័យ!")
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, "🔕 <b>ការដាស់តឿនស្តុក Robux (Low Stock Alert) ត្រូវបានបិទដំណើរការ (Muted) រួចរាល់។</b>\nលោកអ្នកអាចបើកវាឡើងវិញតាម Admin Panel បានគ្រប់ពេល។", {"inline_keyboard": [[{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]})
+
+    elif sub in ("fsale", "fstog", "fstime"):
+        if sub == "fstog":
+            flash_sale["enabled"] = not flash_sale.get("enabled", False)
+            if flash_sale["enabled"]:
+                rem = get_flash_sale_remaining_seconds()
+                if rem <= 0:
+                    next_24h = datetime.now(timezone(timedelta(hours=7))) + timedelta(hours=24)
+                    flash_sale["end_time"] = next_24h.isoformat()
+            save_flash_sale()
+            await answer_callback_query(token, query_id, f"Flash Sale ត្រូវបាន {'បើក' if flash_sale['enabled'] else 'បិទ'}")
+        elif sub == "fstime" and len(parts) >= 3:
+            try:
+                hrs = int(parts[2])
+            except Exception:
+                hrs = 24
+            next_t = datetime.now(timezone(timedelta(hours=7))) + timedelta(hours=hrs)
+            flash_sale["end_time"] = next_t.isoformat()
+            flash_sale["enabled"] = True
+            save_flash_sale()
+            await answer_callback_query(token, query_id, f"បានកំណត់ម៉ោងបញ្ចប់ Flash Sale (+{hrs}h)")
+        else:
+            await answer_callback_query(token, query_id, "")
+
+        fs_active = is_flash_sale_active()
+        fs_rem = get_flash_sale_remaining_seconds()
+        fs_h = fs_rem // 3600
+        fs_m = (fs_rem % 3600) // 60
+        st_label = f"បើកដំណើរការ (នៅសល់ {fs_h}h {fs_m}m)" if fs_active else "បិទដំណើរការ (OFF)"
+        deals_cnt = len(flash_sale.get("deals", {}))
+        end_display = flash_sale.get("end_time") or "មិនទាន់កំណត់"
+
+        fs_text = (
+            "<b>[គ្រប់គ្រង FLASH SALE & COUNTDOWN TIMER]</b>\n\n"
+            f"<b>ស្ថានភាព៖</b> {st_label}\n"
+            f"<b>ចំណងជើង៖</b> {html.escape(flash_sale.get('title', 'FLASH SALE'), quote=False)}\n"
+            f"<b>កញ្ចប់ក្នុង Deal៖</b> {deals_cnt} កញ្ចប់\n"
+            f"<b>ពេលបញ្ចប់៖</b> <code>{html.escape(str(end_display), quote=False)}</code>\n\n"
+            "<i>ជ្រើសរើសពាក្យបញ្ជាខាងក្រោម៖</i>"
+        )
+        fs_rows = [
+            [{"text": f"{'បិទ Flash Sale' if fs_active else 'បើក Flash Sale ភ្លាមៗ'}", "callback_data": "adm:fstog"}],
+            [
+                {"text": "កំណត់ +2 ម៉ោង", "callback_data": "adm:fstime:2"},
+                {"text": "កំណត់ +6 ម៉ោង", "callback_data": "adm:fstime:6"}
+            ],
+            [
+                {"text": "កំណត់ +24 ម៉ោង", "callback_data": "adm:fstime:24"},
+                {"text": "កំណត់ +48 ម៉ោង", "callback_data": "adm:fstime:48"}
+            ],
+            [{"text": "ត្រឡប់ទៅម៉ឺនុយដើម", "callback_data": "adm:home"}]
+        ]
+        if msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, fs_text, {"inline_keyboard": fs_rows})
+        return
 
     elif sub in ("promos", "ptog", "pauto", "pgen"):
         if sub == "pauto":
@@ -4444,6 +4557,7 @@ async def get_games():
 async def get_public_packages(game: Optional[str] = None):
     sync_package_stock_with_inventory()
     total_stock = get_total_inventory_stock()
+    fs_active = is_flash_sale_active()
     res = []
     for p in packages:
         if (not game or p.get("game", "roblox") == game) and p.get("ok") != 0:
@@ -4452,8 +4566,29 @@ async def get_public_packages(game: Optional[str] = None):
                 req_robux = float(p_copy.get("robux") or 0)
                 if req_robux > 0:
                     p_copy["in_stock"] = bool(p.get("in_stock", True)) and (total_stock >= req_robux)
+            if fs_active:
+                deal = get_active_flash_sale_deal(p_copy.get("id"))
+                if deal and float(deal.get("sale_price", 0)) > 0:
+                    orig_p = round(float(p_copy.get("price", 0)), 2)
+                    sale_p = round(float(deal["sale_price"]), 2)
+                    if sale_p < orig_p:
+                        p_copy["is_flash_sale"] = True
+                        p_copy["original_price"] = orig_p
+                        p_copy["price"] = sale_p
+                        disc = round(((orig_p - sale_p) / orig_p) * 100)
+                        p_copy["discount_percent"] = disc
             res.append(p_copy)
-    return JSONResponse(content={"ok": True, "packages": res, "total_stock": total_stock}, headers={"Cache-Control": "no-store, max-age=0"})
+
+    fs_payload = None
+    if fs_active:
+        fs_payload = {
+            "active": True,
+            "title": flash_sale.get("title") or "FLASH SALE",
+            "subtitle": flash_sale.get("subtitle") or "",
+            "end_time": flash_sale.get("end_time"),
+            "remaining_seconds": get_flash_sale_remaining_seconds()
+        }
+    return JSONResponse(content={"ok": True, "packages": res, "total_stock": total_stock, "flash_sale": fs_payload}, headers={"Cache-Control": "no-store, max-age=0"})
 
 @app.get("/api/game/{game_id}")
 async def get_game_detail(game_id: str):
@@ -4463,6 +4598,7 @@ async def get_game_detail(game_id: str):
     if not g:
         return JSONResponse(status_code=404, content={"ok": False, "error": "Game not found"})
     total_stock = get_total_inventory_stock()
+    fs_active = is_flash_sale_active()
     game_pkgs = []
     for p in packages:
         if p.get("game", "roblox") == game_id and p.get("ok") != 0:
@@ -4471,8 +4607,29 @@ async def get_game_detail(game_id: str):
                 req_robux = float(p_copy.get("robux") or 0)
                 if req_robux > 0:
                     p_copy["in_stock"] = bool(p.get("in_stock", True)) and (total_stock >= req_robux)
+            if fs_active:
+                deal = get_active_flash_sale_deal(p_copy.get("id"))
+                if deal and float(deal.get("sale_price", 0)) > 0:
+                    orig_p = round(float(p_copy.get("price", 0)), 2)
+                    sale_p = round(float(deal["sale_price"]), 2)
+                    if sale_p < orig_p:
+                        p_copy["is_flash_sale"] = True
+                        p_copy["original_price"] = orig_p
+                        p_copy["price"] = sale_p
+                        disc = round(((orig_p - sale_p) / orig_p) * 100)
+                        p_copy["discount_percent"] = disc
             game_pkgs.append(p_copy)
-    return JSONResponse(content={"ok": True, "game": g, "packages": game_pkgs, "total_stock": total_stock}, headers={"Cache-Control": "no-store, max-age=0"})
+
+    fs_payload = None
+    if fs_active:
+        fs_payload = {
+            "active": True,
+            "title": flash_sale.get("title") or "FLASH SALE",
+            "subtitle": flash_sale.get("subtitle") or "",
+            "end_time": flash_sale.get("end_time"),
+            "remaining_seconds": get_flash_sale_remaining_seconds()
+        }
+    return JSONResponse(content={"ok": True, "game": g, "packages": game_pkgs, "total_stock": total_stock, "flash_sale": fs_payload}, headers={"Cache-Control": "no-store, max-age=0"})
 
 @app.post("/api/check-id")
 async def check_player_id(request: Request):
@@ -6198,6 +6355,14 @@ async def create_order(request: Request):
         if not math.isfinite(amount) or amount < 0.01:
             return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid package pricing."})
         original_amount = amount
+        applied_flash_sale = False
+        deal = get_active_flash_sale_deal(pkg.get("id"))
+        if deal and float(deal.get("sale_price", 0)) > 0:
+            sale_p = round(float(deal["sale_price"]), 2)
+            if sale_p < amount:
+                amount = sale_p
+                applied_flash_sale = True
+
         discount = 0.0
         applied_promo = None
         current_user = get_user_from_req(request)
@@ -6265,6 +6430,7 @@ async def create_order(request: Request):
                     "package_id": pkg.get("id"),
                     "robux_amount": pkg.get("robux", 0),
                     "original_amount": original_amount,
+                    "is_flash_sale": applied_flash_sale,
                     "discount": discount,
                     "promo_code": applied_promo,
                     "amount": amount,
@@ -6354,6 +6520,7 @@ async def create_order(request: Request):
             "package_id": pkg.get("id"),
             "robux_amount": pkg.get("robux", 0),
             "original_amount": original_amount,
+            "is_flash_sale": applied_flash_sale,
             "discount": discount,
             "promo_code": applied_promo,
             "amount": amount,
@@ -9061,6 +9228,69 @@ async def admin_delete_promo(request: Request):
     deleted = coupons.pop(idx)
     save_coupons()
     return {"ok": True, "message": f"Promo code {deleted.get('code')} deleted"}
+
+
+# ==========================================
+# FLASH SALE ADMIN & PUBLIC ENDPOINTS
+# ==========================================
+
+@app.get("/api/flash-sale")
+async def get_public_flash_sale_endpoint():
+    active = is_flash_sale_active()
+    return {
+        "ok": True,
+        "active": active,
+        "title": flash_sale.get("title") if active else "",
+        "subtitle": flash_sale.get("subtitle") if active else "",
+        "end_time": flash_sale.get("end_time") if active else "",
+        "remaining_seconds": get_flash_sale_remaining_seconds() if active else 0,
+        "deals_count": len(flash_sale.get("deals", {})) if active else 0
+    }
+
+@app.get("/api/admin/flash-sale")
+async def admin_get_flash_sale():
+    return {
+        "ok": True,
+        "flash_sale": flash_sale,
+        "is_active": is_flash_sale_active(),
+        "remaining_seconds": get_flash_sale_remaining_seconds()
+    }
+
+@app.post("/api/admin/flash-sale/save")
+async def admin_save_flash_sale_endpoint(request: Request):
+    body = await request.json() if (await request.body()) else {}
+    flash_sale["enabled"] = bool(body.get("enabled", False))
+    if "title" in body:
+        flash_sale["title"] = str(body.get("title") or "FLASH SALE").strip()
+    if "subtitle" in body:
+        flash_sale["subtitle"] = str(body.get("subtitle") or "").strip()
+    if "end_time" in body:
+        flash_sale["end_time"] = str(body.get("end_time") or "").strip()
+    if "deals" in body and isinstance(body.get("deals"), dict):
+        flash_sale["deals"] = body["deals"]
+    save_flash_sale()
+    return {
+        "ok": True,
+        "flash_sale": flash_sale,
+        "is_active": is_flash_sale_active(),
+        "remaining_seconds": get_flash_sale_remaining_seconds()
+    }
+
+@app.post("/api/admin/flash-sale/toggle")
+async def admin_toggle_flash_sale_endpoint():
+    flash_sale["enabled"] = not flash_sale.get("enabled", False)
+    if flash_sale["enabled"]:
+        rem = get_flash_sale_remaining_seconds()
+        if rem <= 0:
+            next_24h = datetime.now(timezone(timedelta(hours=7))) + timedelta(hours=24)
+            flash_sale["end_time"] = next_24h.isoformat()
+    save_flash_sale()
+    return {
+        "ok": True,
+        "enabled": flash_sale["enabled"],
+        "is_active": is_flash_sale_active(),
+        "remaining_seconds": get_flash_sale_remaining_seconds()
+    }
 
 # Reviews Admin
 @app.get("/api/admin/reviews")

@@ -90,6 +90,35 @@
       <span style="padding:9px 18px;background:#2563eb;color:#ffffff;border-radius:999px;font-size:13px;font-weight:800;white-space:nowrap;box-shadow:0 4px 12px rgba(37,99,235,0.22);">Spin Now →</span>
     </a>
 
+    <!-- Flash Sale Countdown Banner -->
+    <a href="/game/roblox" id="home-flash-sale-promo" style="display:none;background:linear-gradient(135deg, #7f1d1d 0%, #b91c1c 50%, #dc2626 100%);color:#ffffff;border-radius:18px;padding:16px 20px;margin-bottom:20px;text-decoration:none;box-shadow:0 6px 20px rgba(220,38,38,0.25);transition:transform 0.2s ease,box-shadow 0.2s ease;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div style="width:46px;height:46px;border-radius:14px;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.3"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </div>
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:10.5px;font-weight:900;letter-spacing:0.8px;text-transform:uppercase;background:rgba(255,255,255,0.2);padding:2px 7px;border-radius:5px;">FLASH SALE</span>
+              <span id="home-fs-title" style="font-size:16px;font-weight:800;color:#ffffff;">FLASH SALE ពិសេសចុងសប្តាហ៍</span>
+            </div>
+            <div id="home-fs-sub" style="font-size:12px;opacity:0.9;margin-top:3px;">កញ្ចប់ Robux បញ្ចុះតម្លៃពិសេស មានកំណត់ម៉ោង!</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="text-align:right;">
+            <div style="font-size:10.5px;font-weight:700;opacity:0.85;">Ends in:</div>
+            <div style="display:flex;align-items:center;gap:4px;font-family:'JetBrains Mono',monospace;font-weight:800;font-size:14px;">
+              <span style="background:rgba(0,0,0,0.3);padding:3px 7px;border-radius:6px;" id="home-fs-h">00</span>:
+              <span style="background:rgba(0,0,0,0.3);padding:3px 7px;border-radius:6px;" id="home-fs-m">00</span>:
+              <span style="background:rgba(0,0,0,0.3);padding:3px 7px;border-radius:6px;" id="home-fs-s">00</span>
+            </div>
+          </div>
+          <span style="padding:9px 18px;background:#ffffff;color:#dc2626;border-radius:999px;font-size:13px;font-weight:800;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,0.15);">Shop Deals →</span>
+        </div>
+      </div>
+    </a>
+
     <div class="section" id="games">
       <div class="section-head">
         <h3><span class="accent"></span>GAME TOPUP & SERVICES SMM</h3>
@@ -300,6 +329,35 @@ fetch('/api/games').then(r => r.json()).then(j => {
 fetch('/api/spin/config').then(r => r.json()).then(j => {
   const card = document.getElementById('home-spin-promo');
   if (card && j && j.ok && !j.enabled) card.style.display = 'none';
+}).catch(() => {});
+fetch('/api/flash-sale').then(r => r.json()).then(j => {
+  const card = document.getElementById('home-flash-sale-promo');
+  if (card && j && j.ok && j.active && j.remaining_seconds > 0) {
+    card.style.display = 'block';
+    if (j.title) document.getElementById('home-fs-title').textContent = j.title;
+    if (j.subtitle) document.getElementById('home-fs-sub').textContent = j.subtitle;
+    let rem = j.remaining_seconds;
+    const pad = n => String(n).padStart(2, '0');
+    const tick = () => {
+      if (rem <= 0) {
+        clearInterval(timer);
+        card.style.display = 'none';
+        return;
+      }
+      const h = Math.floor(rem / 3600);
+      const m = Math.floor((rem % 3600) / 60);
+      const s = rem % 60;
+      const elH = document.getElementById('home-fs-h');
+      const elM = document.getElementById('home-fs-m');
+      const elS = document.getElementById('home-fs-s');
+      if (elH) elH.textContent = pad(h);
+      if (elM) elM.textContent = pad(m);
+      if (elS) elS.textContent = pad(s);
+      rem--;
+    };
+    tick();
+    const timer = setInterval(tick, 1000);
+  }
 }).catch(() => {});
 </script>
 <script src="/auth_wallet.js?v=20261110_v4"></script>
