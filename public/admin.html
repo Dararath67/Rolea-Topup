@@ -2645,7 +2645,10 @@
             <h3>Active Promo Codes & Vouchers</h3>
             <span>Manage customer discounts, voucher codes, and sales limits</span>
           </div>
-          <button class="btn-top primary" onclick="openPromoModal()">+ Create Promo Code</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-top" type="button" onclick="quickAutoGeneratePromoDialog()" style="background:#0f172a;color:#ffffff;border:none">Auto Generate Promo</button>
+            <button class="btn-top primary" type="button" onclick="openPromoModal()">+ Create Promo Code</button>
+          </div>
         </div>
 
         <div style="overflow-x:auto">
@@ -3057,8 +3060,20 @@
     </div>
     <form id="promo-form" onsubmit="submitPromoForm(event)">
       <div class="form-group-modern">
-        <label>Promo Code (Uppercase)</label>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <label style="margin-bottom:0">Promo Code (Uppercase)</label>
+          <button type="button" class="btn-top" onclick="fillRandomPromoCode()" style="font-size:11.5px;padding:3px 9px;background:#f1f5f9;color:#2563eb;font-weight:700">Auto Generate Code</button>
+        </div>
         <input type="text" id="promo-code" placeholder="e.g. SUMMER20" required style="text-transform:uppercase;font-weight:700">
+      </div>
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:9px 12px;margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:6px">Quick Auto Presets (Click to Auto-Fill):</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button type="button" class="btn-top" onclick="applyPromoPreset('p10')" style="font-size:11px;padding:4px 8px">10% Off</button>
+          <button type="button" class="btn-top" onclick="applyPromoPreset('p20')" style="font-size:11px;padding:4px 8px">20% Off</button>
+          <button type="button" class="btn-top" onclick="applyPromoPreset('f1')" style="font-size:11px;padding:4px 8px">$1 Off ($3+ min)</button>
+          <button type="button" class="btn-top" onclick="applyPromoPreset('f2')" style="font-size:11px;padding:4px 8px">$2 Off ($5+ min)</button>
+        </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="form-group-modern">
@@ -4945,6 +4960,83 @@ function renderPromos(promos) {
       </td>
     </tr>
   `).join('');
+}
+
+function generateRandomPromoCode(prefix = 'ROLEA') {
+  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  let rand = '';
+  for (let i = 0; i < 4; i++) rand += chars.charAt(Math.floor(Math.random() * chars.length));
+  return (prefix + '-' + rand).toUpperCase();
+}
+
+function fillRandomPromoCode(prefix = 'ROLEA') {
+  const codeInput = document.getElementById('promo-code');
+  if (codeInput) codeInput.value = generateRandomPromoCode(prefix);
+}
+
+function applyPromoPreset(preset) {
+  const codeInput = document.getElementById('promo-code');
+  const typeSelect = document.getElementById('promo-type');
+  const valInput = document.getElementById('promo-value');
+  const minSpendInput = document.getElementById('promo-min-spend');
+  const maxUsesInput = document.getElementById('promo-max-uses');
+  const descInput = document.getElementById('promo-desc');
+
+  if (preset === 'p10') {
+    if (codeInput) codeInput.value = generateRandomPromoCode('ROLEA10');
+    if (typeSelect) typeSelect.value = 'percentage';
+    if (valInput) valInput.value = '10';
+    if (minSpendInput) minSpendInput.value = '0';
+    if (maxUsesInput) maxUsesInput.value = '50';
+    if (descInput) descInput.value = '10% Discount Promotion';
+  } else if (preset === 'p20') {
+    if (codeInput) codeInput.value = generateRandomPromoCode('ROLEA20');
+    if (typeSelect) typeSelect.value = 'percentage';
+    if (valInput) valInput.value = '20';
+    if (minSpendInput) minSpendInput.value = '0';
+    if (maxUsesInput) maxUsesInput.value = '30';
+    if (descInput) descInput.value = '20% Super Discount';
+  } else if (preset === 'f1') {
+    if (codeInput) codeInput.value = generateRandomPromoCode('SAVE1');
+    if (typeSelect) typeSelect.value = 'fixed';
+    if (valInput) valInput.value = '1.0';
+    if (minSpendInput) minSpendInput.value = '3.0';
+    if (maxUsesInput) maxUsesInput.value = '50';
+    if (descInput) descInput.value = '$1 Off on orders above $3';
+  } else if (preset === 'f2') {
+    if (codeInput) codeInput.value = generateRandomPromoCode('SAVE2');
+    if (typeSelect) typeSelect.value = 'fixed';
+    if (valInput) valInput.value = '2.0';
+    if (minSpendInput) minSpendInput.value = '5.0';
+    if (maxUsesInput) maxUsesInput.value = '30';
+    if (descInput) descInput.value = '$2 Off on orders above $5';
+  }
+}
+
+async function quickAutoGeneratePromoDialog() {
+  const confirmed = await adminDialog.confirm(
+    'Auto Generate Promo Code',
+    'Do you want to automatically generate and register a 10% Discount Promo Code (50 uses)?',
+    'info',
+    'Generate Now'
+  );
+  if (!confirmed) return;
+  try {
+    const res = await fetch('/api/admin/promos/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prefix: 'ROLEA10', type: 'percentage', value: 10, max_uses: 50 })
+    });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      toast(`Promo code ${j.promo.code} generated successfully!`);
+      loadData();
+    } else {
+      toast(j.error || 'Failed to generate promo code');
+    }
+  } catch (e) {
+    toast('Network error generating promo code');
+  }
 }
 
 function openPromoModal() {

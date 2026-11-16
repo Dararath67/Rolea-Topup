@@ -2832,7 +2832,65 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, "🔕 <b>ការដាស់តឿនស្តុក Robux (Low Stock Alert) ត្រូវបានបិទដំណើរការ (Muted) រួចរាល់។</b>\nលោកអ្នកអាចបើកវាឡើងវិញតាម Admin Panel បានគ្រប់ពេល។", {"inline_keyboard": [[{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]})
 
-    elif sub in ("promos", "ptog"):
+    elif sub in ("promos", "ptog", "pauto", "pgen"):
+        if sub == "pauto":
+            await answer_callback_query(token, query_id, "")
+            rows = [
+                [{"text": "បញ្ចុះ 10% (Auto)", "callback_data": "adm:pgen:p10"}, {"text": "បញ្ចុះ 20% (Auto)", "callback_data": "adm:pgen:p20"}],
+                [{"text": "បញ្ចុះ $1.00 USD (Auto)", "callback_data": "adm:pgen:f1"}, {"text": "បញ្ចុះ $2.00 USD (Auto)", "callback_data": "adm:pgen:f2"}],
+                [{"text": "ថយក្រោយ (Promo Codes)", "callback_data": "adm:promos:0"}]
+            ]
+            text = (
+                "<b>[AUTO GENERATE PROMO CODE]</b>\n\n"
+                "ជ្រើសរើសប្រភេទបញ្ចុះតម្លៃដើម្បីបង្កើតកូដ Promo ដោយស្វ័យប្រវត្តិតែម្ដង (ចុចភ្លាម បង្កើតភ្លាម):"
+            )
+            if msg_id:
+                await edit_telegram_message(token, chat_id, msg_id, text, {"inline_keyboard": rows})
+            return
+        elif sub == "pgen" and len(parts) >= 3:
+            gen_type = parts[2]
+            if gen_type == "p10":
+                ptype, val, max_u, min_s, prefix, d_label = "percentage", 10.0, 50, 0.0, "ROLEA10", "10%"
+            elif gen_type == "p20":
+                ptype, val, max_u, min_s, prefix, d_label = "percentage", 20.0, 30, 0.0, "ROLEA20", "20%"
+            elif gen_type == "f1":
+                ptype, val, max_u, min_s, prefix, d_label = "fixed", 1.0, 50, 3.0, "SAVE1", "$1.00 USD"
+            elif gen_type == "f2":
+                ptype, val, max_u, min_s, prefix, d_label = "fixed", 2.0, 30, 5.0, "SAVE2", "$2.00 USD"
+            else:
+                ptype, val, max_u, min_s, prefix, d_label = "percentage", 10.0, 50, 0.0, "ROLEA", "10%"
+
+            new_code = generate_unique_promo_code(prefix)
+            new_p = {
+                "id": "cpn_" + secrets.token_hex(4),
+                "code": new_code,
+                "type": ptype,
+                "value": val,
+                "min_spend": min_s,
+                "max_uses": max_u,
+                "used_count": 0,
+                "enabled": True,
+                "description": f"Auto-generated {d_label} discount"
+            }
+            coupons.insert(0, new_p)
+            save_coupons()
+            await answer_callback_query(token, query_id, f"បានបង្កើតកូដ {new_code} ជោគជ័យ!")
+            res_rows = [
+                [{"text": "បង្កើតកូដ Auto ថែមទៀត", "callback_data": "adm:pauto"}],
+                [{"text": "មើលកូដទាំងអស់", "callback_data": "adm:promos:0"}, {"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}]
+            ]
+            res_text = (
+                "<b>[ជោគជ័យ - បានបង្កើតកូដ PROMO AUTO]</b>\n\n"
+                f"កូដ Promo (ចុច Copy): <code>{new_code}</code>\n"
+                f"ប្រភេទ: <b>{d_label}</b>\n"
+                f"លក្ខខណ្ឌចំណាយអប្បបរមា: <b>${min_s:.2f} USD</b>\n"
+                f"ចំនួនប្រើប្រាស់បាន: <b>{max_u} ដង</b>\n"
+                "ស្ថានភាព: <b>បើកដំណើរការ (Active)</b>"
+            )
+            if msg_id:
+                await edit_telegram_message(token, chat_id, msg_id, res_text, {"inline_keyboard": res_rows})
+            return
+
         page = 0
         if sub == "ptog" and len(parts) >= 3:
             pid = parts[2]
@@ -2840,7 +2898,7 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
             if cp:
                 cp["enabled"] = not cp.get("enabled", True)
                 save_coupons()
-                await answer_callback_query(token, query_id, f"កូដ {cp['code']} ត្រូវបាន {'បើក 🟢' if cp['enabled'] else 'បិទ ⛔'}")
+                await answer_callback_query(token, query_id, f"កូដ {cp['code']} ត្រូវបាន {'បើក' if cp['enabled'] else 'បិទ'}")
             else:
                 await answer_callback_query(token, query_id, "រកមិនឃើញ Promo code នេះទេ។")
         else:
@@ -2854,16 +2912,18 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         for c in sl:
             en = c.get("enabled", True)
             val_str = f"${c.get('value')}" if c.get("type") == "fixed" else f"{c.get('value')}%"
-            rows.append([{"text": f"{'🟢' if en else '⛔'} {c.get('code')} ({val_str}) · ប្រើបាន {c.get('used_count', 0)}", "callback_data": f"adm:ptog:{c.get('id')}"}])
+            st_badge = "[ON]" if en else "[OFF]"
+            rows.append([{"text": f"{st_badge} {c.get('code')} ({val_str}) · ប្រើបាន {c.get('used_count', 0)}", "callback_data": f"adm:ptog:{c.get('id')}"}])
         nav = []
         if page > 0:
-            nav.append({"text": "⬅️ ថយក្រោយ", "callback_data": f"adm:promos:{page - 1}"})
+            nav.append({"text": "ថយក្រោយ", "callback_data": f"adm:promos:{page - 1}"})
         if page < max_p:
-            nav.append({"text": "បន្ទាប់ ➡️", "callback_data": f"adm:promos:{page + 1}"})
+            nav.append({"text": "បន្ទាប់", "callback_data": f"adm:promos:{page + 1}"})
         if nav:
             rows.append(nav)
-        rows.append([{"text": "➕ បង្កើតកូដ Promo ថ្មី", "callback_data": "adm:promo_new"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}])
-        text = f"🎟️ <b>កូដបញ្ចុះតម្លៃ Promo Codes ({len(coupons)})</b>\nចុចលើកូដដើម្បី បិទ/បើក:"
+        rows.append([{"text": "Auto-Generate Promo (បង្កើតកូដ Auto)", "callback_data": "adm:pauto"}])
+        rows.append([{"text": "បង្កើតកូដ Promo ថ្មី (បញ្ចូលដៃ)", "callback_data": "adm:promo_new"}, {"text": "ម៉ឺនុយដើម", "callback_data": "adm:home"}])
+        text = f"<b>កូដបញ្ចុះតម្លៃ Promo Codes ({len(coupons)})</b>\nចុចលើកូដដើម្បី បិទ/បើក:"
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, text, {"inline_keyboard": rows})
 
@@ -4996,7 +5056,12 @@ async def submit_spin_claim(request: Request):
         if robux_won <= 0:
             return JSONResponse(status_code=400, content={"ok": False, "error": "No Robux prize to claim on this spin."})
 
-        was_submitted = bool(order.get("claim_submitted"))
+        if order.get("claim_submitted"):
+            return JSONResponse(status_code=400, content={
+                "ok": False,
+                "error": "រង្វាន់នេះបាន Submit ជូន Admin រួចរាល់ហើយ! សូមរង់ចាំ Admin ពិនិត្យ និងបាញ់ Robux ជូន (មិនអនុញ្ញាតឱ្យ Submit ម្ដងទៀតឡើយ)។"
+            })
+
         order["roblox_username"] = roblox_username
         order["player_id"] = roblox_username
         order["display_name"] = roblox_username
@@ -5019,19 +5084,18 @@ async def submit_spin_claim(request: Request):
         if hist_updated:
             save_spin_data()
 
-    alert_header = "[SPIN CLAIM UPDATED]" if was_submitted else "[SPIN CLAIM SUBMITTED]"
     claim_markup = {
         "inline_keyboard": [
-            [{"text": f"🌐 បើក Roblox Profile (@{roblox_username})", "url": f"https://www.roblox.com/search/users?keyword={quote_plus(roblox_username)}"}],
+            [{"text": f"បើក Roblox Profile (@{roblox_username})", "url": f"https://www.roblox.com/search/users?keyword={quote_plus(roblox_username)}"}],
             [
-                {"text": "✅ បាញ់រួចរាល់ (Complete)", "callback_data": f"complete:{order_id}"},
-                {"text": "❌ បដិសេធ (Reject)", "callback_data": f"reject:{order_id}"}
+                {"text": "បាញ់រួចរាល់ (Complete)", "callback_data": f"complete:{order_id}"},
+                {"text": "បដិសេធ (Reject)", "callback_data": f"reject:{order_id}"}
             ]
         ]
     }
     async def _send_spin_claim_tg():
         sent = await send_telegram_admin_alert(
-            f"<b>{alert_header} User Requesting Robux Prize</b>\n"
+            "<b>[SPIN CLAIM SUBMITTED] User Requesting Robux Prize</b>\n"
             f"Order ID: <code>{html.escape(order_id, quote=False)}</code>\n"
             f"Roblox Account: <code>@{html.escape(roblox_username, quote=False)}</code>\n"
             f"Prize: <b>{robux_won:,} Robux</b>\n"
@@ -8889,10 +8953,57 @@ async def admin_upload_banner(request: Request):
 
     return JSONResponse(status_code=400, content={"ok": False, "error": "No image data or URL provided"})
 
+def generate_unique_promo_code(prefix: str = "ROLEA") -> str:
+    """Generate a clean, unambiguous uppercase promo code."""
+    clean_p = re.sub(r"[^A-Z0-9]", "", str(prefix or "ROLEA").upper())[:8] or "ROLEA"
+    alphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
+    existing = set(c.get("code", "").upper() for c in coupons)
+    for _ in range(100):
+        suffix = "".join(secrets.choice(alphabet) for _ in range(4))
+        cand = f"{clean_p}-{suffix}"
+        if cand not in existing:
+            return cand
+    return f"{clean_p}-{secrets.token_hex(3).upper()}"
+
+
 # Promos Admin
 @app.get("/api/admin/promos")
 async def admin_get_promos():
     return {"ok": True, "promos": coupons}
+
+@app.post("/api/admin/promos/generate")
+async def admin_auto_generate_promo(request: Request):
+    """Automatically generate and register a new promo code."""
+    body = await request.json() if (await request.body()) else {}
+    prefix = (body.get("prefix") or "ROLEA").strip().upper()
+    ptype = "fixed" if body.get("type") == "fixed" else "percentage"
+    try:
+        val = float(body.get("value", 10.0))
+    except Exception:
+        val = 10.0
+    if val <= 0:
+        val = 10.0 if ptype == "percentage" else 1.0
+
+    min_spend = float(body.get("min_spend", 0) or 0)
+    max_uses = int(body.get("max_uses", 50) or 50)
+
+    code = generate_unique_promo_code(prefix)
+    desc = (body.get("description") or f"{val}{'$' if ptype == 'fixed' else '%'} Auto Discount").strip()
+
+    new_promo = {
+        "id": "cpn_" + secrets.token_hex(4),
+        "code": code,
+        "type": ptype,
+        "value": val,
+        "min_spend": min_spend,
+        "max_uses": max_uses,
+        "used_count": 0,
+        "enabled": True,
+        "description": desc
+    }
+    coupons.insert(0, new_promo)
+    save_coupons()
+    return {"ok": True, "promo": new_promo}
 
 @app.post("/api/admin/promos/add")
 async def admin_add_promo(request: Request):

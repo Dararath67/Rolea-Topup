@@ -1041,24 +1041,38 @@ function showSpinResultModal(sliceObj, orderId, receiptToken, prefillUsername, p
 
   if (wonRobux > 0 && orderId) {
     saveSpinOrderLocally(orderId, receiptToken, wonRobux);
-    activeWinClaim = { order_id: orderId, receipt_token: receiptToken, robux: wonRobux };
+    activeWinClaim = { order_id: orderId, receipt_token: receiptToken, robux: wonRobux, alreadySubmitted: !!alreadySubmitted };
     iconWrap.style.background = '#dcfce7';
     iconWrap.style.color = '#15803d';
     titleEl.textContent = `You Won ${wonRobux.toLocaleString()} Robux!`;
-    descEl.textContent = alreadySubmitted
-      ? 'This claim was already sent to Admin. You can update your Roblox username or note below before delivery.'
-      : 'Confirm your Roblox account and submit your claim request directly to Admin (or close and claim later).';
     orderBox.textContent = `Order ID: ${orderId}`;
     orderBox.style.display = 'block';
-    document.getElementById('claim-username').value = prefillUsername || verifiedUser?.username || '';
-    document.getElementById('claim-note').value = prefillNote || '';
-    btnClaim.disabled = false;
-    btnClaim.textContent = alreadySubmitted ? 'Update Claim Request →' : 'Submit Claim to Admin →';
-    btnClose.textContent = alreadySubmitted ? 'Close' : 'Claim Later / Close';
-    laterHint.style.display = alreadySubmitted ? 'none' : 'block';
-    claimBox.style.display = 'block';
     trackLink.href = '/check-order?order_id=' + encodeURIComponent(orderId);
     trackLink.style.display = 'inline-flex';
+
+    if (alreadySubmitted) {
+      descEl.textContent = 'This prize claim has already been submitted to Admin. Robux delivery is in queue.';
+      claimBox.style.display = 'none';
+      laterHint.style.display = 'none';
+      btnClaim.style.display = 'none';
+      btnClose.textContent = 'Close';
+      claimDone.innerHTML = `
+        <div style="font-weight:800;font-size:13.5px;color:#065f46;margin-bottom:4px">បាន Submit សំណើរួចរាល់ហើយ (Submitted)</div>
+        <div style="font-size:12.5px;color:#0f172a">គណនី Roblox: <b>@${escSpinHtml(prefillUsername || verifiedUser?.username || '')}</b></div>
+        <div style="font-size:11.5px;color:#047857;margin-top:4px">សំណើរបស់អ្នកត្រូវបានបញ្ជូនទៅ Admin រួចហើយ សូមរង់ចាំ Admin ពិនិត្យ និងបាញ់ Robux ជូន (មិនអនុញ្ញាតឱ្យ Submit ម្ដងទៀតឡើយ)។</div>
+      `;
+      claimDone.style.display = 'block';
+    } else {
+      descEl.textContent = 'Confirm your Roblox account and submit your claim request directly to Admin (or close and claim later).';
+      document.getElementById('claim-username').value = prefillUsername || verifiedUser?.username || '';
+      document.getElementById('claim-note').value = prefillNote || '';
+      btnClaim.style.display = 'block';
+      btnClaim.disabled = false;
+      btnClaim.textContent = 'Submit Claim to Admin →';
+      btnClose.textContent = 'Claim Later / Close';
+      laterHint.style.display = 'block';
+      claimBox.style.display = 'block';
+    }
   } else {
     activeWinClaim = null;
     iconWrap.style.background = '#f1f5f9';
@@ -1075,8 +1089,10 @@ function showSpinResultModal(sliceObj, orderId, receiptToken, prefillUsername, p
   document.getElementById('spin-result-modal').classList.add('open');
 }
 
+let _spinClaimLock = false;
 async function submitSpinClaim() {
-  if (!activeWinClaim) return;
+  if (_spinClaimLock) return;
+  if (!activeWinClaim || activeWinClaim.alreadySubmitted) return;
   const uname = document.getElementById('claim-username').value.trim().replace(/^@+/, '');
   const note = document.getElementById('claim-note').value.trim();
   const errEl = document.getElementById('claim-error');
@@ -1089,6 +1105,7 @@ async function submitSpinClaim() {
     return;
   }
 
+  _spinClaimLock = true;
   btn.disabled = true;
   btn.textContent = 'Submitting to Admin…';
   try {
@@ -1108,13 +1125,20 @@ async function submitSpinClaim() {
       errEl.style.display = 'block';
       btn.disabled = false;
       btn.textContent = 'Submit Claim to Admin →';
+      _spinClaimLock = false;
       return;
     }
+    activeWinClaim.alreadySubmitted = true;
     document.getElementById('spin-claim-box').style.display = 'none';
     document.getElementById('res-later-hint').style.display = 'none';
-    document.getElementById('btn-res-close').textContent = 'Spin Again';
+    btn.style.display = 'none';
+    document.getElementById('btn-res-close').textContent = 'Close';
     const doneEl = document.getElementById('spin-claim-done');
-    doneEl.textContent = `Claim sent to Admin for @${j.roblox_username} (${Number(j.robux_amount || activeWinClaim.robux).toLocaleString()} Robux). Admin will send it shortly!`;
+    doneEl.innerHTML = `
+      <div style="font-weight:800;font-size:13.5px;color:#065f46;margin-bottom:4px">បាន Submit សំណើរួចរាល់ហើយ (Submitted)</div>
+      <div style="font-size:12.5px;color:#0f172a">គណនី Roblox: <b>@${escSpinHtml(j.roblox_username)}</b> (${Number(j.robux_amount || activeWinClaim.robux).toLocaleString()} Robux)</div>
+      <div style="font-size:11.5px;color:#047857;margin-top:4px">សំណើរបស់អ្នកត្រូវបានបញ្ជូនទៅកាន់ Admin រួចរាល់។ សូមរង់ចាំ Admin ពិនិត្យ និងបាញ់ Robux ជូន!</div>
+    `;
     doneEl.style.display = 'block';
     loadMySpinRewards();
   } catch (e) {
@@ -1122,6 +1146,8 @@ async function submitSpinClaim() {
     errEl.style.display = 'block';
     btn.disabled = false;
     btn.textContent = 'Submit Claim to Admin →';
+  } finally {
+    _spinClaimLock = false;
   }
 }
 
@@ -1189,8 +1215,8 @@ function renderMySpinRewards() {
           </div>
           <div style="font-size:11.5px;color:#64748b;margin-top:4px;font-family:'JetBrains Mono',monospace">Order: ${escSpinHtml(r.order_id)}</div>
         </div>
-        <button type="button" class="btn-claim-open ${isSub ? 'edit' : ''}" onclick="openClaimModalFromReward('${escSpinHtml(r.order_id)}')">
-          ${isSub ? 'Edit Claim' : 'Claim Prize →'}
+        <button type="button" class="btn-claim-open ${isSub ? 'submitted' : ''}" style="${isSub ? 'background:#f1f5f9;color:#059669;border-color:#a7f3d0;font-weight:700' : ''}" onclick="openClaimModalFromReward('${escSpinHtml(r.order_id)}')">
+          ${isSub ? 'View Status' : 'Claim Prize →'}
         </button>
       </div>
     `;
