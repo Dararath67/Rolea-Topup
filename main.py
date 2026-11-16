@@ -2574,6 +2574,20 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
                 return
             deleted = users.pop(idx)
             save_users()
+            del_uid = deleted.get("id")
+            del_uname = str(deleted.get("username") or "").strip().lower()
+
+            # 1. Invalidate all active sessions of the deleted user
+            stale_tokens = [tok for tok, s in list(sessions.items()) if s.get("userId") == del_uid]
+            for tok in stale_tokens:
+                sessions.pop(tok, None)
+
+            # 2. Flag and disconnect any orders associated with this deleted user so they cannot resurrect the account
+            for o in orders:
+                if o.get("user_id") == del_uid or (del_uname and str(o.get("roblox_username") or o.get("player_id") or "").strip().lower() == del_uname):
+                    o["user_id"] = None
+                    o["user_deleted_by_admin"] = True
+            save_orders()
         del_name = str(deleted.get("username") or uid)
         await answer_callback_query(token, query_id, f"✅ បានលុបគណនី {del_name} ជោគជ័យ!")
         success_text = (
@@ -5908,29 +5922,14 @@ async def check_refund_autologin(request: Request):
                 process_order_refund(order)
                 save_orders()
 
+            if order.get("user_deleted_by_admin"):
+                continue
+
             user_id = order.get("user_id")
             target_user = next((u for u in users if u.get("id") == user_id), None) if user_id else None
             if not target_user:
-                raw_name = str(order.get("roblox_username") or order.get("player_id") or order.get("buyer_account") or "Customer").strip()
-                clean_name = re.sub(r"[^a-zA-Z0-9_]", "", raw_name) or "Customer"
-                target_user = next((u for u in users if u.get("username", "").lower() == clean_name.lower()), None)
-                if not target_user:
-                    new_uid = "usr_" + secrets.token_hex(6)
-                    target_user = {
-                        "id": new_uid,
-                        "username": clean_name,
-                        "email": "",
-                        "balance": float(order.get("amount") or 0.0),
-                        "avatar": order.get("avatar") or "/media/rolea-logo.webp",
-                        "role": "user",
-                        "created_at": datetime.now(timezone.utc).isoformat(),
-                        "auto_created_from_refund": True,
-                        "origin_order_id": order.get("order_id")
-                    }
-                    users.append(target_user)
-                    save_users()
-                order["user_id"] = target_user["id"]
-                save_orders()
+                # Account was deleted or not found; NEVER auto-restore a deleted user
+                continue
 
             if target_user:
                 now_ms = int(time.time() * 1000)
@@ -6745,49 +6744,28 @@ async def get_order_status(order_id: str, request: Request):
         if order.get("user_id"):
             ref_usr = next((u for u in users if u.get("id") == order.get("user_id")), None)
 
-        # Recover or guarantee ref_usr exists in users database
-        if not ref_usr:
-            raw_name = str(order.get("roblox_username") or order.get("player_id") or order.get("buyer_account") or "Customer").strip()
-            clean_name = re.sub(r"[^a-zA-Z0-9_]", "", raw_name) or "Customer"
-            ref_usr = next((u for u in users if u.get("username", "").lower() == clean_name.lower()), None)
-            if not ref_usr:
-                new_uid = "usr_" + secrets.token_hex(6)
-                ref_usr = {
-                    "id": new_uid,
-                    "username": clean_name,
-                    "email": "",
-                    "balance": float(order.get("amount") or 0.0),
-                    "avatar": order.get("avatar") or "/media/rolea-logo.webp",
-                    "role": "user",
-                    "created_at": datetime.now(timezone.utc).isoformat(),
-                    "auto_created_from_refund": True,
-                    "origin_order_id": order.get("order_id")
+        # Only provide auto-login if the user account actually exists and was not deleted by admin
+        if ref_usr and not order.get("user_deleted_by_admin"):
+            now_ms = int(time.time() * 1000)
+            existing_tok = next((tok for tok, s in sessions.items() if s.get("userId") == ref_usr["id"] and s.get("expiresAt", 0) > now_ms), None)
+            if existing_tok:
+                auto_login_token = existing_tok
+            else:
+                auto_login_token = secrets.token_hex(32)
+                sessions[auto_login_token] = {
+                    "userId": ref_usr["id"],
+                    "expiresAt": int((time.time() + 30 * 24 * 3600) * 1000)
                 }
-                users.append(ref_usr)
-                save_users()
-            order["user_id"] = ref_usr["id"]
-            save_orders()
-
-        now_ms = int(time.time() * 1000)
-        existing_tok = next((tok for tok, s in sessions.items() if s.get("userId") == ref_usr["id"] and s.get("expiresAt", 0) > now_ms), None)
-        if existing_tok:
-            auto_login_token = existing_tok
-        else:
-            auto_login_token = secrets.token_hex(32)
-            sessions[auto_login_token] = {
-                "userId": ref_usr["id"],
-                "expiresAt": int((time.time() + 30 * 24 * 3600) * 1000)
+            order_status_payload["auto_login_token"] = auto_login_token
+            order_status_payload["wallet_refunded"] = True
+            order_status_payload["refunded_username"] = ref_usr.get("username")
+            order_status_payload["refunded_balance"] = float(ref_usr.get("balance", 0.0))
+            order_status_payload["user"] = {
+                "id": ref_usr["id"],
+                "username": ref_usr["username"],
+                "balance": float(ref_usr.get("balance", 0.0)),
+                "avatar": ref_usr.get("avatar") or "/media/rolea-logo.webp"
             }
-        order_status_payload["auto_login_token"] = auto_login_token
-        order_status_payload["wallet_refunded"] = True
-        order_status_payload["refunded_username"] = ref_usr.get("username")
-        order_status_payload["refunded_balance"] = float(ref_usr.get("balance", 0.0))
-        order_status_payload["user"] = {
-            "id": ref_usr["id"],
-            "username": ref_usr["username"],
-            "balance": float(ref_usr.get("balance", 0.0)),
-            "avatar": ref_usr.get("avatar") or "/media/rolea-logo.webp"
-        }
 
     resp = JSONResponse(content=order_status_payload)
     if auto_login_token:
@@ -9447,6 +9425,21 @@ async def admin_delete_user(request: Request):
         return JSONResponse(status_code=404, content={"ok": False, "error": "User not found"})
     deleted = users.pop(idx)
     save_users()
+    del_uid = deleted.get("id")
+    del_uname = str(deleted.get("username") or "").strip().lower()
+
+    # 1. Invalidate all active sessions of the deleted user
+    stale_tokens = [tok for tok, s in list(sessions.items()) if s.get("userId") == del_uid]
+    for tok in stale_tokens:
+        sessions.pop(tok, None)
+
+    # 2. Flag and disconnect any orders associated with this deleted user so they cannot resurrect the account
+    for o in orders:
+        if o.get("user_id") == del_uid or (del_uname and str(o.get("roblox_username") or o.get("player_id") or "").strip().lower() == del_uname):
+            o["user_id"] = None
+            o["user_deleted_by_admin"] = True
+    save_orders()
+
     _record_admin_audit(request, "Customer Account Deleted", str(deleted.get("username") or user_id), f"User ID: {deleted.get('id')}")
     return {"ok": True, "message": f"Account {deleted.get('username')} deleted"}
 
