@@ -1137,7 +1137,7 @@ function showSpinResultModal(sliceObj, orderId, receiptToken, prefillUsername, p
       claimDone.style.display = 'block';
     } else {
       if (allowResubmit) {
-        descEl.innerHTML = '<div style="background:#fee2e2;border:1.5px solid #fca5a5;border-radius:10px;padding:10px 12px;margin:8px 0;color:#991b1b;font-size:12.5px;font-weight:700">⚠️ សំណើមុនត្រូវបាន Admin បដិសេធ (អាចមកពីខុសឈ្មោះ Roblox ឬមិនទាន់បាន Setup Gamepass/Private Server)។ សូមផ្ទៀងផ្ទាត់ឈ្មោះ Roblox ឱ្យបានត្រឹមត្រូវ រួចចុច Submit ម្តងទៀត៖</div>';
+        descEl.innerHTML = '<div style="background:#fee2e2;border:1.5px solid #fca5a5;border-radius:10px;padding:10px 12px;margin:8px 0;color:#991b1b;font-size:12.5px;font-weight:700"> សំណើមុនត្រូវបាន Admin បដិសេធ (អាចមកពីខុសឈ្មោះ Roblox ឬមិនទាន់បាន Setup Gamepass/Private Server)។ សូមផ្ទៀងផ្ទាត់ឈ្មោះ Roblox ឱ្យបានត្រឹមត្រូវ រួចចុច Submit ម្តងទៀត៖</div>';
         btnClaim.textContent = 'Re-submit Claim to Admin ↺';
       } else {
         descEl.textContent = 'Confirm your Roblox account and submit your claim request directly to Admin (or close and claim later).';
@@ -1330,6 +1330,5 @@ loadSpinConfig();
 const _urlClaimId = new URLSearchParams(window.location.search).get('claim');
 loadMySpinRewards(_urlClaimId);
 </script>
-<script src="/snow.js" defer></script>
 </body>
 </html>
