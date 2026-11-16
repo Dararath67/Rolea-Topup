@@ -782,7 +782,7 @@ box_data: Dict[str, Any] = load_json(BOX_PATH, {
     "enabled": True,
     "title": "Roblox Mystery Box",
     "subtitle": "Open lucky cases to reveal instant Robux prizes!",
-    "daily_free_enabled": True,
+    "daily_free_enabled": False,
     "daily_free_cooldown_hours": 24,
     "daily_free_max_robux": 25,
     "cost_per_1k_robux_usd": 4.0,

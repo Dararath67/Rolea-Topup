@@ -414,16 +414,7 @@
       transform: translateY(-2px);
       box-shadow: 0 8px 24px rgba(5, 150, 105, 0.45);
     }
-    .btn-open-free {
-      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-      color: #0f172a;
-      font-weight: 900;
-      box-shadow: 0 4px 18px rgba(245, 158, 11, 0.35);
-    }
-    .btn-open-free:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(245, 158, 11, 0.45);
-    }
+    
     .btn-action-open:disabled {
       opacity: 0.55;
       cursor: not-allowed;
@@ -615,10 +606,7 @@
         </h1>
         <p id="box-sub">Open lucky cases to reveal instant Robux prizes directly to your account!</p>
       </div>
-      <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:14px;padding:8px 16px;text-align:right">
-        <span style="font-size:11px;font-weight:800;color:#15803d;display:block;text-transform:uppercase">Daily Free Box</span>
-        <b id="daily-free-badge" style="font-size:13.5px;color:#166534">Ready to Open!</b>
-      </div>
+      
     </div>
 
     <!-- Unclaimed Rewards Banner (Appears if user won Robux or needs to re-submit) -->
@@ -709,11 +697,6 @@
 
       <!-- Actions Bar -->
       <div class="stage-actions-bar">
-        <button type="button" class="btn-action-open btn-open-free" id="btn-open-free" onclick="openDailyFreeBox()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          <span id="btn-open-free-text">Open Daily Free Case</span>
-        </button>
-
         <button type="button" class="btn-action-open btn-open-wallet" id="btn-open-wallet" onclick="openBoxWithWallet()">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 15h0M2 9.5h20"/></svg>
           <span id="btn-open-wallet-text">Open with Rolea Wallet ($0.20)</span>
@@ -927,7 +910,7 @@ async function loadBoxConfig() {
     if (j.title) document.getElementById('box-title').firstElementChild.textContent = j.title;
     if (j.subtitle) document.getElementById('box-sub').textContent = j.subtitle;
 
-    renderDailyFreeStatus(j.daily_free);
+    
     renderWinners(j.recent_winners || []);
     checkUnclaimedRewards();
     updateStageCaseDisplay();
@@ -987,26 +970,7 @@ function renderReelItemHTML(it) {
   `;
 }
 
-function renderDailyFreeStatus(df) {
-  if (!df) return;
-  const badge = document.getElementById('daily-free-badge');
-  const btnFree = document.getElementById('btn-open-free');
 
-  if (df.can_open) {
-    badge.textContent = 'Ready to Open!';
-    badge.style.color = '#15803d';
-    btnFree.disabled = false;
-    btnFree.style.display = 'inline-flex';
-    document.getElementById('btn-open-free-text').textContent = 'Open Daily Free Case';
-  } else {
-    btnFree.disabled = true;
-    const hours = Math.floor(df.remaining_seconds / 3600);
-    const mins = Math.floor((df.remaining_seconds % 3600) / 60);
-    badge.textContent = `Claimed · ${hours}h ${mins}m left`;
-    badge.style.color = '#64748b';
-    document.getElementById('btn-open-free-text').textContent = `Next Free in ${hours}h ${mins}m`;
-  }
-}
 
 // Open via Rolea Wallet
 async function openBoxWithWallet() {
@@ -1054,46 +1018,7 @@ async function openBoxWithWallet() {
   }
 }
 
-// Open Daily Free Case
-async function openDailyFreeBox() {
-  if (isSpinning) return;
-  const btn = document.getElementById('btn-open-free');
-  btn.disabled = true;
-  btn.textContent = 'Opening Free Case...';
 
-  try {
-    const token = localStorage.getItem('rolea_token') || '';
-    const headers = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = 'Bearer ' + token;
-
-    const res = await fetch('/api/box/daily-free', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({})
-    });
-    const j = await res.json();
-    if (!res.ok || !j.ok) {
-      if (res.status === 404 || res.status === 405) {
-        alert('Server Apsara Hosting មិនទាន់ Restart ទេ។ សូមចូល Apsara Hosting រួចចុច Restart Python App ដើម្បីដំណើរការ Mystery Box!');
-      } else {
-        alert(j.error || 'Daily Free Case unavailable.');
-      }
-      btn.disabled = false;
-      return;
-    }
-
-    if (j.order_id && j.receipt_token) {
-      saveBoxOrder(j.order_id, j.receipt_token, j.result.robux);
-    }
-
-    selectCase('bronze');
-    startReelAnimation(j.reel, j.win_index, j.result, j.order_id, j.receipt_token);
-    loadBoxConfig();
-  } catch (e) {
-    alert('Network error. Please try again.');
-    btn.disabled = false;
-  }
-}
 
 // Open via ABA KHQR
 async function openBoxWithKHQR() {
@@ -1170,7 +1095,7 @@ function startReelAnimation(reel, winIndex, resultItem, orderId, receiptToken) {
   isSpinning = true;
   document.getElementById('btn-open-wallet').disabled = true;
   document.getElementById('btn-open-khqr').disabled = true;
-  document.getElementById('btn-open-free').disabled = true;
+  
 
   const strip = document.getElementById('reel-strip');
   strip.innerHTML = reel.map(it => renderReelItemHTML(it)).join('');
@@ -1202,7 +1127,7 @@ function startReelAnimation(reel, winIndex, resultItem, orderId, receiptToken) {
   setTimeout(() => {
     isSpinning = false;
     updateStageCaseDisplay();
-    document.getElementById('btn-open-free').disabled = false;
+    
     playWinSound();
 
     showWinModal(resultItem, orderId, receiptToken);
