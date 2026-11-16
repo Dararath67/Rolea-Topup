@@ -6,16 +6,18 @@
   window.__roleaLoaderInit = true;
 
   var startTime = Date.now();
-  var MIN_SHOW_MS = 0;
-  var MAX_WAIT_MS = 1000;
+  var MIN_SHOW_MS = 380;
+  var MAX_WAIT_MS = 2500;
   var hidden = false;
   var hideTimer = null;
   var safetyTimer = null;
+  var pageLoaded = false;
+  var authResolved = false;
 
   var style = document.createElement('style');
   style.id = 'rolea-preloader-style';
   style.textContent = [
-    '#rolea-preloader{position:fixed;inset:0;z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#ffffff;color:#0f172a;font-family:"Plus Jakarta Sans","Inter",system-ui,-apple-system,sans-serif;opacity:1;visibility:visible;transition:opacity .16s cubic-bezier(.16,1,.3,1),transform .16s cubic-bezier(.16,1,.3,1),visibility .16s linear;-webkit-font-smoothing:antialiased;}',
+    '#rolea-preloader{position:fixed;inset:0;z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#ffffff;color:#0f172a;font-family:"Plus Jakarta Sans","Inter",system-ui,-apple-system,sans-serif;opacity:1;visibility:visible;transition:opacity .26s cubic-bezier(.16,1,.3,1),transform .26s cubic-bezier(.16,1,.3,1),visibility .26s linear;-webkit-font-smoothing:antialiased;}',
     'html[data-store-theme="dark"] #rolea-preloader{background:#0b1629;color:#f1f5f9;}',
     '#rolea-preloader.is-hidden{opacity:0;transform:scale(1.015);visibility:hidden;pointer-events:none;}',
     '.rl-loader-ring-wrap{position:relative;width:78px;height:78px;display:flex;align-items:center;justify-content:center;}',
@@ -87,13 +89,38 @@
     }, wait);
   }
 
-  // Initial load completion + safety timeout
-  if (document.readyState === 'complete') {
-    hide(false);
-  } else {
-    window.addEventListener('load', function () { hide(false); }, { once: true });
-    safetyTimer = setTimeout(function () { hide(true); }, MAX_WAIT_MS);
+  function checkCanHide() {
+    if (pageLoaded && (authResolved || window.__roleaAuthReady)) {
+      hide(false);
+    }
   }
+
+  function onAuthReady() {
+    authResolved = true;
+    checkCanHide();
+  }
+
+  document.addEventListener('rolea:auth-ready', onAuthReady);
+
+  // Initial load completion
+  if (document.readyState === 'complete') {
+    pageLoaded = true;
+    checkCanHide();
+  } else {
+    window.addEventListener('load', function () {
+      pageLoaded = true;
+      checkCanHide();
+    }, { once: true });
+  }
+
+  // Auth readiness fallback timer (max 650ms to ensure screen never hangs if offline or no auth)
+  setTimeout(function () {
+    authResolved = true;
+    checkCanHide();
+  }, 650);
+
+  // Absolute safety timeout
+  safetyTimer = setTimeout(function () { hide(true); }, MAX_WAIT_MS);
 
   // Handle back/forward cache restore cleanly so loader never gets stuck
   window.addEventListener('pageshow', function (e) {
@@ -115,10 +142,7 @@
       var targetUrl = new URL(link.href, window.location.href);
       if (targetUrl.origin !== window.location.origin) return;
       if (targetUrl.pathname === window.location.pathname && targetUrl.search === window.location.search && targetUrl.hash) return;
-      // Do not block screen unless page load takes time
-      setTimeout(function () {
-        if (!hidden) show('Opening page…');
-      }, 120);
+      show('Opening page…');
     } catch (_) {}
   });
 
@@ -150,5 +174,5 @@
   document.addEventListener('mouseover', onPointerOver, { passive: true });
   document.addEventListener('touchstart', onPointerOver, { passive: true });
 
-  window.RoleaLoader = { show: show, hide: hide };
+  window.RoleaLoader = { show: show, hide: hide, onAuthReady: onAuthReady };
 })();

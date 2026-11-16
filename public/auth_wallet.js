@@ -4,6 +4,31 @@
 (function() {
   let currentUser = null;
   const TOKEN_KEY = 'rolea_token';
+  const USER_CACHE_KEY = 'rolea_user_cache';
+
+  function getCachedUser() {
+    try {
+      const raw = localStorage.getItem(USER_CACHE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch(e) { return null; }
+  }
+
+  function setCachedUser(u) {
+    try {
+      if (u) localStorage.setItem(USER_CACHE_KEY, JSON.stringify(u));
+      else localStorage.removeItem(USER_CACHE_KEY);
+    } catch(e) {}
+  }
+
+  function notifyAuthReady() {
+    window.__roleaAuthReady = true;
+    try {
+      document.dispatchEvent(new CustomEvent('rolea:auth-ready', { detail: { user: currentUser } }));
+    } catch(e) {}
+    if (window.RoleaLoader && typeof window.RoleaLoader.onAuthReady === 'function') {
+      try { window.RoleaLoader.onAuthReady(); } catch(e) {}
+    }
+  }
 
   // Inject Styles
   const style = document.createElement('style');
@@ -134,15 +159,22 @@
         const j = await res.json();
         if (res.ok && j.ok && j.user) {
           currentUser = j.user;
+          setCachedUser(j.user);
           renderNavbar();
+          notifyAuthReady();
           return;
         } else {
           currentUser = null;
+          setCachedUser(null);
           setToken(null);
           t = null;
         }
       } catch (e) {
         console.warn('Auth check offline');
+        if (currentUser) {
+          notifyAuthReady();
+          return;
+        }
       }
     }
 
@@ -152,8 +184,10 @@
       const cJ = await cRes.json();
       if (cRes.ok && cJ.ok && cJ.user) {
         currentUser = cJ.user;
+        setCachedUser(cJ.user);
         if (cJ.token) setToken(cJ.token);
         renderNavbar();
+        notifyAuthReady();
         return;
       }
     } catch (e) {}
@@ -193,7 +227,9 @@
             setToken(refData.auto_login_token);
             document.cookie = `rolea_token=${refData.auto_login_token}; path=/; max-age=2592000; SameSite=Lax`;
             currentUser = refData.user;
+            setCachedUser(refData.user);
             renderNavbar();
+            notifyAuthReady();
             return;
           }
         }
@@ -201,7 +237,9 @@
     } catch (e) {}
 
     currentUser = null;
+    setCachedUser(null);
     renderNavbar();
+    notifyAuthReady();
   }
 
   // Render Navbar Items
@@ -539,8 +577,10 @@
       if (res.ok && j.ok) {
         setToken(j.token);
         currentUser = j.user;
+        setCachedUser(j.user);
         closeModals();
         renderNavbar();
+        notifyAuthReady();
         if (typeof showToast === 'function') showToast(`Welcome back, ${currentUser.username}!`);
       } else {
         errBox.textContent = j.error || 'Login failed';
@@ -568,8 +608,10 @@
       if (res.ok && j.ok) {
         setToken(j.token);
         currentUser = j.user;
+        setCachedUser(j.user);
         closeModals();
         renderNavbar();
+        notifyAuthReady();
         if (typeof showToast === 'function') showToast(`Account created! Welcome, ${currentUser.username}!`);
       } else {
         errBox.textContent = j.error || 'Registration failed';
@@ -606,10 +648,12 @@
       if (res.ok && j.ok) {
         setToken(j.token);
         currentUser = j.user;
+        setCachedUser(j.user);
         const gModal = document.getElementById('rolea-google-modal');
         if (gModal) gModal.remove();
         closeModals();
         renderNavbar();
+        notifyAuthReady();
         if (typeof showToast === 'function') showToast(`Signed in as ${currentUser.username}!`);
       } else {
         RoleaDialog.alert({
@@ -868,9 +912,11 @@
 
   function logout() {
     setToken(null);
+    setCachedUser(null);
     currentUser = null;
     closeModals();
     renderNavbar();
+    notifyAuthReady();
     fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
   }
 
@@ -1556,7 +1602,9 @@
     getUser: () => currentUser,
     setCurrentUser: (u) => {
       currentUser = u;
+      setCachedUser(u);
       try { renderNavbar(); } catch(e) {}
+      notifyAuthReady();
     },
     getToken,
     getAuthHeaders,
@@ -1577,6 +1625,27 @@
     closeModals,
     logout
   };
+
+  // Instant Fast Render from local state (Prevents blank navbar layout shift)
+  function initFastRender() {
+    try {
+      const t = getToken();
+      const cached = t ? getCachedUser() : null;
+      if (cached) {
+        currentUser = cached;
+        renderNavbar();
+      } else if (!t) {
+        currentUser = null;
+        renderNavbar();
+      }
+    } catch(e) {}
+  }
+
+  if (document.readyState !== 'loading') {
+    initFastRender();
+  } else {
+    document.addEventListener('DOMContentLoaded', initFastRender, { once: true });
+  }
 
   // Auto initialize on DOM ready
   if (document.readyState === 'loading') {
