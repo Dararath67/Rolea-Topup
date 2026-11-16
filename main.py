@@ -81,6 +81,7 @@ INVENTORY_PATH = DATA_DIR / "inventory.json"
 BLACKLIST_PATH = DATA_DIR / "blacklist.json"
 ADMIN_SECURITY_PATH = DATA_DIR / "admin_security.json"
 SPIN_PATH = DATA_DIR / "spin.json"
+SCRATCH_PATH = DATA_DIR / "scratch.json"
 FLASH_SALE_PATH = DATA_DIR / "flash_sale.json"
 
 # In-memory data store
@@ -745,6 +746,179 @@ pending_spin_tickets: Dict[str, Dict[str, Any]] = {}
 
 def save_spin_data():
     save_json(SPIN_PATH, spin_data)
+
+scratch_data: Dict[str, Any] = load_json(SCRATCH_PATH, {
+    "enabled": True,
+    "title": "Golden Scratch Card",
+    "subtitle": "កោសផ្ទាំងប្រាក់សំណាង រកលេខ Robux ដូចគ្នា ៣ ដើម្បីឈ្នះ!",
+    "card_price_usd": 0.25,
+    "cost_per_1k_robux_usd": 4.0,
+    "daily_free_scratch_enabled": True,
+    "daily_free_scratch_cooldown_hours": 24,
+    "daily_free_scratch_max_robux": 10,
+    "prizes": [
+        {"label": "Thank You", "robux": 0, "weight": 40, "color": "#64748b"},
+        {"label": "10 Robux", "robux": 10, "weight": 30, "color": "#2563eb"},
+        {"label": "25 Robux", "robux": 25, "weight": 15, "color": "#0284c7"},
+        {"label": "50 Robux", "robux": 50, "weight": 8, "color": "#059669"},
+        {"label": "100 Robux", "robux": 100, "weight": 4, "color": "#7c3aed"},
+        {"label": "200 Robux", "robux": 200, "weight": 2, "color": "#ea580c"},
+        {"label": "500 Robux", "robux": 500, "weight": 0.8, "color": "#e11d48"},
+        {"label": "1,000 Robux", "robux": 1000, "weight": 0.2, "color": "#d97706"}
+    ],
+    "total_cards_scratched": 0,
+    "total_revenue_usd": 0.0,
+    "total_robux_awarded": 0,
+    "history": []
+})
+
+pending_scratch_tickets: Dict[str, Dict[str, Any]] = {}
+
+def save_scratch_data():
+    save_json(SCRATCH_PATH, scratch_data)
+
+def generate_scratch_card(is_daily_free: bool = False, max_free_robux: int = 10) -> Dict[str, Any]:
+    """Generate authentic 3x2 (6 cells) scratch card with weighted outcome."""
+    prizes = scratch_data.get("prizes", [])
+    if not prizes:
+        prizes = [{"label": "10 Robux", "robux": 10, "weight": 100}]
+
+    sys_rng = secrets.SystemRandom()
+
+    if is_daily_free:
+        candidate_prizes = [p for p in prizes if int(p.get("robux", 0)) <= max_free_robux]
+        if not candidate_prizes:
+            candidate_prizes = prizes
+    else:
+        candidate_prizes = prizes
+
+    weights = [max(0.1, float(p.get("weight", 1))) for p in candidate_prizes]
+    total_w = sum(weights)
+    r = sys_rng.uniform(0.0, total_w)
+    upto = 0.0
+    chosen_prize = candidate_prizes[0]
+    for p, w in zip(candidate_prizes, weights):
+        if upto + w >= r:
+            chosen_prize = p
+            break
+        upto += w
+
+    win_robux = int(chosen_prize.get("robux", 0))
+    is_winner = win_robux > 0
+
+    all_positive = [p for p in prizes if int(p.get("robux", 0)) > 0]
+    if not all_positive:
+        all_positive = [{"robux": 10, "label": "10 Robux"}]
+
+    cells = []
+    if is_winner:
+        for _ in range(3):
+            cells.append({
+                "robux": win_robux,
+                "label": f"{win_robux:,} Robux" if win_robux >= 1000 else f"{win_robux} Robux",
+                "is_match": True
+            })
+        decoys = [p for p in all_positive if int(p.get("robux", 0)) != win_robux]
+        if not decoys:
+            decoys = all_positive
+        sys_rng.shuffle(decoys)
+        for i in range(3):
+            d = decoys[i % len(decoys)]
+            cells.append({
+                "robux": int(d.get("robux", 10)),
+                "label": d.get("label", "Robux"),
+                "is_match": False
+            })
+    else:
+        pool = list(all_positive)
+        sys_rng.shuffle(pool)
+        c1 = pool[0 % len(pool)]
+        c2 = pool[1 % len(pool)]
+        c3 = pool[2 % len(pool)]
+        c4 = pool[3 % len(pool)]
+        cells = [
+            {"robux": int(c1["robux"]), "label": c1["label"], "is_match": False},
+            {"robux": int(c1["robux"]), "label": c1["label"], "is_match": False},
+            {"robux": int(c2["robux"]), "label": c2["label"], "is_match": False},
+            {"robux": int(c3["robux"]), "label": c3["label"], "is_match": False},
+            {"robux": int(c3["robux"]), "label": c3["label"], "is_match": False},
+            {"robux": int(c4["robux"]), "label": c4["label"], "is_match": False},
+        ]
+
+    sys_rng.shuffle(cells)
+    for idx, c in enumerate(cells):
+        c["cell_id"] = idx
+
+    return {
+        "card_id": "SCRATCH" + secrets.token_hex(4).upper(),
+        "is_winner": is_winner,
+        "win_robux": win_robux,
+        "prize_label": chosen_prize.get("label", "Thank You"),
+        "cells": cells
+    }
+
+def _finalize_scratch_win_order(buyer_user: str, roblox_id: Optional[str], avatar: str, display_name: str, pay_method: str, scratch_id: str, card_data: Dict[str, Any], cur_user: Optional[Dict[str, Any]]) -> tuple[Optional[str], Optional[str]]:
+    robux_won = int(card_data.get("win_robux", 0))
+    now_iso = datetime.now(timezone.utc).isoformat()
+    order_id = None
+    receipt_token = None
+    fallback_buyer = buyer_user or (cur_user["username"] if cur_user else "Lucky Player")
+
+    if robux_won > 0:
+        order_id = scratch_id
+        receipt_token = secrets.token_hex(16)
+        clean_user = _sanitize_plain(buyer_user or (cur_user["username"] if cur_user else ""), 60).lstrip("@")
+        new_order = {
+            "order_id": order_id,
+            "token": receipt_token,
+            "user_id": cur_user["id"] if cur_user else None,
+            "buyer_account": fallback_buyer,
+            "game": "roblox",
+            "product_name": "Golden Scratch Card Robux",
+            "product_type": "roblox",
+            "package": f"Scratch Win: {robux_won} Robux",
+            "package_id": "scratch_reward",
+            "robux_amount": robux_won,
+            "original_amount": float(scratch_data.get("card_price_usd", 0.25)),
+            "discount": 0.0,
+            "promo_code": None,
+            "amount": float(scratch_data.get("card_price_usd", 0.25)),
+            "payment_method": pay_method,
+            "player_id": clean_user,
+            "roblox_username": clean_user,
+            "display_name": display_name or fallback_buyer,
+            "roblox_id": roblox_id,
+            "avatar": avatar or "/media/rolea-logo.webp",
+            "profile_url": f"https://www.roblox.com/users/{roblox_id}/profile" if roblox_id else "",
+            "status": "paid",
+            "step": "unclaimed",
+            "paid": True,
+            "delivered": False,
+            "claim_submitted": False,
+            "telegram_alerted": False,
+            "claim_note": "",
+            "created_at": now_iso,
+            "label": f"Golden Scratch Winner ({robux_won} R$) — Waiting user claim"
+        }
+        orders.insert(0, new_order)
+        _prune_orders_safe(500)
+        save_orders()
+
+    hist_entry = {
+        "scratch_id": scratch_id,
+        "username": fallback_buyer,
+        "label": card_data.get("prize_label", "Thank You"),
+        "robux": robux_won,
+        "price_usd": float(scratch_data.get("card_price_usd", 0.25)),
+        "payment_method": pay_method,
+        "order_id": order_id,
+        "created_at": now_iso
+    }
+    scratch_data.setdefault("history", []).insert(0, hist_entry)
+    if len(scratch_data["history"]) > 300:
+        scratch_data["history"] = scratch_data["history"][:300]
+    save_scratch_data()
+    return order_id, receipt_token
 
 def perform_spin_roll(sim_state: Optional[Dict[str, Any]] = None, is_daily_free: bool = False, max_free_robux: int = 10) -> Dict[str, Any]:
     """Weighted server-side spin roll with Anti-Big-Prize Guard (មិនឲ្យងាយត្រូវអាធំៗ) and Daily Free Spin filter."""
@@ -3790,13 +3964,13 @@ def _get_rate_tier(path: str, is_authed_admin: bool = False) -> tuple[str, int, 
         return ("otp", 6, 60)
     if path in ("/api/auth/login", "/api/auth/register", "/api/auth/google", "/api/orders/claim-refund-wallet", "/api/auth/check-refund-autologin"):
         return ("auth", 10, 60)
-    if path in ("/api/spin/claim", "/api/spin/daily-free-spin"):
+    if path in ("/api/spin/claim", "/api/spin/daily-free-spin", "/api/scratch/claim", "/api/scratch/daily-free"):
         return ("spin_claim", 6, 60)
     if path == "/api/promo/apply":
         return ("promo_apply", 10, 60)
     if path == "/api/reviews/submit":
         return ("review_submit", 5, 60)
-    if path in ("/api/create-order", "/api/wallet/topup", "/api/spin/create-ticket"):
+    if path in ("/api/create-order", "/api/wallet/topup", "/api/spin/create-ticket", "/api/scratch/create-ticket"):
         return ("pay_create", 12, 60)
     if path in ("/api/check-id", "/api/check-order"):
         return ("lookup", 25, 60)
@@ -4522,7 +4696,7 @@ async def security_and_no_cache_middleware(request: Request, call_next):
         response.headers["Cache-Control"] = "public, max-age=86400, stale-while-revalidate=604800"
     elif norm_path in ("/api/settings", "/api/games", "/api/packages", "/api/flash-sale", "/api/reviews"):
         response.headers["Cache-Control"] = "public, max-age=15, stale-while-revalidate=60"
-    elif norm_path.startswith("/api/admin") or norm_path.startswith("/api/auth") or norm_path.startswith("/api/order-status") or norm_path.startswith("/api/spin") or norm_path in ("/admin", "/admin/login"):
+    elif norm_path.startswith("/api/admin") or norm_path.startswith("/api/auth") or norm_path.startswith("/api/order-status") or norm_path.startswith("/api/spin") or norm_path.startswith("/api/scratch") or norm_path in ("/admin", "/admin/login", "/scratch"):
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
@@ -5533,6 +5707,417 @@ async def admin_reset_spin_stats():
     spin_data["history"] = []
     save_spin_data()
     return {"ok": True, "message": "Spin statistics and history cleared."}
+
+# ==========================================
+# SCRATCH CARD ENDPOINTS & LOGIC
+# ==========================================
+
+@app.get("/api/scratch/config")
+async def get_public_scratch_config(request: Request):
+    recent_winners = []
+    for h in scratch_data.get("history", []):
+        if int(h.get("robux", 0)) > 0:
+            u = str(h.get("username") or "Player")
+            masked = (u[:3] + "***") if len(u) > 3 else (u + "***")
+            recent_winners.append({
+                "username": masked,
+                "robux": int(h.get("robux", 0)),
+                "label": h.get("label"),
+                "created_at": h.get("created_at")
+            })
+            if len(recent_winners) >= 12:
+                break
+
+    daily_enabled = bool(scratch_data.get("daily_free_scratch_enabled", True))
+    cooldown_hours = max(1, int(scratch_data.get("daily_free_scratch_cooldown_hours", 24)))
+    can_daily = False
+    remaining_seconds = 0
+    cur_u = get_user_from_req(request)
+
+    if cur_u:
+        last_s = cur_u.get("last_daily_scratch_at")
+        if not last_s:
+            can_daily = True
+            remaining_seconds = 0
+        else:
+            try:
+                last_dt = datetime.fromisoformat(str(last_s).replace("Z", "+00:00"))
+                elapsed = (datetime.now(timezone.utc) - last_dt).total_seconds()
+                total_cd = cooldown_hours * 3600
+                if elapsed >= total_cd:
+                    can_daily = True
+                    remaining_seconds = 0
+                else:
+                    can_daily = False
+                    remaining_seconds = max(0, int(total_cd - elapsed))
+            except Exception:
+                can_daily = True
+                remaining_seconds = 0
+    else:
+        can_daily = True
+        remaining_seconds = 0
+
+    return {
+        "ok": True,
+        "enabled": bool(scratch_data.get("enabled", True)),
+        "title": scratch_data.get("title", "Golden Scratch Card"),
+        "subtitle": scratch_data.get("subtitle", "កោសផ្ទាំងប្រាក់សំណាង រកលេខ Robux ដូចគ្នា ៣ ដើម្បីឈ្នះ!"),
+        "card_price_usd": float(scratch_data.get("card_price_usd", 0.25)),
+        "prizes": scratch_data.get("prizes", []),
+        "recent_winners": recent_winners,
+        "daily_free_scratch": {
+            "enabled": daily_enabled,
+            "cooldown_hours": cooldown_hours,
+            "max_robux": int(scratch_data.get("daily_free_scratch_max_robux", 10)),
+            "can_scratch": can_daily,
+            "remaining_seconds": remaining_seconds,
+            "is_logged_in": bool(cur_u)
+        }
+    }
+
+@app.post("/api/scratch/daily-free")
+async def claim_daily_free_scratch(request: Request):
+    if not scratch_data.get("enabled", True):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Golden Scratch Card is temporarily disabled by Admin."})
+
+    if not scratch_data.get("daily_free_scratch_enabled", True):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Daily Free Scratch is temporarily disabled by Admin."})
+
+    current_user = get_user_from_req(request)
+    if not current_user:
+        return JSONResponse(status_code=401, content={"ok": False, "error": "Please sign in to claim your Daily Free Scratch Card!"})
+
+    cooldown_hours = max(1, int(scratch_data.get("daily_free_scratch_cooldown_hours", 24)))
+    total_cd = cooldown_hours * 3600
+
+    last_s = current_user.get("last_daily_scratch_at")
+    if last_s:
+        try:
+            last_dt = datetime.fromisoformat(str(last_s).replace("Z", "+00:00"))
+            elapsed = (datetime.now(timezone.utc) - last_dt).total_seconds()
+            if elapsed < total_cd:
+                rem_sec = int(total_cd - elapsed)
+                hh = rem_sec // 3600
+                mm = (rem_sec % 3600) // 60
+                return JSONResponse(status_code=400, content={
+                    "ok": False,
+                    "error": f"Daily Free Scratch already claimed! Next card available in {hh}h {mm}m.",
+                    "remaining_seconds": rem_sec
+                })
+        except Exception:
+            pass
+
+    client_ip = get_admin_effective_ip(request)
+    blocked, b_reason = is_blacklisted(username=current_user.get("username"), ip=client_ip)
+    if blocked:
+        return JSONResponse(status_code=403, content={"ok": False, "error": f"Account blocked: {b_reason}"})
+
+    max_free_r = max(1, int(scratch_data.get("daily_free_scratch_max_robux", 10)))
+    card = generate_scratch_card(is_daily_free=True, max_free_robux=max_free_r)
+    robux_won = int(card.get("win_robux", 0))
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    current_user["last_daily_scratch_at"] = now_iso
+    current_user["daily_scratch_count"] = int(current_user.get("daily_scratch_count", 0)) + 1
+    save_users()
+
+    username = current_user.get("username", "Lucky Player")
+    avatar = current_user.get("avatar") or "/media/rolea-logo.webp"
+    display_name = current_user.get("username")
+
+    order_id, receipt_token = _finalize_scratch_win_order(username, None, avatar, display_name, "Daily Free Scratch", card["card_id"], card, current_user)
+
+    return {
+        "ok": True,
+        "paid": True,
+        "scratch_id": card["card_id"],
+        "card": card,
+        "order_id": order_id,
+        "receipt_token": receipt_token,
+        "remaining_seconds": total_cd,
+        "message": f"🎉 Congratulations! You won {robux_won} Robux!" if robux_won > 0 else "🎁 Thank you for playing! Come back tomorrow for another Free Scratch Card."
+    }
+
+@app.post("/api/scratch/create-ticket")
+async def create_scratch_ticket(request: Request):
+    if not scratch_data.get("enabled", True):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Golden Scratch Card is temporarily disabled by Admin."})
+
+    body = await request.json() if (await request.body()) else {}
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid JSON payload"})
+    current_user = get_user_from_req(request)
+    username = _sanitize_plain(body.get("username") or "", 60).lstrip("@")
+    pay_method = str(body.get("payment_method") or "wallet").lower().strip()
+    roblox_id = _sanitize_plain(body.get("roblox_id") or "", 40) or None
+    display_name = _sanitize_plain(body.get("display_name") or username or (current_user["username"] if current_user else "Lucky Player"), 60)
+    raw_avatar = str(body.get("avatar") or "").strip()
+    avatar = raw_avatar if _is_safe_url(raw_avatar) else "/media/rolea-logo.webp"
+
+    if pay_method not in ("wallet", "khqr"):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid payment method"})
+
+    client_ip = get_admin_effective_ip(request)
+    blocked, b_reason = is_blacklisted(player_id=username or None, username=username or None, ip=client_ip)
+    if blocked:
+        return JSONResponse(status_code=403, content={"ok": False, "error": f"Account blocked: {b_reason}"})
+
+    price = round(float(scratch_data.get("card_price_usd", 0.25)), 2)
+    if not math.isfinite(price) or price < 0.05:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid scratch ticket configuration."})
+
+    scratch_id = "SCRATCH" + secrets.token_hex(4).upper()
+
+    if pay_method == "wallet":
+        if not current_user:
+            return JSONResponse(status_code=401, content={"ok": False, "error": "Please sign in to buy cards with Rolea Wallet."})
+        async with _tx_lock:
+            wg_ok, wg_msg = _check_and_enforce_wallet_guard(current_user, price)
+            if not wg_ok:
+                return JSONResponse(status_code=403, content={"ok": False, "error": wg_msg})
+            if float(current_user.get("balance", 0.0)) < price:
+                return JSONResponse(status_code=400, content={"ok": False, "error": f"Insufficient Rolea Wallet balance (${float(current_user.get('balance', 0.0)):.2f}). Please top up first or use KHQR."})
+
+            current_user["balance"] = round(float(current_user.get("balance", 0.0)) - price, 2)
+            save_users()
+            wallet_transactions.insert(0, {
+                "id": "wtx_" + secrets.token_hex(4),
+                "user_id": current_user["id"],
+                "type": "spend",
+                "amount": -price,
+                "order_id": scratch_id,
+                "product": "Golden Scratch Card",
+                "date": datetime.now(timezone.utc).isoformat()
+            })
+            save_wallet_tx()
+
+            card = generate_scratch_card(is_daily_free=False)
+            order_id, receipt_token = _finalize_scratch_win_order(username, roblox_id, avatar, display_name, "Rolea Wallet", scratch_id, card, current_user)
+            return {
+                "ok": True,
+                "paid": True,
+                "scratch_id": scratch_id,
+                "card": card,
+                "order_id": order_id,
+                "receipt_token": receipt_token,
+                "remaining_balance": current_user["balance"]
+            }
+
+    # KHQR payment ticket
+    khqr_res = await create_khqrpay_order(price, scratch_id)
+    now = datetime.now(timezone.utc)
+    expires_at = (now + timedelta(minutes=5)).isoformat()
+    khqrpay_id = None
+    qr_url = ""
+    payment_url = ""
+    aba_deeplink = ""
+
+    if khqr_res and khqr_res.get("id"):
+        khqrpay_id = khqr_res["id"]
+        qr_url = khqr_res.get("qr_image", "")
+        payment_url = khqr_res.get("checkout_url") or f"https://khqrpay.site/pay/{khqrpay_id}"
+        aba_deeplink = khqr_res.get("aba_deeplink", "")
+        if khqr_res.get("expires_at"):
+            expires_at = khqr_res["expires_at"]
+    if not qr_url:
+        amt_str = f"{price:.2f}"
+        amt_len = f"{len(amt_str):02d}"
+        khqr_payload = f"00020101021229370016bakong@rolea010108{scratch_id}520459995303840540{amt_len}{amt_str}5802KH5911ROLEA TOPUP6010PHNOM PENH62240108{scratch_id}0708ROLEATOPUP6304"
+        qr_url = generate_khqr_data_url(khqr_payload)
+        payment_url = f"https://khqrpay.site/pay/{scratch_id}"
+
+    if len(pending_scratch_tickets) >= 2000:
+        unpaid_keys = [k for k, v in pending_scratch_tickets.items() if not v.get("paid") or v.get("scratched")]
+        for k in unpaid_keys[:500]:
+            pending_scratch_tickets.pop(k, None)
+
+    pending_scratch_tickets[scratch_id] = {
+        "scratch_id": scratch_id,
+        "khqrpay_id": khqrpay_id,
+        "username": username,
+        "roblox_id": roblox_id,
+        "display_name": display_name,
+        "avatar": avatar,
+        "price": price,
+        "paid": False,
+        "scratched": False,
+        "card": None,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "expires_at": expires_at,
+        "user_id": current_user["id"] if current_user else None
+    }
+
+    return {
+        "ok": True,
+        "paid": False,
+        "scratch_id": scratch_id,
+        "price": price,
+        "qr_image": qr_url,
+        "payment_url": payment_url,
+        "aba_deeplink": aba_deeplink,
+        "expires_at": expires_at
+    }
+
+@app.get("/api/scratch/ticket/{scratch_id}")
+async def check_scratch_ticket_status(scratch_id: str, request: Request):
+    t = pending_scratch_tickets.get(scratch_id)
+    if not t:
+        return JSONResponse(status_code=404, content={"ok": False, "error": "Scratch ticket not found"})
+
+    if t.get("paid") and t.get("card"):
+        return {
+            "ok": True,
+            "paid": True,
+            "scratched": bool(t.get("scratched")),
+            "scratch_id": scratch_id,
+            "card": t.get("card"),
+            "order_id": t.get("order_id"),
+            "receipt_token": t.get("receipt_token")
+        }
+
+    # Verify KHQR payment
+    now = datetime.now(timezone.utc)
+    try:
+        exp_dt = datetime.fromisoformat(str(t.get("expires_at", "")).replace("Z", "+00:00"))
+        if now > exp_dt:
+            return {"ok": True, "paid": False, "expired": True, "error": "QR code expired"}
+    except Exception:
+        pass
+
+    paid_status = False
+    if t.get("khqrpay_id"):
+        v_res = await verify_khqrpay_order(t["khqrpay_id"])
+        if v_res and str(v_res.get("status", "")).lower() == "paid":
+            paid_status = True
+
+    if paid_status and not t.get("paid"):
+        t["paid"] = True
+        card = generate_scratch_card(is_daily_free=False)
+        t["card"] = card
+        cur_u = next((u for u in users if u.get("id") == t.get("user_id")), None) if t.get("user_id") else None
+        order_id, receipt_token = _finalize_scratch_win_order(t["username"], t.get("roblox_id"), t.get("avatar", ""), t.get("display_name", ""), "ABA KHQR", scratch_id, card, cur_u)
+        t["order_id"] = order_id
+        t["receipt_token"] = receipt_token
+
+        return {
+            "ok": True,
+            "paid": True,
+            "scratched": False,
+            "scratch_id": scratch_id,
+            "card": card,
+            "order_id": order_id,
+            "receipt_token": receipt_token
+        }
+
+    return {"ok": True, "paid": False, "expired": False}
+
+@app.post("/api/scratch/claim")
+async def claim_scratch_reward(request: Request):
+    body = await request.json() if (await request.body()) else {}
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid payload"})
+
+    order_id = str(body.get("order_id") or "").strip()
+    receipt_token = str(body.get("receipt_token") or "").strip()
+    roblox_username = _sanitize_plain(body.get("roblox_username") or "", 60).lstrip("@")
+    roblox_id = _sanitize_plain(body.get("roblox_id") or "", 40) or None
+
+    if not order_id or not receipt_token or not roblox_username:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Missing order ID, receipt token, or Roblox username."})
+
+    ord_match = next((o for o in orders if o.get("order_id") == order_id), None)
+    if not ord_match:
+        return JSONResponse(status_code=404, content={"ok": False, "error": "Reward order not found."})
+
+    if ord_match.get("token") != receipt_token:
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Unauthorized: Invalid receipt token."})
+
+    cur_u = get_user_from_req(request)
+    if cur_u and not ord_match.get("user_id"):
+        ord_match["user_id"] = cur_u["id"]
+
+    ord_match["roblox_username"] = roblox_username
+    ord_match["player_id"] = roblox_username
+    if roblox_id:
+        ord_match["roblox_id"] = roblox_id
+        ord_match["profile_url"] = f"https://www.roblox.com/users/{roblox_id}/profile"
+    ord_match["claim_submitted"] = True
+    ord_match["step"] = "pending"
+    ord_match["label"] = f"Golden Scratch Winner ({ord_match.get('robux_amount', 0)} R$) — Claim submitted"
+    save_orders()
+
+    if not ord_match.get("telegram_alerted"):
+        ord_match["telegram_alerted"] = True
+        save_orders()
+        asyncio.create_task(send_telegram_order_notification(ord_match))
+
+    return {
+        "ok": True,
+        "message": "🎉 Claim submitted successfully! Admin will send your Robux shortly.",
+        "order": {
+            "order_id": ord_match["order_id"],
+            "roblox_username": ord_match["roblox_username"],
+            "robux_amount": ord_match.get("robux_amount", 0),
+            "status": ord_match["status"],
+            "step": ord_match["step"]
+        }
+    }
+
+@app.post("/api/scratch/unclaimed")
+async def get_unclaimed_scratch_rewards(request: Request):
+    body = await request.json() if (await request.body()) else {}
+    cur_u = get_user_from_req(request)
+    local_orders = body.get("local_orders", [])
+
+    unclaimed = []
+    for o in orders:
+        if o.get("package_id") == "scratch_reward" and o.get("step") == "unclaimed":
+            if cur_u and o.get("user_id") == cur_u["id"]:
+                unclaimed.append(o)
+            elif isinstance(local_orders, list):
+                for lo in local_orders:
+                    if lo.get("order_id") == o.get("order_id") and lo.get("token") == o.get("token"):
+                        unclaimed.append(o)
+                        break
+
+    return {"ok": True, "unclaimed": unclaimed}
+
+@app.get("/api/admin/scratch")
+async def admin_get_scratch():
+    return {
+        "ok": True,
+        "scratch_data": scratch_data
+    }
+
+@app.post("/api/admin/scratch/save")
+async def admin_save_scratch(request: Request):
+    body = await request.json() if (await request.body()) else {}
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid payload"})
+
+    scratch_data["enabled"] = bool(body.get("enabled", True))
+    scratch_data["title"] = str(body.get("title") or "Golden Scratch Card").strip()
+    scratch_data["subtitle"] = str(body.get("subtitle") or "").strip()
+    if "card_price_usd" in body:
+        scratch_data["card_price_usd"] = round(float(body["card_price_usd"]), 2)
+    if "daily_free_scratch_enabled" in body:
+        scratch_data["daily_free_scratch_enabled"] = bool(body["daily_free_scratch_enabled"])
+    if "daily_free_scratch_cooldown_hours" in body:
+        scratch_data["daily_free_scratch_cooldown_hours"] = int(body["daily_free_scratch_cooldown_hours"])
+    if "prizes" in body and isinstance(body["prizes"], list):
+        scratch_data["prizes"] = body["prizes"]
+
+    save_scratch_data()
+    return {"ok": True, "scratch_data": scratch_data}
+
+@app.post("/api/admin/scratch/reset-stats")
+async def admin_reset_scratch_stats():
+    scratch_data["total_cards_scratched"] = 0
+    scratch_data["total_revenue_usd"] = 0.0
+    scratch_data["total_robux_awarded"] = 0
+    scratch_data["history"] = []
+    save_scratch_data()
+    return {"ok": True, "message": "Scratch statistics and history cleared."}
 
 # CUSTOMER AUTHENTICATION & PROFILE
 # ==========================================
@@ -9578,6 +10163,10 @@ async def page_game(game_name: str):
 @app.get("/spin")
 async def page_spin():
     return FileResponse(PUBLIC_DIR / "spin.html")
+
+@app.get("/scratch")
+async def page_scratch():
+    return FileResponse(PUBLIC_DIR / "scratch.html")
 
 @app.get("/check-order")
 async def page_check_order():

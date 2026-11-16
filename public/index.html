@@ -76,19 +76,36 @@
 
   <!-- Category / Product Catalog Container -->
   <div class="container">
-    <a href="/spin" id="home-spin-promo" style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:#ffffff;color:#0f172a;padding:16px 22px;border-radius:18px;margin-top:16px;text-decoration:none;border:1.5px solid #e2e8f0;box-shadow:0 4px 20px rgba(15,23,42,0.05);">
-      <div style="display:flex;align-items:center;gap:14px;">
-        <div style="width:46px;height:46px;border-radius:14px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid #bfdbfe;">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 3"/></svg>
+    <!-- Rewards & Mini-Games Promo Hub (Spin Wheel & Scratch Card) -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:12px;margin-top:16px;margin-bottom:18px;">
+      <a href="/spin" id="home-spin-promo" style="display:flex;align-items:center;justify-content:space-between;gap:14px;background:#ffffff;color:#0f172a;padding:16px 20px;border-radius:18px;text-decoration:none;border:1.5px solid #e2e8f0;box-shadow:0 4px 18px rgba(15,23,42,0.04);transition:transform 0.2s,border-color 0.2s;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:44px;height:44px;border-radius:14px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid #bfdbfe;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.3"><circle cx="12" cy="12" r="10"/><path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M4.93 19.07L19.07 4.93"/></svg>
+          </div>
+          <div>
+            <div style="font-size:10.5px;font-weight:900;letter-spacing:0.8px;text-transform:uppercase;color:#2563eb;">LUCKY WHEEL</div>
+            <div style="font-size:15px;font-weight:800;color:#0f172a;">Spin Robux Wheel</div>
+            <div style="font-size:11.5px;color:#64748b;margin-top:2px;">Win Up to 1,000 Robux</div>
+          </div>
         </div>
-        <div>
-          <div style="font-size:11px;font-weight:800;letter-spacing:0.8px;text-transform:uppercase;color:#2563eb;">LUCKY WHEEL EVENT</div>
-          <div style="font-size:17px;font-weight:800;line-height:1.25;color:#0f172a;">Spin Robux Wheel · Win Up to 1,000 R$</div>
-          <div style="font-size:12px;color:#64748b;margin-top:2px;">Instant payout with Rolea Wallet or ABA KHQR</div>
+        <span style="padding:8px 14px;background:#2563eb;color:#ffffff;border-radius:999px;font-size:12px;font-weight:800;white-space:nowrap;">Spin →</span>
+      </a>
+
+      <a href="/scratch" id="home-scratch-promo" style="display:flex;align-items:center;justify-content:space-between;gap:14px;background:#ffffff;color:#0f172a;padding:16px 20px;border-radius:18px;text-decoration:none;border:1.5px solid #fef08a;box-shadow:0 4px 18px rgba(245,158,11,0.08);transition:transform 0.2s,border-color 0.2s;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:44px;height:44px;border-radius:14px;background:#fefce8;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid #fde047;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.3"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M7 8h10M7 12h6M7 16h4"/></svg>
+          </div>
+          <div>
+            <div style="font-size:10.5px;font-weight:900;letter-spacing:0.8px;text-transform:uppercase;color:#d97706;">SCRATCH CARD</div>
+            <div style="font-size:15px;font-weight:800;color:#0f172a;">Golden Scratch Card</div>
+            <div style="font-size:11.5px;color:#64748b;margin-top:2px;">Match 3 to Win Robux</div>
+          </div>
         </div>
-      </div>
-      <span style="padding:9px 18px;background:#2563eb;color:#ffffff;border-radius:999px;font-size:13px;font-weight:800;white-space:nowrap;box-shadow:0 4px 12px rgba(37,99,235,0.22);">Spin Now →</span>
-    </a>
+        <span style="padding:8px 14px;background:linear-gradient(135deg, #f59e0b, #d97706);color:#ffffff;border-radius:999px;font-size:12px;font-weight:800;white-space:nowrap;">Scratch →</span>
+      </a>
+    </div>
 
     <!-- Flash Sale Countdown Banner -->
     <a href="/game/roblox" id="home-flash-sale-promo" style="display:none;background:linear-gradient(135deg, #7f1d1d 0%, #b91c1c 50%, #dc2626 100%);color:#ffffff;border-radius:18px;padding:16px 20px;margin-bottom:20px;text-decoration:none;box-shadow:0 6px 20px rgba(220,38,38,0.25);transition:transform 0.2s ease,box-shadow 0.2s ease;">

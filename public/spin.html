@@ -16,6 +16,40 @@
       background: #f8fafc;
       color: #0f172a;
     }
+    .game-mode-tabs {
+      display: flex;
+      background: #ffffff;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 5px;
+      margin-bottom: 20px;
+      gap: 8px;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.03);
+    }
+    .game-mode-tab {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 16px;
+      border-radius: 12px;
+      font-size: 13.5px;
+      font-weight: 800;
+      color: #64748b;
+      text-decoration: none;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .game-mode-tab:hover {
+      color: #0f172a;
+      background: #f1f5f9;
+    }
+    .game-mode-tab.active {
+      background: linear-gradient(135deg, #1d4ed8 0%, #0284c7 100%);
+      color: #ffffff !important;
+      box-shadow: 0 4px 14px rgba(29, 78, 216, 0.35);
+    }
+
     .spin-shell {
       max-width: 1120px;
       margin: 22px auto 60px;
@@ -436,6 +470,18 @@
   </header>
 
   <div class="spin-shell">
+    <!-- Game Mode Switcher (Wheel vs Scratch) -->
+    <div class="game-mode-tabs">
+      <a href="/spin" class="game-mode-tab active">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><circle cx="12" cy="12" r="10"/><path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M4.93 19.07L19.07 4.93"/></svg>
+        <span>Lucky Wheel</span>
+      </a>
+      <a href="/scratch" class="game-mode-tab">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M7 8h10M7 12h6M7 16h4"/></svg>
+        <span>Scratch Card</span>
+      </a>
+    </div>
+
     <div class="spin-hero-banner">
       <div>
         <h1 id="spin-title">Lucky Robux Wheel</h1>
