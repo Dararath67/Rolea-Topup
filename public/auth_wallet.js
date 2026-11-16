@@ -1611,6 +1611,7 @@
     checkCurrentUser,
     refreshUser: checkCurrentUser,
     openAuthModal,
+    openLoginModal: () => openAuthModal('login'),
     openWalletModal,
     loginWithGoogle,
     executeGoogleAuth,

@@ -1047,8 +1047,11 @@ async function openBoxWithWallet() {
   if (isSpinning) return;
   const token = localStorage.getItem('rolea_token') || '';
   if (!token) {
-    alert('Please sign in to open boxes using Rolea Wallet.');
-    if (window.RoleaAuth) window.RoleaAuth.openLoginModal();
+    if (window.RoleaAuth && typeof window.RoleaAuth.openAuthModal === 'function') {
+      window.RoleaAuth.openAuthModal('login');
+    } else {
+      window.location.assign('/signin?redirect=/box');
+    }
     return;
   }
 
@@ -1070,10 +1073,20 @@ async function openBoxWithWallet() {
     });
     const j = await res.json();
     if (!res.ok || !j.ok) {
-      alert(j.error || 'Failed to open case.');
+      if (j.error && j.error.toLowerCase().includes('insufficient') && window.RoleaAuth && typeof window.RoleaAuth.openWalletModal === 'function') {
+        if (confirm(j.error + '\n\nDo you want to top up your Rolea Wallet now?')) {
+          window.RoleaAuth.openWalletModal();
+        }
+      } else {
+        alert(j.error || 'Failed to open case.');
+      }
       btn.disabled = false;
       updateStageCaseDisplay();
       return;
+    }
+
+    if (window.RoleaAuth && typeof window.RoleaAuth.checkCurrentUser === 'function') {
+      try { window.RoleaAuth.checkCurrentUser(); } catch(e) {}
     }
 
     if (j.order_id && j.receipt_token) {
