@@ -1123,17 +1123,18 @@ async function openBoxWithKHQR() {
         payment_method: 'khqr'
       })
     });
-    const j = await res.json();
+    const j = await res.json().catch(() => ({}));
     btn.disabled = false;
     updateStageCaseDisplay();
 
     if (!res.ok || !j.ok) {
-      alert(j.error || 'Failed to create KHQR.');
+      const errMsg = j.error || j.detail || (res.status === 404 || res.status === 405 ? 'Server API route is not running yet. Please restart Python App in Apsara hosting.' : 'Failed to create KHQR.');
+      alert(errMsg);
       return;
     }
 
     activeTicketId = j.ticket_id;
-    document.getElementById('khqr-modal-qr').src = j.qr_image;
+    document.getElementById('khqr-modal-qr').src = j.qr_image || j.qr_url;
     document.getElementById('khqr-modal-amount').textContent = `$${Number(j.price).toFixed(2)} USD`;
     if (j.aba_deeplink) {
       const abaBtn = document.getElementById('khqr-aba-link');

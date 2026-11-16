@@ -6592,6 +6592,7 @@ async def create_scratch_ticket(request: Request):
         "scratch_id": scratch_id,
         "price": price,
         "qr_image": qr_url,
+        "qr_url": qr_url,
         "payment_url": payment_url,
         "aba_deeplink": aba_deeplink,
         "expires_at": expires_at
@@ -7099,6 +7100,7 @@ async def create_box_ticket(request: Request):
         "price": price,
         "currency": "USD",
         "qr_image": qr_url,
+        "qr_url": qr_url,
         "payment_url": payment_url,
         "aba_deeplink": aba_deeplink,
         "expires_at": expires_at
