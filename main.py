@@ -162,6 +162,8 @@ except ImportError:
 _mysql_lock = threading.Lock()
 _mysql_conn = None
 _mysql_ready = False
+_mysql_retry_after = 0.0
+_mysql_preloaded_cache: Dict[str, Any] = {}
 
 def _get_mysql_cfg() -> Optional[Dict[str, Any]]:
     raw_url = (os.environ.get("MYSQL_URL") or os.environ.get("DATABASE_URL") or "").strip()
@@ -191,11 +193,14 @@ def _get_mysql_cfg() -> Optional[Dict[str, Any]]:
     return None
 
 def _mysql_connect():
-    global _mysql_conn, _mysql_ready
+    global _mysql_conn, _mysql_ready, _mysql_retry_after
     if pymysql is None:
         return None
     cfg = _get_mysql_cfg()
     if not cfg:
+        return None
+    now = time.time()
+    if now < _mysql_retry_after:
         return None
     if _mysql_conn is not None:
         try:
@@ -203,32 +208,65 @@ def _mysql_connect():
             return _mysql_conn
         except Exception:
             _mysql_conn = None
-    _mysql_conn = pymysql.connect(
-        host=cfg["host"],
-        port=cfg["port"],
-        user=cfg["user"],
-        password=cfg["password"],
-        database=cfg["database"],
-        charset="utf8mb4",
-        autocommit=True,
-        connect_timeout=6,
-        read_timeout=10,
-        write_timeout=10,
-    )
+    try:
+        _mysql_conn = pymysql.connect(
+            host=cfg["host"],
+            port=cfg["port"],
+            user=cfg["user"],
+            password=cfg["password"],
+            database=cfg["database"],
+            charset="utf8mb4",
+            autocommit=True,
+            connect_timeout=4,
+            read_timeout=6,
+            write_timeout=6,
+        )
+    except Exception as e:
+        _mysql_conn = None
+        _mysql_retry_after = now + 30.0
+        print(f"[MySQL] Connect failed: {e} (cooldown 30s)")
+        return None
     if not _mysql_ready:
-        with _mysql_conn.cursor() as cur:
-            cur.execute(
-                "CREATE TABLE IF NOT EXISTS rolea_store ("
-                "store_key VARCHAR(64) PRIMARY KEY, "
-                "payload LONGTEXT NOT NULL, "
-                "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
-                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-            )
-        _mysql_ready = True
-        print(f"[MySQL] Connected & initialized rolea_store on {cfg['host']}/{cfg['database']}")
+        try:
+            with _mysql_conn.cursor() as cur:
+                cur.execute(
+                    "CREATE TABLE IF NOT EXISTS rolea_store ("
+                    "store_key VARCHAR(64) PRIMARY KEY, "
+                    "payload LONGTEXT NOT NULL, "
+                    "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+                    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+                )
+            _mysql_ready = True
+            print(f"[MySQL] Connected & initialized rolea_store on {cfg['host']}/{cfg['database']}")
+        except Exception as e:
+            print(f"[MySQL] Table init warning: {e}")
     return _mysql_conn
 
+def _mysql_preload_all():
+    global _mysql_preloaded_cache
+    if not _get_mysql_cfg() or pymysql is None:
+        return
+    with _mysql_lock:
+        try:
+            conn = _mysql_connect()
+            if not conn:
+                return
+            with conn.cursor() as cur:
+                cur.execute("SELECT store_key, payload FROM rolea_store")
+                rows = cur.fetchall()
+                for k, v in rows:
+                    try:
+                        _mysql_preloaded_cache[k] = json.loads(v)
+                    except Exception:
+                        pass
+            if _mysql_preloaded_cache:
+                print(f"[MySQL] Fast preload: cached {len(_mysql_preloaded_cache)} tables in 1 query")
+        except Exception as e:
+            print(f"[MySQL] Preload failed: {e}")
+
 def _mysql_get(store_key: str) -> Optional[Any]:
+    if store_key in _mysql_preloaded_cache:
+        return _mysql_preloaded_cache[store_key]
     if not _get_mysql_cfg() or pymysql is None:
         return None
     with _mysql_lock:
@@ -586,10 +624,12 @@ def save_json(path: Path, data: Any):
                 json.dump(data, f, indent=2, ensure_ascii=False)
         except Exception as ex2:
             print(f"Error saving {path}: {ex2}")
+    _mysql_preloaded_cache[path.stem] = data
     _mysql_set(path.stem, data)
     cache_invalidate_store(path.stem)
 
 # Load initial data
+_mysql_preload_all()
 orders = load_json(DB_PATH, orders)
 packages = load_json(PACKAGES_PATH, packages)
 settings = load_json(SETTINGS_PATH, settings)
