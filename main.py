@@ -5775,6 +5775,26 @@ async def get_public_scratch_config(request: Request):
         }
     }
 
+@app.get("/api/scratch/recent-winners")
+async def get_scratch_recent_winners():
+    recent_winners = []
+    for h in scratch_data.get("history", []):
+        if int(h.get("robux", 0)) > 0:
+            u = str(h.get("username") or "Player")
+            masked = (u[:3] + "***") if len(u) > 3 else (u + "***")
+            recent_winners.append({
+                "username": masked,
+                "robux": int(h.get("robux", 0)),
+                "label": h.get("label"),
+                "created_at": h.get("created_at")
+            })
+            if len(recent_winners) >= 15:
+                break
+    return JSONResponse(
+        content={"ok": True, "recent_winners": recent_winners},
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
+    )
+
 @app.post("/api/scratch/daily-free")
 async def claim_daily_free_scratch(request: Request):
     if not scratch_data.get("enabled", True):
@@ -6045,6 +6065,13 @@ async def claim_scratch_reward(request: Request):
     ord_match["step"] = "pending"
     ord_match["label"] = f"Golden Scratch Winner ({ord_match.get('robux_amount', 0)} R$) — Claim submitted"
     save_orders()
+
+    # Update real-time scratch history entry with verified Roblox username
+    for h in scratch_data.get("history", []):
+        if h.get("order_id") == order_id or h.get("scratch_id") == order_id:
+            h["username"] = roblox_username
+            save_scratch_data()
+            break
 
     if not ord_match.get("telegram_alerted"):
         ord_match["telegram_alerted"] = True

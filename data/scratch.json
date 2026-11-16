@@ -8,36 +8,57 @@
   "daily_free_scratch_cooldown_hours": 24,
   "daily_free_scratch_max_robux": 10,
   "prizes": [
-    {"label": "Thank You", "robux": 0, "weight": 40, "color": "#64748b"},
-    {"label": "10 Robux", "robux": 10, "weight": 30, "color": "#2563eb"},
-    {"label": "25 Robux", "robux": 25, "weight": 15, "color": "#0284c7"},
-    {"label": "50 Robux", "robux": 50, "weight": 8, "color": "#059669"},
-    {"label": "100 Robux", "robux": 100, "weight": 4, "color": "#7c3aed"},
-    {"label": "200 Robux", "robux": 200, "weight": 2, "color": "#ea580c"},
-    {"label": "500 Robux", "robux": 500, "weight": 0.8, "color": "#e11d48"},
-    {"label": "1,000 Robux", "robux": 1000, "weight": 0.2, "color": "#d97706"}
+    {
+      "label": "Thank You",
+      "robux": 0,
+      "weight": 40,
+      "color": "#64748b"
+    },
+    {
+      "label": "10 Robux",
+      "robux": 10,
+      "weight": 30,
+      "color": "#2563eb"
+    },
+    {
+      "label": "25 Robux",
+      "robux": 25,
+      "weight": 15,
+      "color": "#0284c7"
+    },
+    {
+      "label": "50 Robux",
+      "robux": 50,
+      "weight": 8,
+      "color": "#059669"
+    },
+    {
+      "label": "100 Robux",
+      "robux": 100,
+      "weight": 4,
+      "color": "#7c3aed"
+    },
+    {
+      "label": "200 Robux",
+      "robux": 200,
+      "weight": 2,
+      "color": "#ea580c"
+    },
+    {
+      "label": "500 Robux",
+      "robux": 500,
+      "weight": 0.8,
+      "color": "#e11d48"
+    },
+    {
+      "label": "1,000 Robux",
+      "robux": 1000,
+      "weight": 0.2,
+      "color": "#d97706"
+    }
   ],
   "total_cards_scratched": 0,
   "total_revenue_usd": 0.0,
   "total_robux_awarded": 0,
-  "history": [
-    {
-      "scratch_id": "SCRATCH9B21",
-      "username": "sokleab",
-      "robux": 100,
-      "created_at": "2026-11-16T15:30:00Z"
-    },
-    {
-      "scratch_id": "SCRATCH84F1",
-      "username": "dara_gaming",
-      "robux": 25,
-      "created_at": "2026-11-16T15:15:00Z"
-    },
-    {
-      "scratch_id": "SCRATCH21C8",
-      "username": "rithy_pro",
-      "robux": 50,
-      "created_at": "2026-11-16T14:50:00Z"
-    }
-  ]
+  "history": []
 }

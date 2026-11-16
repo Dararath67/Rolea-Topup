@@ -428,6 +428,10 @@
       padding: 3px 10px;
       border-radius: 999px;
     }
+    @keyframes pulseLiveDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.35; transform: scale(0.85); }
+    }
 
     /* Modal Result */
     .result-modal-backdrop {
@@ -658,11 +662,24 @@
       </div>
     </div>
 
-    <!-- Winners Feed -->
+    <!-- Winners Feed (Real-Time Live) -->
     <div class="card-display-box winners-card">
-      <h3 class="ticket-step-title"><span class="ticket-step-num">3</span> អ្នកឈ្នះកាតកោសថ្មីៗ (Recent Scratch Winners)</h3>
+      <h3 class="ticket-step-title" style="justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <span style="display:inline-flex;align-items:center;gap:8px">
+          <span class="ticket-step-num">3</span>
+          <span>អ្នកឈ្នះកាតកោសថ្មីៗ (Recent Scratch Winners)</span>
+        </span>
+        <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;color:#059669;background:#ecfdf5;border:1px solid #a7f3d0;padding:3px 10px;border-radius:999px;letter-spacing:0.3px">
+          <span style="width:7px;height:7px;border-radius:50%;background:#10b981;display:inline-block;animation:pulseLiveDot 1.5s infinite"></span>
+          LIVE REAL-TIME
+        </span>
+      </h3>
       <div id="scratch-winners-list">
-        <!-- Populated via API -->
+        <div style="text-align:center;padding:26px 16px;color:#64748b;background:#f8fafc;border:1.5px dashed #e2e8f0;border-radius:18px">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" style="margin:0 auto 8px;display:block"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <div style="font-size:13.5px;font-weight:800;color:#334155;margin-bottom:3px">មិនទាន់មានអ្នកឈ្នះនៅឡើយទេ</div>
+          <div style="font-size:12px;color:#94a3b8">ក្លាយជាអ្នកកោសឈ្នះរង្វាន់ដំបូងគេថ្ងៃនេះ!</div>
+        </div>
       </div>
     </div>
   </div>
@@ -1046,6 +1063,17 @@ function checkAllCellsFinished() {
       statusEl.style.color = '#065f46';
       statusEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.4"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H7"/><path d="M14 14.66V17c0 .55.45 1 1 1h2"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg> អបអរសាទរ! កោសត្រូវរង្វាន់ <b>${currentCard.win_robux.toLocaleString()} Robux</b> ជោគជ័យ!</span>`;
     }
+
+    // Immediately reflect win in live real-time winners feed
+    const myUsername = (window.RoleaAuth && window.RoleaAuth.currentUser && window.RoleaAuth.currentUser.username) || 'You';
+    const myWin = {
+      username: myUsername,
+      robux: currentCard.win_robux,
+      created_at: new Date().toISOString()
+    };
+    renderWinners([myWin, ...currentWinnersList.filter(x => x.username !== myUsername)]);
+    setTimeout(pollRealtimeScratchWinners, 1500);
+
     setTimeout(() => {
       showWinnerModal(currentCard);
     }, 600);
@@ -1276,6 +1304,7 @@ async function submitScratchClaim() {
       alert('បាន Submit សំណើរួចរាល់! Admin នឹងពិនិត្យ និងផ្ញើ Robux ជូនអ្នកឆាប់ៗនេះ។');
       document.getElementById('scratch-unclaimed-card').style.display = 'none';
       closeResultModal();
+      pollRealtimeScratchWinners();
     } else {
       alert(j.error || 'Failed to submit claim.');
       btn.disabled = false;
@@ -1288,28 +1317,71 @@ async function submitScratchClaim() {
   }
 }
 
+let currentWinnersList = [];
+
 function renderWinners(list) {
   const box = document.getElementById('scratch-winners-list');
   if (!box) return;
-  if (!list || list.length === 0) {
-    box.innerHTML = '<div style="font-size:13px;color:#94a3b8">មិនទាន់មានអ្នកឈ្នះនៅឡើយទេ — ក្លាយជាអ្នកកោសឈ្នះដំបូងគេ!</div>';
+  currentWinnersList = Array.isArray(list) ? list : [];
+  if (currentWinnersList.length === 0) {
+    box.innerHTML = `
+      <div style="text-align:center;padding:26px 16px;color:#64748b;background:#f8fafc;border:1.5px dashed #e2e8f0;border-radius:18px">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" style="margin:0 auto 8px;display:block"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <div style="font-size:13.5px;font-weight:800;color:#334155;margin-bottom:3px">មិនទាន់មានអ្នកឈ្នះនៅឡើយទេ</div>
+        <div style="font-size:12px;color:#94a3b8">ក្លាយជាអ្នកកោសឈ្នះរង្វាន់ដំបូងគេថ្ងៃនេះ!</div>
+      </div>
+    `;
     return;
   }
-  box.innerHTML = list.map(w => `
-    <div class="winner-item">
-      <div>
-        <b style="font-size:13.5px;color:#0f172a;display:block">@${w.username}</b>
-        <span style="font-size:11px;color:#64748b">${w.created_at ? new Date(w.created_at).toLocaleTimeString() : 'Just now'}</span>
+  box.innerHTML = currentWinnersList.map(w => {
+    let timeStr = 'Just now';
+    if (w.created_at) {
+      try {
+        const dt = new Date(w.created_at);
+        const diffSec = Math.max(0, Math.floor((Date.now() - dt.getTime()) / 1000));
+        if (diffSec < 60) timeStr = 'Just now';
+        else if (diffSec < 3600) timeStr = Math.floor(diffSec / 60) + 'm ago';
+        else timeStr = dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      } catch (_) {}
+    }
+    return `
+      <div class="winner-item">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:34px;height:34px;border-radius:50%;background:#f1f5f9;border:1.5px solid #e2e8f0;display:flex;align-items:center;justify-content:center;color:#0284c7;font-weight:900;font-size:12px;flex-shrink:0">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <div>
+            <b style="font-size:13.5px;color:#0f172a;display:block">@${w.username}</b>
+            <span style="font-size:11px;color:#64748b;display:inline-flex;align-items:center;gap:4px">
+              <span style="width:5px;height:5px;border-radius:50%;background:#10b981;display:inline-block"></span>
+              ${timeStr}
+            </span>
+          </div>
+        </div>
+        <span class="winner-badge">+${Number(w.robux).toLocaleString()} R$</span>
       </div>
-      <span class="winner-badge">+${Number(w.robux).toLocaleString()} R$</span>
-    </div>
-  `).join('');
+    `;
+  }).join('');
+}
+
+// Live real-time polling every 6 seconds
+async function pollRealtimeScratchWinners() {
+  try {
+    const res = await fetch('/api/scratch/recent-winners?_t=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) return;
+    const j = await res.json();
+    if (j.ok && Array.isArray(j.recent_winners)) {
+      renderWinners(j.recent_winners);
+    }
+  } catch (_) {}
 }
 
 // Initial load
 window.addEventListener('DOMContentLoaded', () => {
   renderCardCells(defaultDemoCard);
   loadScratchConfig();
+  // Poll real-time winners feed continuously
+  setInterval(pollRealtimeScratchWinners, 6000);
 });
 </script>
 
