@@ -31,22 +31,38 @@
       border-radius: 16px;
       padding: 5px;
       margin-bottom: 20px;
-      gap: 8px;
+      gap: 6px;
       box-shadow: 0 4px 14px rgba(15, 23, 42, 0.03);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .game-mode-tabs::-webkit-scrollbar {
+      display: none;
     }
     .game-mode-tab {
-      flex: 1;
+      flex: 1 1 0;
+      min-width: 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      padding: 11px 16px;
+      gap: 6px;
+      padding: 10px 10px;
       border-radius: 12px;
-      font-size: 13.5px;
+      font-size: 13px;
       font-weight: 800;
       color: #64748b;
       text-decoration: none;
+      white-space: nowrap;
       transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .game-mode-tab span {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .game-mode-tab svg, .game-mode-tab img {
+      flex-shrink: 0;
     }
     .game-mode-tab:hover {
       color: #0f172a;
@@ -514,6 +530,18 @@
       }
       .prize-pills-wrap {
         grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  
+    @media (max-width: 480px) {
+      .game-mode-tab {
+        padding: 9px 6px;
+        font-size: 12px;
+        gap: 5px;
+      }
+      .game-mode-tab svg, .game-mode-tab img {
+        width: 15px !important;
+        height: 15px !important;
       }
     }
   </style>
