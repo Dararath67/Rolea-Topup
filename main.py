@@ -4627,6 +4627,7 @@ async def get_public_settings():
         lambda: {
             "ok": True,
             "store_name": settings.get("store_name"),
+            "store_logo": settings.get("store_logo", "/media/rolea-logo.webp"),
             "telegram_handle": settings.get("telegram_handle"),
             "khqr_merchant_name": settings.get("khqr_merchant_name"),
             "home_banner": settings.get("home_banner", "/media/banner1.webp"),

@@ -121,22 +121,24 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: 58px;
-      height: 58px;
+      width: 62px;
+      height: 62px;
       border-radius: 50%;
       background: #ffffff;
-      border: 4px solid #0f172a;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+      border: 3.5px solid #ffffff;
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
       display: flex;
       align-items: center;
       justify-content: center;
       z-index: 15;
+      overflow: hidden;
     }
     .wheel-center-hub img {
-      width: 36px;
-      height: 36px;
+      width: 100%;
+      height: 100%;
       border-radius: 50%;
       object-fit: cover;
+      display: block;
     }
 
     .ticket-step-title {
@@ -455,7 +457,7 @@
           <div class="wheel-canvas-wrap">
             <canvas id="spin-canvas" width="520" height="520"></canvas>
             <div class="wheel-center-hub">
-              <img src="/media/robux-coin.svg" alt="Robux">
+              <img src="/media/rolea-logo.webp" alt="Rolea Topup">
             </div>
           </div>
         </div>
