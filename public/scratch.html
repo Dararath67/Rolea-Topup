@@ -595,8 +595,8 @@
 
           <!-- Status Bar -->
           <div class="card-footer-status" id="card-footer-status">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.3"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            <span>មិនទាន់ទូទាត់ប្រាក់ទេ — សូមជ្រើសរើសទិញកាត ($0.25) ឬចុច Free ខាងស្តាំ!</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.3"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span>យកចុងម្រាមដៃ ឬ Mouse អូសកោសផ្ទាំងប្រាក់ដើម្បីបើករង្វាន់!</span>
           </div>
         </div>
 
@@ -870,8 +870,7 @@ function renderCardCells(cardData) {
   cellCanvases = [];
   cellsCleared = [false, false, false, false, false, false];
 
-  const isCardActive = Boolean(hasActiveCard && currentCard && currentCard.card_id !== 'DEMO');
-  document.getElementById('scratch-progress-text').textContent = isCardActive ? 'Scratch to reveal' : 'Card Locked (ទាមទារទិញសំបុត្រ ឬ Free)';
+  document.getElementById('scratch-progress-text').textContent = 'Scratch to reveal';
 
   const cells = cardData.cells || defaultDemoCard.cells;
 
@@ -998,19 +997,14 @@ function setupFoilCanvas(canvas, cellIndex) {
     ctx.fillText('R$', cx, cy);
   }
 
-  const isCardActive = Boolean(hasActiveCard && currentCard && currentCard.card_id !== 'DEMO');
-  canvas.style.cursor = isCardActive ? 'grab' : 'not-allowed';
+  canvas.style.cursor = 'grab';
 
   // Clean Typography below logo: "កោសទីនេះ" (No emoji!)
-  ctx.fillStyle = isCardActive ? '#1e293b' : '#64748b';
+  ctx.fillStyle = '#1e293b';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.font = '800 10px "Plus Jakarta Sans", sans-serif';
-  if (isCardActive) {
-    ctx.fillText('កោសទីនេះ', cx, cy + r + 13);
-  } else {
-    ctx.fillText('🔒 ទិញកាតមុនកោស', cx, cy + r + 13);
-  }
+  ctx.fillText('កោសទីនេះ', cx, cy + r + 13);
 
   let isDrawing = false;
   let lastPoint = null;
