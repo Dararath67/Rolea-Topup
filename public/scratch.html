@@ -559,7 +559,7 @@
         <span>Lucky Wheel</span>
       </a>
       <a href="/scratch" class="game-mode-tab active">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M7 8h10M7 12h6M7 16h4"/></svg>
+        <img src="/media/rolea-coin.png" alt="Scratch" style="width:18px;height:18px;object-fit:contain;display:inline-block">
         <span>Scratch Card</span>
       </a>
     </div>
@@ -582,7 +582,7 @@
         <div class="golden-card-shell">
           <div class="card-header-bar">
             <span class="card-brand-label">
-              <img src="/media/rolea-logo.webp" alt="Rolea">
+              <img src="/media/rolea-coin.png" alt="Rolea">
               <span>Rolea Lucky Scratch</span>
             </span>
             <span class="card-rule-badge">Match 3 to Win</span>
@@ -745,7 +745,7 @@
     <span>Home</span>
   </a>
   <a class="nav-item active" href="/scratch">
-    <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M7 8h10M7 12h6M7 16h4"/></svg>
+    <img src="/media/rolea-coin.png" alt="Scratch" style="width:22px;height:22px;object-fit:contain;display:block;margin:0 auto 2px">
     <span>Scratch</span>
   </a>
   <a class="nav-item" href="/check-order">
@@ -861,7 +861,7 @@ function renderDailyFreeStatus(dfs) {
 }
 
 const roleaLogoImg = new Image();
-roleaLogoImg.src = '/media/rolea-logo.webp';
+roleaLogoImg.src = '/media/rolea-coin.png';
 roleaLogoImg.onload = () => {
   if (cellCanvases.length && !cellsCleared.some(Boolean)) {
     cellCanvases.forEach((c, i) => {
@@ -891,7 +891,7 @@ function renderCardCells(cardData) {
     under.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:center;gap:4px">
         <div class="cell-under-val">${cell.robux ? cell.robux.toLocaleString() : '0'}</div>
-        ${cell.robux > 0 ? '<img src="/media/robux-coin.svg" alt="R$" style="width:16px;height:16px;display:inline-block">' : ''}
+        ${cell.robux > 0 ? '<img src="/media/rolea-coin.png" alt="R$" style="width:16px;height:16px;display:inline-block">' : ''}
       </div>
       <div class="cell-under-tag">${cell.robux > 0 ? 'Robux' : 'Thank You'}</div>
     `;
@@ -965,40 +965,20 @@ function setupFoilCanvas(canvas, cellIndex) {
     ctx.stroke();
   }
 
-  // Draw circular badge for Rolea Logo in center (No AI emoji)
+  // Draw Gold Coin in center
   const cx = w / 2;
-  const cy = h / 2 - 8;
-  const r = 16;
+  const cy = (h / 2) - 13;
+  const coinRadius = 18;
 
-  ctx.save();
-  ctx.shadowColor = 'rgba(15, 23, 42, 0.12)';
-  ctx.shadowBlur = 5;
-  ctx.shadowOffsetY = 2;
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-
-  // Thin ring border
-  ctx.strokeStyle = '#cbd5e1';
-  ctx.lineWidth = 1.2;
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.stroke();
-
-  // Draw Rolea logo image clipped inside circle
   if (roleaLogoImg.complete && roleaLogoImg.naturalWidth > 0) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(cx, cy, r - 1.5, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.drawImage(roleaLogoImg, cx - (r - 1.5), cy - (r - 1.5), (r - 1.5) * 2, (r - 1.5) * 2);
-    ctx.restore();
+    ctx.drawImage(roleaLogoImg, cx - coinRadius, cy - coinRadius, coinRadius * 2, coinRadius * 2);
   } else {
-    // Clean fallback while image is loading
-    ctx.fillStyle = '#0284c7';
-    ctx.font = '900 11px sans-serif';
+    ctx.fillStyle = '#f59e0b';
+    ctx.beginPath();
+    ctx.arc(cx, cy, coinRadius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 12px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('R$', cx, cy);
@@ -1007,11 +987,11 @@ function setupFoilCanvas(canvas, cellIndex) {
   canvas.style.cursor = 'grab';
 
   // Clean Typography below logo: "Scratch Here"
-  ctx.fillStyle = '#1e293b';
+  ctx.fillStyle = '#334155';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = '800 10px "Plus Jakarta Sans", sans-serif';
-  ctx.fillText('Scratch Here', cx, cy + r + 13);
+  ctx.font = '800 10.5px "Plus Jakarta Sans", sans-serif';
+  ctx.fillText('Scratch Here', cx, cy + coinRadius + 15);
 
   let isDrawing = false;
   let lastPoint = null;
