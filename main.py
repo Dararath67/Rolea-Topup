@@ -33,6 +33,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.gzip import GZipMiddleware
+from starlette.requests import ClientDisconnect
 
 class CachedStaticFiles(StaticFiles):
     def file_response(self, *args, **kwargs) -> Response:
@@ -2096,6 +2097,10 @@ async def send_bug_alert_telegram(
     Includes rate-limiting (cooldown 10s per unique error signature) to avoid message spam.
     """
     if not settings.get("bug_alert_enabled", True):
+        return False
+
+    # Ignore client-side network disconnects (normal browser behavior when closing tabs or loss of connection)
+    if "ClientDisconnect" in str(title) or "ClientDisconnect" in str(error_msg):
         return False
 
     token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
@@ -5612,6 +5617,9 @@ async def security_and_no_cache_middleware(request: Request, call_next):
 
     try:
         response = await call_next(request)
+    except (ClientDisconnect, asyncio.CancelledError):
+        # Client aborted connection or closed window prematurely - do not treat as server error or send alert
+        return Response(status_code=499)
     except Exception as exc:
         tb = traceback.format_exc()
         asyncio.create_task(send_bug_alert_telegram(
@@ -5654,6 +5662,14 @@ async def security_and_no_cache_middleware(request: Request, call_next):
     if _is_https_request(request):
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
     return response
+
+@app.exception_handler(ClientDisconnect)
+async def client_disconnect_exception_handler(request: Request, exc: ClientDisconnect):
+    return Response(status_code=499)
+
+@app.exception_handler(asyncio.CancelledError)
+async def cancelled_error_exception_handler(request: Request, exc: asyncio.CancelledError):
+    return Response(status_code=499)
 
 @app.exception_handler(json.JSONDecodeError)
 async def json_decode_exception_handler(request: Request, exc: json.JSONDecodeError):
@@ -7716,7 +7732,12 @@ async def create_crash_bet(request: Request):
     if not crash_data.get("enabled", True):
         return JSONResponse(status_code=400, content={"ok": False, "error": "Robux Crash is temporarily disabled by Admin."})
 
-    body = await request.json() if (await request.body()) else {}
+    try:
+        body = await request.json() if (await request.body()) else {}
+    except (ClientDisconnect, asyncio.CancelledError):
+        return Response(status_code=499)
+    except Exception:
+        body = {}
     if not isinstance(body, dict):
         return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid payload"})
 
@@ -7888,7 +7909,12 @@ async def get_crash_ticket(ticket_id: str):
 
 @app.post("/api/crash/cashout")
 async def cashout_crash_bet(request: Request):
-    body = await request.json() if (await request.body()) else {}
+    try:
+        body = await request.json() if (await request.body()) else {}
+    except (ClientDisconnect, asyncio.CancelledError):
+        return Response(status_code=499)
+    except Exception:
+        body = {}
     session_id = str(body.get("session_id") or "").strip()
     cashout_mult = round(float(body.get("cashout_multiplier") or 1.00), 2)
 
@@ -8008,7 +8034,12 @@ async def cashout_crash_bet(request: Request):
 
 @app.post("/api/crash/claim")
 async def claim_crash_reward(request: Request):
-    body = await request.json() if (await request.body()) else {}
+    try:
+        body = await request.json() if (await request.body()) else {}
+    except (ClientDisconnect, asyncio.CancelledError):
+        return Response(status_code=499)
+    except Exception:
+        body = {}
     order_id = str(body.get("order_id") or "").strip()
     token = str(body.get("receipt_token") or "").strip()
     roblox_user = str(body.get("roblox_username") or "").strip().lstrip("@")
