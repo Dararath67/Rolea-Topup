@@ -7119,7 +7119,7 @@ async def get_unclaimed_scratch_rewards(request: Request):
 
     unclaimed = []
     for o in orders:
-        if o.get("package_id") == "scratch_reward" and o.get("step") == "unclaimed":
+        if o.get("package_id") == "scratch_reward" and (o.get("step") in ("unclaimed", "rejected_resubmit", "pending") or not o.get("delivered")):
             if cur_u and o.get("user_id") == cur_u["id"]:
                 unclaimed.append(o)
             elif isinstance(local_orders, list):

@@ -544,6 +544,434 @@
         height: 15px !important;
       }
     }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    /* Robux Loot Vault & Prize Claims Inventory - Ultra Luxury Light Theme */
+    .scratch-vault-section {
+      margin-top: 20px;
+      margin-bottom: 24px;
+      animation: fadeInVault 0.3s ease-out;
+    }
+    @keyframes fadeInVault {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .vault-card {
+      background: #ffffff;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 22px;
+      padding: 20px 22px;
+      box-shadow: 0 6px 24px rgba(15, 23, 42, 0.04);
+      position: relative;
+      overflow: hidden;
+    }
+    .vault-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid #f1f5f9;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .vault-title-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .vault-icon-badge {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%);
+      border: 1.5px solid #fde047;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
+    }
+    .vault-title-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .vault-title {
+      margin: 0;
+      font-size: 16.5px;
+      font-weight: 900;
+      color: #0f172a;
+      letter-spacing: -0.2px;
+    }
+    .vault-count-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      background: #eff6ff;
+      color: #0284c7;
+      border: 1px solid #bfdbfe;
+    }
+    .vault-count-badge.alert {
+      background: #fef2f2;
+      color: #dc2626;
+      border-color: #fecaca;
+      animation: alertPulse 2s infinite;
+    }
+    @keyframes alertPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.04); }
+    }
+    .vault-desc {
+      margin: 3px 0 0;
+      font-size: 12.5px;
+      color: #64748b;
+    }
+    .btn-vault-refresh {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #475569;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .btn-vault-refresh:hover {
+      background: #f1f5f9;
+      color: #0f172a;
+      border-color: #cbd5e1;
+    }
+    .btn-vault-refresh svg.spinning {
+      animation: spinIco 0.7s linear infinite;
+    }
+    @keyframes spinIco {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .vault-items-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .vault-item-card {
+      background: #ffffff;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 18px;
+      padding: 16px 18px;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+    .vault-item-card:hover {
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+      border-color: #cbd5e1;
+    }
+    .vault-item-card.rejected {
+      border-color: #fca5a5;
+      background: #fffafa;
+    }
+    .vault-item-card.pending {
+      border-color: #bae6fd;
+      background: #fcfdfe;
+    }
+    .vault-item-card.ready {
+      border-color: #fde047;
+      background: #fffdf5;
+    }
+    .vault-item-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .vault-item-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .vault-coin-wrap {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: #fefce8;
+      border: 1.5px solid #fde047;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 3px 10px rgba(245, 158, 11, 0.2);
+    }
+    .vault-coin-img {
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
+    }
+    .vault-robux-amount {
+      font-size: 20px;
+      font-weight: 900;
+      color: #0f172a;
+      line-height: 1.1;
+      letter-spacing: -0.3px;
+    }
+    .vault-item-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 4px;
+      flex-wrap: wrap;
+    }
+    .case-chip {
+      font-size: 11px;
+      font-weight: 700;
+      color: #475569;
+      background: #f1f5f9;
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+    .order-id-chip {
+      font-size: 11.5px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      color: #0284c7;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      padding: 2px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s;
+    }
+    .order-id-chip:hover {
+      background: #dbeafe;
+    }
+
+    .vault-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .status-pill-rejected {
+      background: #fef2f2;
+      color: #b91c1c;
+      border: 1.5px solid #fca5a5;
+    }
+    .status-pill-pending {
+      background: #f0fdf4;
+      color: #15803d;
+      border: 1.5px solid #86efac;
+    }
+    .status-pill-ready {
+      background: #fefce8;
+      color: #b45309;
+      border: 1.5px solid #fde047;
+    }
+
+    /* Notice callout box */
+    .vault-callout {
+      margin-top: 12px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 12.5px;
+      line-height: 1.45;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .vault-callout.rejected {
+      background: #fff5f5;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+    }
+    .vault-callout.pending {
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      color: #0369a1;
+    }
+    .vault-callout.ready {
+      background: #fffbeb;
+      border: 1px solid #fef08a;
+      color: #92400e;
+    }
+
+    /* Inline interactive claim box */
+    .vault-claim-box {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px dashed #e2e8f0;
+    }
+    .vault-claim-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 800;
+      color: #334155;
+      margin-bottom: 8px;
+    }
+    .vault-claim-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .vault-input-group {
+      display: flex;
+      align-items: stretch;
+      background: #ffffff;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 12px;
+      overflow: hidden;
+      flex: 1;
+      min-width: 200px;
+      transition: all 0.2s;
+    }
+    .vault-input-group:focus-within {
+      border-color: #0284c7;
+      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.12);
+    }
+    .vault-addon-prefix {
+      background: #f1f5f9;
+      border-right: 1.5px solid #cbd5e1;
+      color: #64748b;
+      font-weight: 800;
+      font-size: 14px;
+      padding: 0 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      flex: none;
+    }
+    input[type="text"].vault-input-field {
+      border: none !important;
+      outline: none !important;
+      background: transparent !important;
+      padding: 11px 13px !important;
+      font-size: 14px !important;
+      font-weight: 700 !important;
+      color: #0f172a !important;
+      width: 100% !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+    }
+    .btn-vault-submit {
+      padding: 11px 18px;
+      font-size: 13.5px;
+      font-weight: 800;
+      border-radius: 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      color: #ffffff;
+      border: none;
+      box-shadow: 0 3px 10px rgba(2, 132, 199, 0.25);
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .btn-vault-submit:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 5px 14px rgba(2, 132, 199, 0.35);
+    }
+    .btn-vault-submit.btn-resubmit {
+      background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+      box-shadow: 0 3px 10px rgba(220, 38, 38, 0.25);
+    }
+    .btn-vault-submit.btn-resubmit:hover:not(:disabled) {
+      box-shadow: 0 5px 14px rgba(220, 38, 38, 0.35);
+    }
+    .btn-vault-submit:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .vault-pending-bar {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px dashed #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .btn-track-order {
+      padding: 6px 12px;
+      border-radius: 8px;
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      color: #0284c7;
+      font-size: 12px;
+      font-weight: 800;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s;
+    }
+    .btn-track-order:hover {
+      background: #e0f2fe;
+    }
+
+    /* Live avatar verification preview */
+    .roblox-verify-preview {
+      margin-top: 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 999px;
+      padding: 4px 12px 4px 5px;
+      animation: fadeInPreview 0.2s ease;
+    }
+    @keyframes fadeInPreview {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .verify-avatar-img {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      object-fit: cover;
+    }
+    .verify-avatar-info {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.2;
+    }
+    .verify-name {
+      font-size: 12px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .verify-check {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #10b981;
+    }
   </style>
 </head>
 <body>
@@ -610,6 +1038,17 @@
         <span>Ticket Price</span>
         <b id="scratch-price-display">$0.25 USD</b>
       </div>
+    </div>
+
+    <!-- Mini Quick-Jump Shortcut (Only appears if user has pending rewards, does NOT push cards down) -->
+    <div id="vault-top-shortcut" style="display:none;margin-bottom:14px">
+      <a href="#scratch-vault-section" style="display:inline-flex;align-items:center;gap:8px;padding:6px 14px;background:#fefce8;border:1.5px solid #fde047;border-radius:999px;text-decoration:none;font-size:12px;font-weight:800;color:#b45309;box-shadow:0 2px 8px rgba(245,158,11,0.15);transition:all 0.15s">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.3">
+          <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>
+        </svg>
+        <span id="vault-top-shortcut-text">អ្នកមានរង្វាន់ Robux កំពុងរង់ចាំ — មើលកាតាបខាងក្រោម</span>
+        <span style="color:#d97706">↓</span>
+      </a>
     </div>
 
     <div class="scratch-grid-wrap">
@@ -694,6 +1133,40 @@
       </div>
     </div>
 
+    <!-- Robux Loot Vault & Prize Claims Inventory (Positioned Below Stage) -->
+    <div class="scratch-vault-section" id="scratch-vault-section" style="display:none">
+      <div class="vault-card">
+        <div class="vault-header">
+          <div class="vault-title-group">
+            <div class="vault-icon-badge">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.3">
+                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+                <line x1="3" y1="6" x2="21" y2="6"/>
+                <path d="M16 10a4 4 0 0 1-8 0"/>
+              </svg>
+            </div>
+            <div>
+              <div class="vault-title-row">
+                <h3 class="vault-title">កាតាបរង្វាន់ Robux & កន្លែងស្នើសុំ Claim</h3>
+                <span class="vault-count-badge" id="vault-count-badge">0 Rewards</span>
+              </div>
+              <p class="vault-desc">រង្វាន់ Scratch Card របស់អ្នកត្រូវបានរក្សាទុកដោយសុវត្ថិភាព — ដាក់ឈ្មោះ Roblox ដើម្បីឲ្យ Admin បាញ់ Robux ជូនភ្លាមៗ</p>
+            </div>
+          </div>
+          <button type="button" class="btn-vault-refresh" onclick="loadVaultUnclaimed(true)" title="Refresh Vault">
+            <svg id="vault-refresh-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+              <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+            <span>Refresh</span>
+          </button>
+        </div>
+
+        <div class="vault-items-list" id="vault-items-list">
+          <!-- Populated by renderVaultItems() -->
+        </div>
+      </div>
+    </div>
+
     <!-- Prize Table -->
     <div class="card-display-box prizes-card">
       <h3 class="ticket-step-title"><span class="ticket-step-num">2</span> Possible Robux Prizes</h3>
@@ -767,9 +1240,20 @@
 
     <!-- Claim Box -->
     <div id="claim-form-box" style="display:none;text-align:left;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:18px;padding:16px;margin-bottom:16px">
-      <label style="display:block;font-size:12px;font-weight:800;color:#334155;margin-bottom:6px">Confirm Roblox Username for Admin:</label>
-      <input type="text" id="claim-roblox-username" placeholder="Roblox Username (e.g. player123)" style="width:100%;padding:11px 14px;border:1.5px solid #cbd5e1;border-radius:12px;font-size:14px;font-weight:700;box-sizing:border-box">
-      <div style="font-size:11px;color:#64748b;margin-top:6px">Admin will review and send Robux directly to this account.</div>
+      <label style="display:block;font-size:12px;font-weight:800;color:#334155;margin-bottom:6px">Roblox Username (ឈ្មោះគណនី Roblox ទទួល Robux):</label>
+      <div class="vault-input-group" style="margin-bottom:8px">
+        <span class="vault-addon-prefix">@</span>
+        <input type="text" id="claim-roblox-username" class="vault-input-field" placeholder="e.g. Builderman" oninput="onModalUserTyped()" autocomplete="off" spellcheck="false">
+      </div>
+      <!-- Live avatar verify in modal -->
+      <div class="roblox-verify-preview" id="modal-verify-preview" style="display:none;margin-bottom:12px">
+        <img src="/media/rolea-logo.webp" class="verify-avatar-img" id="modal-verify-avatar" onerror="this.onerror=null;this.src='/media/rolea-logo.webp';">
+        <div class="verify-avatar-info">
+          <b class="verify-name" id="modal-verify-name"></b>
+          <span class="verify-check" id="modal-verify-check">Verified Roblox Account</span>
+        </div>
+      </div>
+      <div style="font-size:11px;color:#64748b;margin-top:6px">Admin នឹងផ្ញើ Robux ជូនតាម Gamepass ឬ Group Payout។ រង្វាន់នេះក៏ត្រូវបានរក្សាទុកក្នុងកាតាប Robux Vault ខាងក្រោមផងដែរ។</div>
       <button type="button" class="btn-action-primary" style="margin-top:12px;background:#059669;color:#fff" id="btn-submit-claim" onclick="submitScratchClaim()">
         Submit Claim to Admin →
       </button>
@@ -874,7 +1358,7 @@ async function loadScratchConfig() {
 
     renderDailyFreeStatus(j.daily_free_scratch);
     renderWinners(j.recent_winners || []);
-    checkUnclaimedRewards();
+    loadVaultUnclaimed();
   } catch (e) {}
 }
 
@@ -1381,29 +1865,403 @@ function saveScratchOrder(orderId, token, robux) {
     const raw = localStorage.getItem('rolea_scratch_orders') || '[]';
     const list = JSON.parse(raw);
     if (!list.some(x => x.order_id === orderId)) {
-      list.unshift({ order_id: orderId, token, robux });
+      list.unshift({ order_id: orderId, token, robux, saved_at: Date.now() });
       localStorage.setItem('rolea_scratch_orders', JSON.stringify(list.slice(0, 30)));
+    }
+  } catch (_) {}
+  loadVaultUnclaimed(true);
+}
+
+let vaultVerifyTimers = {};
+let modalVerifyTimer = null;
+
+function escHtml(str) {
+  if (str === undefined || str === null) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
+function copyVaultOrderId(oid) {
+  if (!oid) return;
+  navigator.clipboard.writeText(oid).then(() => {
+    alert('Copied Order ID: ' + oid);
+  }).catch(() => {
+    prompt('Order ID:', oid);
+  });
+}
+
+function verifyRobloxUser(rawUsername, cb) {
+  const username = String(rawUsername || '').trim().replace(/^@+/, '');
+  if (!username || username.length < 3) {
+    if (typeof cb === 'function') cb(null);
+    return;
+  }
+  fetch('/api/check-id', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ game: 'roblox', player_id: username })
+  })
+  .then(res => res.json())
+  .then(j => {
+    if (j && j.ok && j.username) {
+      if (typeof cb === 'function') cb({
+        username: j.username,
+        displayName: j.display_name || j.username,
+        avatar: j.avatar || '/media/rolea-logo.webp',
+        verified: j.verified !== false,
+        playerId: j.roblox_id || j.player_id || ''
+      });
+    } else {
+      if (typeof cb === 'function') cb(null);
+    }
+  })
+  .catch(() => {
+    if (typeof cb === 'function') cb(null);
+  });
+}
+
+function onModalUserTyped() {
+  clearTimeout(modalVerifyTimer);
+  const input = document.getElementById('claim-roblox-username');
+  const val = input ? input.value.trim().replace(/^@+/, '') : '';
+  const preview = document.getElementById('modal-verify-preview');
+  if (!val || val.length < 3) {
+    if (preview) preview.style.display = 'none';
+    return;
+  }
+  modalVerifyTimer = setTimeout(() => {
+    verifyRobloxUser(val, (info) => {
+      if (info && preview) {
+        const av = document.getElementById('modal-verify-avatar');
+        if (av) av.src = info.avatar || '/media/rolea-logo.webp';
+        const nameEl = document.getElementById('modal-verify-name');
+        if (nameEl) nameEl.textContent = `@${info.username} (${info.displayName})`;
+        const checkEl = document.getElementById('modal-verify-check');
+        if (checkEl) {
+          if (info.verified) {
+            checkEl.textContent = 'Verified Roblox Account';
+            checkEl.style.color = '#10b981';
+          } else {
+            checkEl.textContent = 'Account Not Confirmed on Roblox';
+            checkEl.style.color = '#d97706';
+          }
+        }
+        preview.style.display = 'inline-flex';
+      } else if (preview) {
+        preview.style.display = 'none';
+      }
+    });
+  }, 450);
+}
+
+function onVaultUserTyped(orderId) {
+  clearTimeout(vaultVerifyTimers[orderId]);
+  const input = document.getElementById(`roblox-user-${orderId}`);
+  const val = input ? input.value.trim().replace(/^@+/, '') : '';
+  const preview = document.getElementById(`verify-preview-${orderId}`);
+  if (!val || val.length < 3) {
+    if (preview) preview.style.display = 'none';
+    return;
+  }
+  vaultVerifyTimers[orderId] = setTimeout(() => {
+    verifyRobloxUser(val, (info) => {
+      if (info && preview) {
+        const avEl = document.getElementById(`verify-avatar-${orderId}`);
+        const nameEl = document.getElementById(`verify-name-${orderId}`);
+        const checkEl = document.getElementById(`verify-check-${orderId}`);
+        if (avEl) avEl.src = info.avatar || '/media/rolea-logo.webp';
+        if (nameEl) nameEl.textContent = `@${info.username} (${info.displayName})`;
+        if (checkEl) {
+          if (info.verified) {
+            checkEl.textContent = 'Verified Roblox Account';
+            checkEl.style.color = '#10b981';
+          } else {
+            checkEl.textContent = 'Account Not Confirmed on Roblox';
+            checkEl.style.color = '#d97706';
+          }
+        }
+        preview.style.display = 'inline-flex';
+      } else if (preview) {
+        preview.style.display = 'none';
+      }
+    });
+  }, 450);
+}
+
+async function loadVaultUnclaimed(isManualRefresh = false) {
+  const ico = document.getElementById('vault-refresh-ico');
+  if (ico && isManualRefresh) ico.classList.add('spinning');
+  setTimeout(() => { if (ico) ico.classList.remove('spinning'); }, 800);
+
+  try {
+    const raw = localStorage.getItem('rolea_scratch_orders') || '[]';
+    const local = JSON.parse(raw);
+    const token = localStorage.getItem('rolea_token') || '';
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+
+    const res = await fetch('/api/scratch/unclaimed', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ local_orders: local })
+    });
+    const j = await res.json();
+    const vaultSec = document.getElementById('scratch-vault-section');
+    const shortcutEl = document.getElementById('vault-top-shortcut');
+    const shortcutText = document.getElementById('vault-top-shortcut-text');
+
+    if (res.ok && j.ok && j.unclaimed && j.unclaimed.length > 0) {
+      if (vaultSec) vaultSec.style.display = 'block';
+      if (shortcutEl) {
+        const hasRej = j.unclaimed.some(x => x.rejected || x.step === 'rejected_resubmit');
+        if (shortcutText) {
+          shortcutText.textContent = hasRej
+            ? `⚠️ រង្វាន់ Scratch ត្រូវការកែឈ្មោះ Roblox — ចុចមើលកាតាបខាងក្រោម`
+            : `🎁 អ្នកមាន ${j.unclaimed.length} រង្វាន់ Robux កំពុងរង់ចាំ — មើលកាតាបខាងក្រោម`;
+        }
+        shortcutEl.style.display = 'block';
+      }
+      renderVaultItems(j.unclaimed);
+
+      // Keep legacy mini notification card hidden since vault is active
+      const legacyEl = document.getElementById('scratch-unclaimed-card');
+      if (legacyEl) legacyEl.style.display = 'none';
+    } else {
+      if (vaultSec) vaultSec.style.display = 'none';
+      if (shortcutEl) shortcutEl.style.display = 'none';
     }
   } catch (_) {}
 }
 
-async function checkUnclaimedRewards() {
+function renderVaultItems(items) {
+  const container = document.getElementById('vault-items-list');
+  const badge = document.getElementById('vault-count-badge');
+  if (!container) return;
+
+  const savedUser = localStorage.getItem('rolea_roblox_username') || '';
+  const hasRej = items.some(x => x.rejected || x.step === 'rejected_resubmit');
+
+  if (badge) {
+    badge.textContent = `${items.length} ${items.length === 1 ? 'Reward' : 'Rewards'}`;
+    badge.classList.toggle('alert', hasRej);
+    if (hasRej) {
+      badge.textContent = 'Action Required · Update Username';
+    }
+  }
+
+  let html = '';
+  for (const r of items) {
+    const isRej = Boolean(r.rejected || r.step === 'rejected_resubmit');
+    const isPending = Boolean((r.step === 'pending' || r.claim_submitted) && !isRej && !r.delivered);
+    const isDelivered = Boolean(r.delivered || r.step === 'completed');
+    const cardClass = isRej ? 'rejected' : (isPending ? 'pending' : 'ready');
+    const robuxAmt = Number(r.robux_amount || 0);
+    const userVal = r.roblox_username || savedUser || '';
+
+    // Status pill
+    let pillHtml = '';
+    if (isRej) {
+      pillHtml = `
+        <span class="vault-status-pill status-pill-rejected">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Claim Rejected · Re-submit
+        </span>
+      `;
+    } else if (isPending) {
+      pillHtml = `
+        <span class="vault-status-pill status-pill-pending">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+          Waiting Admin Delivery
+        </span>
+      `;
+    } else if (isDelivered) {
+      pillHtml = `
+        <span class="vault-status-pill status-pill-pending">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Delivered
+        </span>
+      `;
+    } else {
+      pillHtml = `
+        <span class="vault-status-pill status-pill-ready">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Ready to Claim
+        </span>
+      `;
+    }
+
+    // Callout box
+    let calloutHtml = '';
+    if (isRej) {
+      calloutHtml = `
+        <div class="vault-callout rejected">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" style="flex-shrink:0;margin-top:2px">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <div>
+            <b>Claim Rejected by Admin (Admin បានបដិសេធសំណើ):</b><br>
+            ${escHtml(r.reject_reason || 'រង្វាន់ ' + robuxAmt + ' Robux របស់អ្នកត្រូវបានរក្សាទុកដោយសុវត្ថិភាព! Admin មិនអាចផ្ញើជូនបានដោយសារឈ្មោះ Roblox មិនត្រឹមត្រូវឬមិនទាន់ Setup Gamepass។ សូមពិនិត្យឈ្មោះឡើងវិញរួចចុច "ផ្ញើឈ្មោះម្ដងទៀត"។')}
+          </div>
+        </div>
+      `;
+    } else if (isPending) {
+      calloutHtml = `
+        <div class="vault-callout pending">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" style="flex-shrink:0;margin-top:2px">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <div>
+            <b>Request Submitted to Admin (សំណើត្រូវបានបញ្ជូនរួចរាល់):</b><br>
+            Admin កំពុងដំណើរការបាញ់ ${robuxAmt.toLocaleString()} Robux ជូនគណនី <b>@${escHtml(r.roblox_username || 'Player')}</b>។ ជាទូទៅចំណាយពេល 5-15 នាទី។
+          </div>
+        </div>
+      `;
+    }
+
+    // Interactive input form or pending status bar
+    let formHtml = '';
+    if (isPending) {
+      formHtml = `
+        <div class="vault-pending-bar">
+          <span style="font-size:12.5px;color:#0369a1;font-weight:700">Account: @${escHtml(r.roblox_username || 'Player')} · In Delivery Queue</span>
+          <a href="/check-order?order_id=${encodeURIComponent(r.order_id)}" class="btn-track-order">
+            <span>Check Order Status</span>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </a>
+        </div>
+      `;
+    } else {
+      formHtml = `
+        <div class="vault-claim-box">
+          <label class="vault-claim-label">
+            Roblox Username (ឈ្មោះគណនី Roblox ទទួល Robux):
+          </label>
+          <div class="vault-claim-row">
+            <div class="vault-input-group">
+              <span class="vault-addon-prefix">@</span>
+              <input type="text" class="vault-input-field" id="roblox-user-${r.order_id}" 
+                     placeholder="e.g. Builderman" value="${escHtml(userVal)}"
+                     autocomplete="off" spellcheck="false"
+                     oninput="onVaultUserTyped('${r.order_id}')">
+            </div>
+            <button type="button" class="btn-vault-submit ${isRej ? 'btn-resubmit' : ''}" id="btn-submit-${r.order_id}"
+                    onclick="submitVaultClaim('${r.order_id}', '${r.token || ''}', ${robuxAmt})">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+              <span>${isRej ? 'ផ្ញើឈ្មោះម្ដងទៀត (Re-submit)' : 'ផ្ញើសំណើទៅ Admin (Claim)'}</span>
+            </button>
+          </div>
+          <!-- Live Avatar Verification -->
+          <div class="roblox-verify-preview" id="verify-preview-${r.order_id}" style="display:none">
+            <img src="/media/rolea-logo.webp" class="verify-avatar-img" id="verify-avatar-${r.order_id}" onerror="this.onerror=null;this.src='/media/rolea-logo.webp';">
+            <div class="verify-avatar-info">
+              <b class="verify-name" id="verify-name-${r.order_id}"></b>
+              <span class="verify-check" id="verify-check-${r.order_id}">Verified Roblox Account</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    html += `
+      <div class="vault-item-card ${cardClass}" id="vault-card-${r.order_id}">
+        <div class="vault-item-top">
+          <div class="vault-item-left">
+            <div class="vault-coin-wrap">
+              <img src="/media/robux-gold-coin.png" alt="Robux" class="vault-coin-img">
+            </div>
+            <div>
+              <div class="vault-robux-amount">+${robuxAmt.toLocaleString()} Robux</div>
+              <div class="vault-item-meta">
+                <span class="case-chip">${escHtml(r.card_name || 'Golden Scratch Card')}</span>
+                <span class="order-id-chip" onclick="copyVaultOrderId('${r.order_id}')" title="Click to copy order ID">
+                  #${escHtml(r.order_id)}
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                </span>
+              </div>
+            </div>
+          </div>
+          <div>
+            ${pillHtml}
+          </div>
+        </div>
+        ${calloutHtml}
+        ${formHtml}
+      </div>
+    `;
+  }
+
+  container.innerHTML = html;
+
+  // Trigger preview verification for pre-filled username
+  if (savedUser && savedUser.length >= 3) {
+    for (const r of items) {
+      if (!r.rejected && (r.step === 'pending' || r.claim_submitted)) continue;
+      onVaultUserTyped(r.order_id);
+    }
+  }
+}
+
+async function submitVaultClaim(orderId, receiptToken, robuxAmount) {
+  const input = document.getElementById(`roblox-user-${orderId}`);
+  const username = input ? input.value.trim().replace(/^@+/, '') : '';
+  if (!username) {
+    alert('Please enter your Roblox username (សូមបញ្ចូលឈ្មោះគណនី Roblox របស់អ្នក)');
+    if (input) input.focus();
+    return;
+  }
+
+  const btn = document.getElementById(`btn-submit-${orderId}`);
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `
+      <svg class="spinning" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+      </svg>
+      <span>Submitting...</span>
+    `;
+  }
+
   try {
-    const raw = localStorage.getItem('rolea_scratch_orders') || '[]';
-    const local = JSON.parse(raw);
-    const res = await fetch('/api/scratch/unclaimed', {
+    const res = await fetch('/api/scratch/claim', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ local_orders: local })
+      body: JSON.stringify({
+        order_id: orderId,
+        receipt_token: receiptToken,
+        roblox_username: username
+      })
     });
     const j = await res.json();
-    if (res.ok && j.ok && j.unclaimed && j.unclaimed.length > 0) {
-      const first = j.unclaimed[0];
-      activeClaimOrder = { order_id: first.order_id, receipt_token: first.token, robux: first.robux_amount };
-      document.getElementById('scratch-unclaimed-card').style.display = 'block';
-      document.getElementById('scratch-unclaimed-info').textContent = `Order #${first.order_id} — រង្វាន់ ${Number(first.robux_amount).toLocaleString()} Robux`;
+    if (res.ok && j.ok) {
+      localStorage.setItem('rolea_roblox_username', username);
+      alert(`Claim submitted successfully! Admin will send ${Number(robuxAmount).toLocaleString()} Robux to @${username} shortly.\n\n(សំណើត្រូវបានផ្ញើជោគជ័យ! Admin នឹងបាញ់ Robux ជូនក្នុងពេលឆាប់ៗ)`);
+      loadVaultUnclaimed(true);
+      pollRealtimeScratchWinners();
+    } else {
+      alert(j.error || 'Failed to submit claim.');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+          <span>ផ្ញើសំណើទៅ Admin</span>
+        `;
+      }
     }
-  } catch (_) {}
+  } catch (e) {
+    alert('Network error. Please try again.');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+        <span>ផ្ញើសំណើទៅ Admin</span>
+      `;
+    }
+  }
 }
 
 function showWinnerModal(card) {
@@ -1411,6 +2269,13 @@ function showWinnerModal(card) {
   const title = document.getElementById('res-title');
   const desc = document.getElementById('res-desc');
   const claimBox = document.getElementById('claim-form-box');
+
+  const savedUser = localStorage.getItem('rolea_roblox_username') || '';
+  const input = document.getElementById('claim-roblox-username');
+  if (input && savedUser) {
+    input.value = savedUser;
+    onModalUserTyped();
+  }
 
   if (card.win_robux > 0) {
     title.textContent = `You Won ${card.win_robux.toLocaleString()} Robux!`;
@@ -1426,6 +2291,7 @@ function showWinnerModal(card) {
 
 function closeResultModal() {
   document.getElementById('res-modal').classList.remove('open');
+  loadVaultUnclaimed(true);
 }
 
 function openClaimModalFromSaved() {
@@ -1435,9 +2301,9 @@ function openClaimModalFromSaved() {
 
 async function submitScratchClaim() {
   if (!activeClaimOrder) return;
-  const username = document.getElementById('claim-roblox-username').value.trim();
+  const username = document.getElementById('claim-roblox-username').value.trim().replace(/^@+/, '');
   if (!username) {
-    alert('Please enter your Roblox Username!');
+    alert('Please enter your Roblox Username (សូមបញ្ចូលឈ្មោះ Roblox)!');
     return;
   }
 
@@ -1457,9 +2323,11 @@ async function submitScratchClaim() {
     });
     const j = await res.json();
     if (res.ok && j.ok) {
+      localStorage.setItem('rolea_roblox_username', username);
       alert('Claim submitted successfully! Admin will review and send your Robux soon.');
       document.getElementById('scratch-unclaimed-card').style.display = 'none';
       closeResultModal();
+      loadVaultUnclaimed(true);
       pollRealtimeScratchWinners();
     } else {
       alert(j.error || 'Failed to submit claim.');
@@ -1538,6 +2406,10 @@ window.addEventListener('DOMContentLoaded', () => {
   loadScratchConfig();
   // Poll real-time winners feed continuously
   setInterval(pollRealtimeScratchWinners, 6000);
+});
+
+window.addEventListener('RoleaAuthReady', () => {
+  loadVaultUnclaimed(true);
 });
 </script>
 
