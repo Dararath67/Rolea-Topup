@@ -302,7 +302,7 @@
     }
 
     // Mobile Header Actions
-    const mobileActions = document.querySelector('.app-header .header-actions');
+    const mobileActions = document.querySelector('.header-actions, .app-header .header-actions, .crash-header .header-actions, .games-header .header-actions');
     if (mobileActions) {
       let mobBox = document.getElementById('rolea-mobile-auth');
       if (!mobBox) {
