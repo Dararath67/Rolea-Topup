@@ -1577,6 +1577,17 @@ async function submitBoxClaim() {
   }
 }
 
+function saveBoxOrder(orderId, token, robux) {
+  try {
+    const raw = localStorage.getItem('rolea_box_orders') || '[]';
+    const list = JSON.parse(raw);
+    if (!list.some(x => x.order_id === orderId)) {
+      list.unshift({ order_id: orderId, token, robux, saved_at: Date.now() });
+      localStorage.setItem('rolea_box_orders', JSON.stringify(list.slice(0, 30)));
+    }
+  } catch (_) {}
+}
+
 let boxRewards = [];
 
 async function checkUnclaimedRewards(forceShow) {
