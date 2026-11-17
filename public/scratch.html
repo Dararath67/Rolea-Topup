@@ -1778,8 +1778,8 @@ function renderVaultItems(items) {
       : '';
 
     const actionBtn = isPending
-      ? '<a href="/check-order?order_id=' + encodeURIComponent(r.order_id) + '" class="btn-claim-open" style="' + btnStyle + '">' + btnText + '</a>'
-      : '<button type="button" class="btn-claim-open" style="' + btnStyle + '" onclick="openClaimModalFromReward(\'" + escHtml(r.order_id) + "\')">' + btnText + '</button>';
+      ? `<a href="/check-order?order_id=${encodeURIComponent(r.order_id)}" class="btn-claim-open" style="${btnStyle}">${btnText}</a>`
+      : `<button type="button" class="btn-claim-open" style="${btnStyle}" onclick="openClaimModalFromReward('${escHtml(r.order_id)}')">${btnText}</button>`;
 
     return `
       <div class="reward-row ${rowClass}">
@@ -1800,7 +1800,8 @@ function renderVaultItems(items) {
 }
 
 function openClaimModalFromReward(orderId) {
-  const r = scratchRewards.find(x => x.order_id === orderId);
+  const cleanId = String(orderId || '').trim();
+  const r = scratchRewards.find(x => String(x.order_id || '').trim() === cleanId);
   if (!r) return;
   const isRej = Boolean(r.rejected || r.step === 'rejected_resubmit');
   const token = r.token || r.receipt_token || '';
@@ -1830,6 +1831,14 @@ function openClaimModalFromReward(orderId) {
   desc.textContent = isRej
     ? (r.reject_reason || r.admin_note ? ('Admin Note: ' + (r.reject_reason || r.admin_note)) : 'Please verify or update your Roblox username and re-submit.')
     : 'Please enter your Roblox username so Admin can deliver your Robux!';
+
+    const submitBtn = document.getElementById('btn-submit-claim');
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.textContent = isRej
+      ? 'ផ្ញើឈ្មោះម្ដងទៀត (Re-submit Claim) →'
+      : 'Submit Claim to Admin →';
+  }
 
   claimBox.style.display = 'block';
   modal.classList.add('open');
