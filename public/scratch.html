@@ -1312,6 +1312,7 @@
 let scratchConfig = null;
 let currentCard = null;
 let hasActiveCard = false;
+let currentActiveOrderId = null;
 let activeClaimOrder = null;
 let dailyCountdownTimer = null;
 let khqrPollInterval = null;
@@ -1658,6 +1659,7 @@ function checkAllCellsFinished() {
 
   // Active ticket has been fully consumed
   hasActiveCard = false;
+  currentActiveOrderId = null;
 
   const statusEl = document.getElementById('card-footer-status');
 
@@ -1683,6 +1685,7 @@ function checkAllCellsFinished() {
 
     setTimeout(() => {
       showWinnerModal(currentCard);
+      loadVaultUnclaimed(true);
     }, 600);
   } else {
     if (statusEl) {
@@ -1736,6 +1739,7 @@ async function claimDailyFreeScratch() {
 
     // Render new interactive card
     hasActiveCard = true;
+    currentActiveOrderId = j.order_id || null;
     renderCardCells(j.card);
     const statusEl = document.getElementById('card-footer-status');
     if (statusEl) {
@@ -1796,6 +1800,7 @@ async function buyCard(method) {
         window.RoleaAuth.checkCurrentUser();
       }
       hasActiveCard = true;
+      currentActiveOrderId = j.order_id || null;
       renderCardCells(j.card);
       const statusEl = document.getElementById('card-footer-status');
       if (statusEl) {
@@ -1835,6 +1840,7 @@ function startKhqrPolling(scratchId) {
           activeClaimOrder = { order_id: j.order_id, receipt_token: j.receipt_token, robux: j.card?.win_robux };
         }
         hasActiveCard = true;
+        currentActiveOrderId = j.order_id || null;
         renderCardCells(j.card);
         const statusEl = document.getElementById('card-footer-status');
         if (statusEl) {
@@ -1869,7 +1875,6 @@ function saveScratchOrder(orderId, token, robux) {
       localStorage.setItem('rolea_scratch_orders', JSON.stringify(list.slice(0, 30)));
     }
   } catch (_) {}
-  loadVaultUnclaimed(true);
 }
 
 let vaultVerifyTimers = {};
@@ -2009,18 +2014,26 @@ async function loadVaultUnclaimed(isManualRefresh = false) {
     const shortcutEl = document.getElementById('vault-top-shortcut');
     const shortcutText = document.getElementById('vault-top-shortcut-text');
 
-    if (res.ok && j.ok && j.unclaimed && j.unclaimed.length > 0) {
+    // Filter out the active card currently being scratched on screen!
+    const displayItems = (j && j.ok && Array.isArray(j.unclaimed)) ? j.unclaimed.filter(x => {
+      if (hasActiveCard && currentActiveOrderId && x.order_id === currentActiveOrderId) {
+        return false;
+      }
+      return true;
+    }) : [];
+
+    if (res.ok && j.ok && displayItems.length > 0) {
       if (vaultSec) vaultSec.style.display = 'block';
       if (shortcutEl) {
-        const hasRej = j.unclaimed.some(x => x.rejected || x.step === 'rejected_resubmit');
+        const hasRej = displayItems.some(x => x.rejected || x.step === 'rejected_resubmit');
         if (shortcutText) {
           shortcutText.textContent = hasRej
             ? `⚠️ រង្វាន់ Scratch ត្រូវការកែឈ្មោះ Roblox — ចុចមើលកាតាបខាងក្រោម`
-            : `🎁 អ្នកមាន ${j.unclaimed.length} រង្វាន់ Robux កំពុងរង់ចាំ — មើលកាតាបខាងក្រោម`;
+            : `🎁 អ្នកមាន ${displayItems.length} រង្វាន់ Robux កំពុងរង់ចាំ — មើលកាតាបខាងក្រោម`;
         }
         shortcutEl.style.display = 'block';
       }
-      renderVaultItems(j.unclaimed);
+      renderVaultItems(displayItems);
 
       // Keep legacy mini notification card hidden since vault is active
       const legacyEl = document.getElementById('scratch-unclaimed-card');
