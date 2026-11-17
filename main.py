@@ -7650,7 +7650,7 @@ async def admin_test_box_roll(request: Request):
     counts: Dict[str, int] = {}
     total_robux = 0
     for _ in range(1000):
-        res_item = roll_mystery_box(target_case_id)
+        res_item, _, _ = roll_mystery_box(target_case_id)
         lbl = res_item.get("label", "Thank You")
         counts[lbl] = counts.get(lbl, 0) + 1
         total_robux += int(res_item.get("robux", 0))

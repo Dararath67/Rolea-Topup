@@ -7638,10 +7638,21 @@ let activeAdminCaseId = 'bronze';
 async function loadAdminBoxData() {
   try {
     const res = await fetch('/api/admin/box?_t=' + Date.now());
-    const j = await res.json();
-    if (!res.ok || !j.ok) return;
+    if (res.ok) {
+      const j = await res.json();
+      if (j && j.ok && j.box_data) {
+        adminBoxData = j.box_data;
+      }
+    }
+  } catch (e) {
+    console.error('loadAdminBoxData fetch error:', e);
+  }
 
-    adminBoxData = j.box_data;
+  try {
+    if (!adminBoxData || !adminBoxData.cases) {
+      adminBoxData = JSON.parse(JSON.stringify(DEFAULT_ADMIN_BOX_DATA));
+    }
+
     const totalOpened = Number(adminBoxData.total_boxes_opened || 0);
     const totalRev = Number(adminBoxData.total_revenue_usd || 0);
     const totalRobux = Number(adminBoxData.total_robux_awarded || 0);
@@ -7666,9 +7677,9 @@ async function loadAdminBoxData() {
     const setTg = document.getElementById('box-set-telegram');
     if (setTg) setTg.checked = adminBoxData.telegram_alert_enabled !== false;
     const setCost = document.getElementById('box-set-cost1k');
-    if (setCost) setCost.value = adminBoxData.cost_per_1k_robux_usd ?? 4.00;
+    if (setCost) setCost.value = (adminBoxData.cost_per_1k_robux_usd ?? 4.00).toFixed(2);
 
-    switchBoxCase(activeAdminCaseId);
+    switchBoxCase(activeAdminCaseId || 'bronze');
 
     const hBody = document.getElementById('box-history-tbody');
     if (hBody) {
@@ -7703,18 +7714,18 @@ async function loadAdminBoxData() {
         }).join('');
       }
     }
-  } catch (e) {
-    console.error('loadAdminBoxData error:', e);
+  } catch (err) {
+    console.error('loadAdminBoxData render error:', err);
   }
 }
 
 function switchBoxCase(caseId) {
-  activeAdminCaseId = caseId;
+  activeAdminCaseId = caseId || 'bronze';
   const cases = ['bronze', 'silver', 'golden', 'diamond'];
   cases.forEach(cid => {
     const btn = document.getElementById('btn-case-' + cid);
     if (btn) {
-      if (cid === caseId) {
+      if (cid === activeAdminCaseId) {
         btn.style.background = '#0284c7';
         btn.style.color = '#fff';
       } else {
@@ -7724,10 +7735,14 @@ function switchBoxCase(caseId) {
     }
   });
 
-  if (!adminBoxData || !adminBoxData.cases) return;
-  const cinfo = adminBoxData.cases[caseId] || {};
+  if (!adminBoxData || !adminBoxData.cases) {
+    adminBoxData = JSON.parse(JSON.stringify(DEFAULT_ADMIN_BOX_DATA));
+  }
+  const cinfo = (adminBoxData.cases && adminBoxData.cases[activeAdminCaseId]) 
+    ? adminBoxData.cases[activeAdminCaseId] 
+    : (DEFAULT_ADMIN_BOX_DATA.cases[activeAdminCaseId] || {});
   const heading = document.getElementById('box-case-heading');
-  if (heading) heading.textContent = (cinfo.name || caseId.toUpperCase()) + ' Prize Pool & Probabilities';
+  if (heading) heading.textContent = (cinfo.name || activeAdminCaseId.toUpperCase()) + ' Prize Pool & Probabilities';
   const priceInput = document.getElementById('box-case-price');
   if (priceInput) priceInput.value = Number(cinfo.price_usd || 0.20).toFixed(2);
   renderAdminBoxItems();
@@ -7739,8 +7754,13 @@ function updateActiveCasePrice(val) {
 }
 
 function renderAdminBoxItems() {
-  if (!adminBoxData || !adminBoxData.cases || !adminBoxData.cases[activeAdminCaseId]) return;
-  const items = adminBoxData.cases[activeAdminCaseId].items || [];
+  if (!adminBoxData || !adminBoxData.cases) {
+    adminBoxData = JSON.parse(JSON.stringify(DEFAULT_ADMIN_BOX_DATA));
+  }
+  const cinfo = (adminBoxData.cases && adminBoxData.cases[activeAdminCaseId]) 
+    ? adminBoxData.cases[activeAdminCaseId] 
+    : (DEFAULT_ADMIN_BOX_DATA.cases[activeAdminCaseId] || DEFAULT_ADMIN_BOX_DATA.cases['bronze'] || {});
+  const items = cinfo.items || [];
   const tbody = document.getElementById('box-items-tbody');
   if (!tbody) return;
   const totalW = items.reduce((s, x) => s + Math.max(0, parseFloat(x.weight || 0)), 0) || 1;
