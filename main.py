@@ -4985,7 +4985,8 @@ def verify_khqr_bank_payment(live: Optional[Dict[str, Any]], expected_amount: fl
 
 _SENSITIVE_PROBE_EXTS = (
     ".env", ".json", ".py", ".pyc", ".pyo", ".db", ".sqlite", ".sqlite3",
-    ".bak", ".sql", ".log", ".ini", ".cfg", ".yml", ".yaml", ".toml"
+    ".bak", ".sql", ".log", ".ini", ".cfg", ".yml", ".yaml", ".toml",
+    ".zip", ".tar", ".gz", ".7z", ".key", ".pem", ".rsa"
 )
 _ADMIN_CSRF_MUTATION_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 _VERCEL_ID_RE = re.compile(r"^[a-z0-9]{3,12}::\S{4,}$")
@@ -5119,22 +5120,24 @@ _HACKER_UA_RE = re.compile(
     re.IGNORECASE,
 )
 _HACKER_PROBE_EXACT = {
-    "/.htaccess", "/.htpasswd", "/xmlrpc.php", "/wp-login.php", "/wp-cron.php",
+    "/.htaccess", "/.htpasswd", "/xmlrpc.php", "/wp-login.php", "/wp-cron.php", "/wp-config.php",
     "/readme.html", "/license.txt", "/composer.json", "/composer.lock",
     "/package.json", "/package-lock.json", "/server-status", "/server-info",
     "/eval-stdin.php", "/shell.php", "/c99.php", "/r57.php", "/phpinfo.php",
     "/info.php", "/test.php", "/config.php", "/backup.zip", "/backup.tar.gz", "/dump.sql",
+    "/id_rsa", "/id_dsa", "/.env.local", "/.env.production"
 }
 _HACKER_PROBE_PREFIXES = (
     "/wp-admin", "/wp-content", "/wp-includes", "/phpmyadmin", "/pma", "/adminer",
     "/cgi-bin", "/boaform", "/actuator", "/swagger", "/api-docs", "/graphql",
     "/telescope", "/autodiscover", "/ecp", "/owa", "/vendor/", "/phpunit",
-    "/console", "/.git", "/.svn", "/.hg", "/.aws", "/.ssh", "/.vscode", "/.idea",
+    "/console", "/solr", "/.well-known", "/.git", "/.svn", "/.hg", "/.aws", "/.ssh", "/.vscode", "/.idea",
 )
 _WAF_PATTERNS = [
     ("sqli", re.compile(
         r"(?:\bunion\s+(?:all\s+)?select\b|\bselect\b.{1,40}\bfrom\s+information_schema\b|"
         r"\b(?:sleep|benchmark|pg_sleep)\s*\(\s*\d|\bwaitfor\s+delay\b|"
+        r";\s*(?:drop\s+table|alter\s+table|truncate\s+table|delete\s+from|insert\s+into)\b|"
         r"\b(?:extractvalue|updatexml)\s*\(|(?:['\";]\s*(?:or|and)\s+['\"]?\d+['\"]?\s*=\s*['\"]?\d+))",
         re.IGNORECASE | re.DOTALL,
     )),
@@ -7037,31 +7040,37 @@ async def claim_scratch_reward(request: Request):
     if not order_id or not receipt_token or not roblox_username:
         return JSONResponse(status_code=400, content={"ok": False, "error": "Missing order ID, receipt token, or Roblox username."})
 
-    ord_match = next((o for o in orders if o.get("order_id") == order_id), None)
-    if not ord_match:
-        return JSONResponse(status_code=404, content={"ok": False, "error": "Reward order not found."})
+    client_ip = get_admin_effective_ip(request)
+    blocked, b_reason = is_blacklisted(player_id=roblox_username, username=roblox_username, ip=client_ip)
+    if blocked:
+        return JSONResponse(status_code=403, content={"ok": False, "error": f"Account blocked: {b_reason}"})
 
-    if ord_match.get("token") != receipt_token:
-        return JSONResponse(status_code=403, content={"ok": False, "error": "Unauthorized: Invalid receipt token."})
+    async with _tx_lock:
+        ord_match = next((o for o in orders if o.get("order_id") == order_id), None)
+        if not ord_match:
+            return JSONResponse(status_code=404, content={"ok": False, "error": "Reward order not found."})
 
-    if ord_match.get("delivered") or ord_match.get("status") == "completed":
-        return JSONResponse(status_code=400, content={"ok": False, "error": "This reward has already been delivered."})
+        if not hmac.compare_digest(str(ord_match.get("token") or ""), receipt_token):
+            return JSONResponse(status_code=403, content={"ok": False, "error": "Unauthorized: Invalid receipt token."})
 
-    cur_u = get_user_from_req(request)
-    if cur_u and not ord_match.get("user_id"):
-        ord_match["user_id"] = cur_u["id"]
+        if ord_match.get("delivered") or ord_match.get("status") == "completed":
+            return JSONResponse(status_code=400, content={"ok": False, "error": "This reward has already been delivered."})
 
-    ord_match["roblox_username"] = roblox_username
-    ord_match["player_id"] = roblox_username
-    if roblox_id:
-        ord_match["roblox_id"] = roblox_id
-        ord_match["profile_url"] = f"https://www.roblox.com/users/{roblox_id}/profile"
-    ord_match["claim_submitted"] = True
-    ord_match["rejected"] = False
-    ord_match["status"] = "paid"
-    ord_match["step"] = "pending"
-    ord_match["label"] = f"Golden Scratch Winner ({ord_match.get('robux_amount', 0)} R$) — Claim submitted"
-    save_orders()
+        cur_u = get_user_from_req(request)
+        if cur_u and not ord_match.get("user_id"):
+            ord_match["user_id"] = cur_u["id"]
+
+        ord_match["roblox_username"] = roblox_username
+        ord_match["player_id"] = roblox_username
+        if roblox_id:
+            ord_match["roblox_id"] = roblox_id
+            ord_match["profile_url"] = f"https://www.roblox.com/users/{roblox_id}/profile"
+        ord_match["claim_submitted"] = True
+        ord_match["rejected"] = False
+        ord_match["status"] = "paid"
+        ord_match["step"] = "pending"
+        ord_match["label"] = f"Golden Scratch Winner ({ord_match.get('robux_amount', 0)} R$) — Claim submitted"
+        save_orders()
 
     # Update real-time scratch history entry with verified Roblox username
     for h in scratch_data.get("history", []):
@@ -7559,31 +7568,37 @@ async def claim_box_reward(request: Request):
     if not order_id or not receipt_token or not roblox_username:
         return JSONResponse(status_code=400, content={"ok": False, "error": "Missing order ID, receipt token, or Roblox username."})
 
-    ord_match = next((o for o in orders if o.get("order_id") == order_id), None)
-    if not ord_match:
-        return JSONResponse(status_code=404, content={"ok": False, "error": "Reward order not found."})
+    client_ip = get_admin_effective_ip(request)
+    blocked, b_reason = is_blacklisted(player_id=roblox_username, username=roblox_username, ip=client_ip)
+    if blocked:
+        return JSONResponse(status_code=403, content={"ok": False, "error": f"Account blocked: {b_reason}"})
 
-    if ord_match.get("token") != receipt_token:
-        return JSONResponse(status_code=403, content={"ok": False, "error": "Unauthorized: Invalid receipt token."})
+    async with _tx_lock:
+        ord_match = next((o for o in orders if o.get("order_id") == order_id), None)
+        if not ord_match:
+            return JSONResponse(status_code=404, content={"ok": False, "error": "Reward order not found."})
 
-    if ord_match.get("delivered") or ord_match.get("status") == "completed":
-        return JSONResponse(status_code=400, content={"ok": False, "error": "This reward has already been delivered."})
+        if not hmac.compare_digest(str(ord_match.get("token") or ""), receipt_token):
+            return JSONResponse(status_code=403, content={"ok": False, "error": "Unauthorized: Invalid receipt token."})
 
-    cur_u = get_user_from_req(request)
-    if cur_u and not ord_match.get("user_id"):
-        ord_match["user_id"] = cur_u["id"]
+        if ord_match.get("delivered") or ord_match.get("status") == "completed":
+            return JSONResponse(status_code=400, content={"ok": False, "error": "This reward has already been delivered."})
 
-    ord_match["roblox_username"] = roblox_username
-    ord_match["player_id"] = roblox_username
-    if roblox_id:
-        ord_match["roblox_id"] = roblox_id
-        ord_match["profile_url"] = f"https://www.roblox.com/users/{roblox_id}/profile"
-    ord_match["claim_submitted"] = True
-    ord_match["rejected"] = False
-    ord_match["status"] = "paid"
-    ord_match["step"] = "pending"
-    ord_match["label"] = f"Mystery Box Winner ({ord_match.get('robux_amount', 0)} R$) - Claim submitted (@{roblox_username})"
-    save_orders()
+        cur_u = get_user_from_req(request)
+        if cur_u and not ord_match.get("user_id"):
+            ord_match["user_id"] = cur_u["id"]
+
+        ord_match["roblox_username"] = roblox_username
+        ord_match["player_id"] = roblox_username
+        if roblox_id:
+            ord_match["roblox_id"] = roblox_id
+            ord_match["profile_url"] = f"https://www.roblox.com/users/{roblox_id}/profile"
+        ord_match["claim_submitted"] = True
+        ord_match["rejected"] = False
+        ord_match["status"] = "paid"
+        ord_match["step"] = "pending"
+        ord_match["label"] = f"Mystery Box Winner ({ord_match.get('robux_amount', 0)} R$) - Claim submitted (@{roblox_username})"
+        save_orders()
 
     for h in box_data.get("history", []):
         if h.get("order_id") == order_id or h.get("box_id") == order_id:
@@ -8076,28 +8091,36 @@ async def claim_crash_reward(request: Request):
         body = {}
     order_id = str(body.get("order_id") or "").strip()
     token = str(body.get("receipt_token") or "").strip()
-    roblox_user = str(body.get("roblox_username") or "").strip().lstrip("@")
+    roblox_user = _sanitize_plain(body.get("roblox_username") or "", 60).lstrip("@")
 
-    if not order_id or not roblox_user:
-        return JSONResponse(status_code=400, content={"ok": False, "error": "Order ID and Roblox username are required"})
+    if not order_id or not token or not roblox_user:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Order ID, receipt token, and Roblox username are required."})
 
-    ord_match = None
-    for o in orders:
-        if o.get("order_id") == order_id:
-            ord_match = o
-            break
+    client_ip = get_admin_effective_ip(request)
+    blocked, b_reason = is_blacklisted(player_id=roblox_user, username=roblox_user, ip=client_ip)
+    if blocked:
+        return JSONResponse(status_code=403, content={"ok": False, "error": f"Account blocked: {b_reason}"})
 
-    if not ord_match:
-        return JSONResponse(status_code=404, content={"ok": False, "error": "Order not found"})
+    async with _tx_lock:
+        ord_match = next((o for o in orders if o.get("order_id") == order_id), None)
+        if not ord_match:
+            return JSONResponse(status_code=404, content={"ok": False, "error": "Crash winning order not found."})
 
-    if token and ord_match.get("token") and ord_match.get("token") != token:
-        return JSONResponse(status_code=403, content={"ok": False, "error": "Invalid claim receipt token"})
+        if not hmac.compare_digest(str(ord_match.get("token") or ""), token):
+            return JSONResponse(status_code=403, content={"ok": False, "error": "Unauthorized: Invalid claim receipt token."})
 
-    ord_match["player_id"] = roblox_user
-    ord_match["roblox_username"] = roblox_user
-    ord_match["step"] = "pending_claim"
-    ord_match["claim_submitted"] = True
-    save_orders()
+        if ord_match.get("delivered") or ord_match.get("status") == "completed":
+            return JSONResponse(status_code=400, content={"ok": False, "error": "This reward has already been delivered."})
+
+        cur_u = get_user_from_req(request)
+        if cur_u and not ord_match.get("user_id"):
+            ord_match["user_id"] = cur_u["id"]
+
+        ord_match["player_id"] = roblox_user
+        ord_match["roblox_username"] = roblox_user
+        ord_match["step"] = "pending_claim"
+        ord_match["claim_submitted"] = True
+        save_orders()
 
     return {
         "ok": True,
