@@ -6242,7 +6242,7 @@ async def claim_daily_free_spin(request: Request):
         "order_id": order_id,
         "receipt_token": receipt_token,
         "remaining_seconds": total_cd,
-        "message": f"🎉 Congratulations! You won {robux_won} Robux from your Daily Free Spin!" if robux_won > 0 else "🎁 Thank you for playing your Daily Free Spin! Come back tomorrow for another chance."
+        "message": f"Congratulations! You won {robux_won} Robux from your Daily Free Spin!" if robux_won > 0 else "Thank you for playing your Daily Free Spin! Come back tomorrow for another chance."
     }
 
 @app.post("/api/spin/create-ticket")
@@ -6850,7 +6850,7 @@ async def claim_daily_free_scratch(request: Request):
         "order_id": order_id,
         "receipt_token": receipt_token,
         "remaining_seconds": total_cd,
-        "message": f"🎉 Congratulations! You won {robux_won} Robux!" if robux_won > 0 else "🎁 Thank you for playing! Come back tomorrow for another Free Scratch Card."
+        "message": f"Congratulations! You won {robux_won} Robux!" if robux_won > 0 else "Thank you for playing! Come back tomorrow for another Free Scratch Card."
     }
 
 @app.post("/api/scratch/create-ticket")
@@ -7101,7 +7101,7 @@ async def claim_scratch_reward(request: Request):
 
     return {
         "ok": True,
-        "message": "🎉 Claim submitted successfully! Admin will send your Robux shortly.",
+        "message": "Claim submitted successfully! Admin will send your Robux shortly.",
         "order": {
             "order_id": ord_match["order_id"],
             "roblox_username": ord_match["roblox_username"],
