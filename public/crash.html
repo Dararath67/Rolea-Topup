@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Robux Crash 🚀 | Rolea Topup</title>
+  <link rel="icon" type="image/png" href="/media/logo.png">
+  <link rel="stylesheet" href="/style.css?v=20261110_v3">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Kantumruy+Pro:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --crash-bg: #0b0f19;
+      --crash-card: #131b2e;
+      --crash-border: rgba(255, 255, 255, 0.08);
+      --crash-neon: #10b981;
+      --crash-gold: #f59e0b;
+      --crash-accent: #0284c7;
+    }
+    body {
+      background: #090d16;
+      color: #f8fafc;
+      font-family: 'Plus Jakarta Sans', 'Kantumruy Pro', -apple-system, sans-serif;
+      margin: 0;
+      padding: 0;
+      padding-bottom: 90px;
+      min-height: 100vh;
+      box-sizing: border-box;
+      overflow-x: hidden;
+    }
+
+    /* Top Header */
+    .crash-header {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--crash-border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .crash-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: #ffffff;
+      font-weight: 900;
+      font-size: 17px;
+    }
+    .crash-brand img {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+    }
+    .crash-badge-rocket {
+      background: linear-gradient(135deg, #0284c7, #2563eb);
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Main Container */
+    .crash-container {
+      max-width: 1000px;
+      margin: 16px auto;
+      padding: 0 16px;
+    }
+
+    /* Recent Multiplier History Bar */
+    .history-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 8px 4px 12px;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    .history-bar::-webkit-scrollbar { display: none; }
+    .history-pill {
+      flex-shrink: 0;
+      padding: 5px 12px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-weight: 800;
+      letter-spacing: 0.3px;
+      transition: transform 0.2s;
+    }
+    .history-pill.low { background: #1e293b; color: #94a3b8; border: 1px solid rgba(255,255,255,0.06); }
+    .history-pill.med { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .history-pill.high { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.5); }
+    .history-pill.mega { background: linear-gradient(135deg, #ef4444, #f59e0b); color: #ffffff; box-shadow: 0 0 12px rgba(245, 158, 11, 0.4); }
+
+    /* Arena Grid */
+    .crash-arena {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 16px;
+    }
+    @media (max-width: 860px) {
+      .crash-arena { grid-template-columns: 1fr; }
+    }
+
+    /* Canvas / Screen */
+    .canvas-card {
+      background: radial-gradient(circle at 50% 100%, #1e1b4b 0%, #0b0f19 75%);
+      border: 1px solid var(--crash-border);
+      border-radius: 20px;
+      position: relative;
+      overflow: hidden;
+      min-height: 380px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 12px 36px rgba(0,0,0,0.4);
+    }
+    #crash-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    /* Live Multiplier Center Overlay */
+    .multiplier-overlay {
+      position: absolute;
+      top: 45%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .multiplier-number {
+      font-size: 64px;
+      font-weight: 900;
+      color: #ffffff;
+      line-height: 1;
+      font-family: 'Plus Jakarta Sans', monospace;
+      text-shadow: 0 0 24px rgba(16, 185, 129, 0.5);
+      transition: color 0.15s, transform 0.1s;
+    }
+    .multiplier-number.crashed {
+      color: #ef4444 !important;
+      text-shadow: 0 0 30px rgba(239, 68, 68, 0.7) !important;
+      animation: crashShake 0.4s ease-out;
+    }
+    @keyframes crashShake {
+      0%, 100% { transform: scale(1); }
+      25% { transform: scale(1.15) rotate(-3deg); }
+      75% { transform: scale(0.95) rotate(3deg); }
+    }
+    .multiplier-status {
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-top: 8px;
+      color: #94a3b8;
+    }
+
+    /* Control Panel Card */
+    .control-card {
+      background: var(--crash-card);
+      border: 1px solid var(--crash-border);
+      border-radius: 20px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: 0 12px 36px rgba(0,0,0,0.3);
+    }
+    .input-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #94a3b8;
+      margin-bottom: 6px;
+    }
+    .custom-input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .custom-input-wrap input {
+      width: 100%;
+      background: #0b0f19;
+      border: 1.5px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 15px;
+      font-weight: 800;
+      color: #ffffff;
+      outline: none;
+      box-sizing: border-box;
+      transition: border-color 0.2s;
+    }
+    .custom-input-wrap input:focus {
+      border-color: #0284c7;
+    }
+    .input-addon-right {
+      position: absolute;
+      right: 14px;
+      font-size: 13px;
+      font-weight: 800;
+      color: #64748b;
+      pointer-events: none;
+    }
+
+    /* Quick Chips */
+    .chips-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .btn-chip {
+      background: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      color: #cbd5e1;
+      padding: 6px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-chip:hover {
+      background: #334155;
+      color: #ffffff;
+    }
+
+    /* Launch & Cashout Action Buttons */
+    .btn-launch {
+      width: 100%;
+      padding: 16px;
+      border-radius: 14px;
+      border: none;
+      font-size: 16px;
+      font-weight: 900;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+      color: #ffffff;
+      box-shadow: 0 8px 24px rgba(2, 132, 199, 0.4);
+    }
+    .btn-launch:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(2, 132, 199, 0.6);
+    }
+    .btn-launch:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+    .btn-launch:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    /* Cashout Button (Pulsing Green) */
+    .btn-cashout-active {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+      color: #ffffff !important;
+      box-shadow: 0 0 25px rgba(16, 185, 129, 0.6) !important;
+      animation: pulseGreen 1s infinite alternate;
+    }
+    @keyframes pulseGreen {
+      0% { box-shadow: 0 0 16px rgba(16, 185, 129, 0.4); transform: scale(1); }
+      100% { box-shadow: 0 0 32px rgba(16, 185, 129, 0.8); transform: scale(1.02); }
+    }
+
+    .btn-khqr-action {
+      background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #ffffff;
+      padding: 12px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 13.5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-khqr-action:hover {
+      background: #1e293b;
+    }
+
+    /* Live Feed / Winners Card */
+    .live-feed-card {
+      background: var(--crash-card);
+      border: 1px solid var(--crash-border);
+      border-radius: 20px;
+      margin-top: 16px;
+      padding: 20px;
+      box-shadow: 0 12px 36px rgba(0,0,0,0.3);
+    }
+    .feed-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .feed-title {
+      font-size: 15px;
+      font-weight: 900;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .feed-pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+      display: inline-block;
+    }
+    .winners-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 10px;
+    }
+    .winner-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: #0b0f19;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+    }
+
+    /* Win Modal */
+    .crash-modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    .crash-modal-backdrop.open { display: flex; }
+    .crash-modal-box {
+      background: #131b2e;
+      border: 1.5px solid rgba(255, 255, 255, 0.1);
+      border-radius: 24px;
+      width: 100%;
+      max-width: 420px;
+      padding: 28px;
+      text-align: center;
+      position: relative;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+      animation: popModal 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes popModal {
+      0% { transform: scale(0.9); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .modal-close-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: rgba(255,255,255,0.1);
+      border: none;
+      color: #94a3b8;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      font-size: 18px;
+      cursor: pointer;
+    }
+    .modal-close-btn:hover { color: #ffffff; background: rgba(255,255,255,0.2); }
+  </style>
+</head>
+<body>
+
+  <!-- Sticky Header -->
+  <header class="crash-header">
+    <a href="/" class="crash-brand">
+      <img src="/media/logo.png" alt="Rolea Topup">
+      <span>Rolea Topup</span>
+      <span class="crash-badge-rocket">CRASH 🚀</span>
+    </a>
+    <div style="display:flex;align-items:center;gap:10px">
+      <a href="/box" style="color:#94a3b8;font-size:13px;text-decoration:none;font-weight:700">📦 Mystery Box</a>
+      <a href="/scratch" style="color:#94a3b8;font-size:13px;text-decoration:none;font-weight:700">🎫 Scratch</a>
+    </div>
+  </header>
+
+  <div class="crash-container">
+
+    <!-- Recent Multipliers Bar -->
+    <div class="history-bar" id="history-bar">
+      <!-- Dynamic history pills injected by JS -->
+      <span class="history-pill med">2.45x</span>
+      <span class="history-pill high">5.80x</span>
+      <span class="history-pill low">1.18x</span>
+      <span class="history-pill mega">14.20x</span>
+      <span class="history-pill med">3.10x</span>
+      <span class="history-pill low">1.05x</span>
+      <span class="history-pill med">1.95x</span>
+      <span class="history-pill high">8.40x</span>
+      <span class="history-pill low">1.35x</span>
+      <span class="history-pill mega">22.50x</span>
+    </div>
+
+    <!-- Arena: Canvas + Control Panel -->
+    <div class="crash-arena">
+
+      <!-- Rocket Canvas Card -->
+      <div class="canvas-card">
+        <canvas id="crash-canvas"></canvas>
+
+        <div class="multiplier-overlay">
+          <div class="multiplier-number" id="mult-text">1.00x</div>
+          <div class="multiplier-status" id="status-text">PREPARING NEXT LAUNCH...</div>
+        </div>
+      </div>
+
+      <!-- Controls Card -->
+      <div class="control-card">
+        <div>
+          <div class="input-label">
+            <span>BET AMOUNT ($ USD)</span>
+            <span id="label-base-robux" style="color:#0284c7;font-weight:800">20 Robux Base</span>
+          </div>
+          <div class="custom-input-wrap">
+            <input type="number" id="input-bet-amount" value="0.20" step="0.05" min="0.10" max="25.00" oninput="updateBetBaseRobux(this.value)">
+            <span class="input-addon-right">USD</span>
+          </div>
+          <div class="chips-row">
+            <button type="button" class="btn-chip" onclick="setQuickBet(0.20)">$0.20</button>
+            <button type="button" class="btn-chip" onclick="setQuickBet(0.50)">$0.50</button>
+            <button type="button" class="btn-chip" onclick="setQuickBet(1.00)">$1.00</button>
+            <button type="button" class="btn-chip" onclick="multiplyBet(2)">2X</button>
+          </div>
+        </div>
+
+        <div>
+          <div class="input-label">
+            <span>AUTO CASHOUT (MULTIPLIER)</span>
+            <span style="font-size:11px;color:#64748b">Optional</span>
+          </div>
+          <div class="custom-input-wrap">
+            <input type="number" id="input-auto-cashout" value="2.00" step="0.10" min="1.05" max="100.00" placeholder="e.g. 2.00">
+            <span class="input-addon-right">Multiplier</span>
+          </div>
+        </div>
+
+        <!-- Main Action Buttons -->
+        <button type="button" class="btn-launch" id="btn-action-main" onclick="handleMainAction()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+            <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
+            <path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
+          </svg>
+          <span id="btn-main-text">Launch with Wallet ($0.20)</span>
+        </button>
+
+        <button type="button" class="btn-khqr-action" id="btn-action-khqr" onclick="launchWithKHQR()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+          </svg>
+          <span>Launch with ABA KHQR</span>
+        </button>
+
+        <div style="font-size:11.5px;color:#64748b;text-align:center;line-height:1.5">
+          🚀 Rocket multiplies your Robux live. Cash out before explosion! Powered by Provably Fair RNG.
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Live Activity / Recent Winners Card -->
+    <div class="live-feed-card">
+      <div class="feed-header">
+        <div class="feed-title">
+          <span class="feed-pulse-dot"></span>
+          <span>Recent Robux Crash Winners</span>
+        </div>
+        <span style="font-size:12px;color:#64748b">Live Payouts</span>
+      </div>
+      <div class="winners-grid" id="winners-grid">
+        <!-- Live winners injected by JS -->
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Win Celebration Modal -->
+  <div class="crash-modal-backdrop" id="win-modal">
+    <div class="crash-modal-box">
+      <button type="button" class="modal-close-btn" onclick="closeWinModal()">&times;</button>
+      <div style="font-size:42px;margin-bottom:8px">🎉</div>
+      <h3 style="margin:0 0 6px;font-size:22px;font-weight:900;color:#ffffff">CASHOUT SUCCESSFUL!</h3>
+      <p style="margin:0 0 16px;color:#94a3b8;font-size:13.5px">You cashed out before the rocket crashed!</p>
+
+      <div style="background:#0b0f19;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:16px;margin-bottom:18px">
+        <img src="/media/robux-gold-coin.png" alt="Robux" style="width:48px;height:48px;margin-bottom:8px">
+        <div id="modal-robux-won" style="font-size:28px;font-weight:900;color:#10b981">0 R$</div>
+        <div id="modal-mult-badge" style="font-size:13px;color:#64748b;font-weight:800;margin-top:2px">@ 0.00x Multiplier</div>
+      </div>
+
+      <div id="claim-form">
+        <label style="display:block;font-size:12px;font-weight:800;color:#94a3b8;text-align:left;margin-bottom:6px">Roblox Username (ឈ្មោះគណនី Roblox):</label>
+        <input type="text" id="claim-roblox-user" placeholder="e.g. Builderman" style="width:100%;box-sizing:border-box;background:#0b0f19;border:1.5px solid rgba(255,255,255,0.1);border-radius:12px;padding:12px;color:#fff;font-weight:700;font-size:14px;outline:none;margin-bottom:14px">
+        <button type="button" class="btn-launch" style="padding:14px" onclick="submitCrashClaim()">Submit Request to Admin →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- KHQR Modal -->
+  <div class="crash-modal-backdrop" id="khqr-modal">
+    <div class="crash-modal-box">
+      <button type="button" class="modal-close-btn" onclick="closeKHQRModal()">&times;</button>
+      <h3 style="margin:0 0 4px;font-size:18px;font-weight:900;color:#ffffff">Scan ABA KHQR to Launch</h3>
+      <p style="margin:0 0 16px;font-size:12.5px;color:#94a3b8">Scan with Bakong, ABA, or any Mobile Banking App</p>
+
+      <div style="background:#ffffff;border-radius:16px;padding:16px;display:inline-block;margin-bottom:14px">
+        <img id="khqr-img" src="" alt="KHQR" style="width:180px;height:180px;display:block">
+      </div>
+
+      <div style="font-size:14px;font-weight:800;color:#ffffff;margin-bottom:8px">
+        Amount: <span id="khqr-amount" style="color:#0284c7;font-size:16px">$0.20 USD</span>
+      </div>
+      <div style="font-size:12px;color:#94a3b8;margin-bottom:16px" id="khqr-status-msg">
+        Waiting for payment... (auto-launches in seconds)
+      </div>
+      <a id="khqr-aba-link" href="#" target="_blank" style="display:none;margin-bottom:10px" class="btn-launch">Open in ABA Mobile App</a>
+    </div>
+  </div>
+
+  <!-- Bottom Navigation Bar -->
+  <nav class="bottom-nav">
+    <a class="nav-item" href="/">
+      <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 10.5L12 3l9 7.5V20a1.5 1.5 0 0 1-1.5 1.5H4.5A1.5 1.5 0 0 1 3 20v-9.5z"/></svg>
+      <span>Home</span>
+    </a>
+    <a class="nav-item" href="/box">
+      <img src="/media/rolea-logo.webp" alt="Boxes" style="width:22px;height:22px;object-fit:cover;border-radius:50%;display:block;margin:0 auto 2px">
+      <span>Boxes</span>
+    </a>
+    <a class="nav-item" href="/scratch">
+      <img src="/media/rolea-logo.webp" alt="Scratch" style="width:22px;height:22px;object-fit:cover;border-radius:50%;display:block;margin:0 auto 2px">
+      <span>Scratch</span>
+    </a>
+    <a class="nav-item active" href="/crash">
+      <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
+        <path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
+      </svg>
+      <span>Crash</span>
+    </a>
+    <a class="nav-item" href="/check-order">
+      <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      <span>Orders</span>
+    </a>
+    <a class="nav-item" href="/my-account">
+      <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>Account</span>
+    </a>
+  </nav>
+
+  <script src="/auth_wallet.js?v=20261110_v4"></script>
+  <script>
+    // Game State Engine
+    let gameState = 'IDLE'; // IDLE, FLYING, CRASHED
+    let currentMultiplier = 1.00;
+    let targetCrashPoint = 2.00;
+    let activeSessionId = null;
+    let activeBetUSD = 0.20;
+    let activeBaseRobux = 20;
+    let hasCashedOut = false;
+    let activeWinningOrder = null;
+    let startTime = 0;
+    let animFrameId = null;
+    let stars = [];
+    let particles = [];
+    let khqrPollTimer = null;
+
+    const canvas = document.getElementById('crash-canvas');
+    const ctx = canvas.getContext('2d');
+    const multText = document.getElementById('mult-text');
+    const statusText = document.getElementById('status-text');
+    const btnMain = document.getElementById('btn-action-main');
+    const btnMainText = document.getElementById('btn-main-text');
+
+    function initCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width * window.devicePixelRatio;
+      canvas.height = rect.height * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+      // Generate background starfield
+      stars = [];
+      for (let i = 0; i < 70; i++) {
+        stars.push({
+          x: Math.random() * rect.width,
+          y: Math.random() * rect.height,
+          radius: Math.random() * 1.5 + 0.5,
+          speed: Math.random() * 0.8 + 0.2,
+          alpha: Math.random() * 0.7 + 0.3
+        });
+      }
+    }
+    window.addEventListener('resize', initCanvas);
+    initCanvas();
+
+    // Render Loop
+    function render() {
+      const w = canvas.width / window.devicePixelRatio;
+      const h = canvas.height / window.devicePixelRatio;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Draw Grid lines
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+      ctx.lineWidth = 1;
+      for (let y = h; y >= 0; y -= 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+
+      // Draw Stars
+      stars.forEach(s => {
+        ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+        ctx.fill();
+        if (gameState === 'FLYING') {
+          s.y += s.speed * (1 + currentMultiplier * 0.5);
+          s.x -= s.speed * 0.5;
+          if (s.y > h) s.y = 0;
+          if (s.x < 0) s.x = w;
+        }
+      });
+
+      // Rocket Flight Coordinates
+      const originX = 50;
+      const originY = h - 50;
+      let rocketX = originX;
+      let rocketY = originY;
+
+      if (gameState === 'FLYING' || gameState === 'CRASHED') {
+        const progress = Math.min(1, Math.log(currentMultiplier) / Math.log(15));
+        rocketX = originX + (w - 120) * progress;
+        rocketY = originY - (h - 120) * Math.pow(progress, 0.85);
+
+        // Draw trajectory glow curve
+        ctx.beginPath();
+        ctx.moveTo(originX, originY);
+        ctx.quadraticCurveTo(originX + (rocketX - originX) * 0.3, originY, rocketX, rocketY);
+        ctx.strokeStyle = gameState === 'CRASHED' ? 'rgba(239, 68, 68, 0.6)' : 'rgba(16, 185, 129, 0.7)';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+
+        // Trail glow
+        ctx.strokeStyle = gameState === 'CRASHED' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.2)';
+        ctx.lineWidth = 12;
+        ctx.stroke();
+      }
+
+      // Draw Rocket or Explosion
+      if (gameState === 'FLYING' || (gameState === 'IDLE' && rocketX === originX)) {
+        drawRocket(rocketX, rocketY);
+      } else if (gameState === 'CRASHED') {
+        drawExplosion(rocketX, rocketY);
+      }
+
+      // Animate Particles (Smoke & Sparks)
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha -= 0.025;
+        p.size *= 0.96;
+        ctx.fillStyle = p.color.replace('ALPHA', p.alpha.toFixed(2));
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        if (p.alpha <= 0 || p.size <= 0.5) particles.splice(i, 1);
+      }
+
+      requestAnimationFrame(render);
+    }
+    requestAnimationFrame(render);
+
+    function drawRocket(x, y) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(-Math.PI / 4.5);
+
+      if (gameState === 'FLYING') {
+        // Flame particles
+        for (let i = 0; i < 2; i++) {
+          particles.push({
+            x: x - 12 + Math.random() * 6,
+            y: y + 14 + Math.random() * 6,
+            vx: -Math.random() * 3 - 1,
+            vy: Math.random() * 3 + 1,
+            size: Math.random() * 4 + 2,
+            alpha: 0.9,
+            color: Math.random() > 0.5 ? 'rgba(245, 158, 11, ALPHA)' : 'rgba(239, 68, 68, ALPHA)'
+          });
+        }
+      }
+
+      // Rocket body
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 18, 9, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Rocket cockpit glass
+      ctx.fillStyle = '#0284c7';
+      ctx.beginPath();
+      ctx.arc(4, -1, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Rocket wings
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.moveTo(-10, -5);
+      ctx.lineTo(-18, -12);
+      ctx.lineTo(-12, 0);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(-10, 5);
+      ctx.lineTo(-18, 12);
+      ctx.lineTo(-12, 0);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function drawExplosion(x, y) {
+      if (particles.length === 0) {
+        for (let i = 0; i < 35; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = Math.random() * 5 + 2;
+          particles.push({
+            x: x,
+            y: y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            size: Math.random() * 6 + 3,
+            alpha: 1.0,
+            color: Math.random() > 0.4 ? 'rgba(239, 68, 68, ALPHA)' : 'rgba(245, 158, 11, ALPHA)'
+          });
+        }
+      }
+    }
+
+    // UI Input Helpers
+    function setQuickBet(val) {
+      document.getElementById('input-bet-amount').value = Number(val).toFixed(2);
+      updateBetBaseRobux(val);
+    }
+    function multiplyBet(factor) {
+      const cur = parseFloat(document.getElementById('input-bet-amount').value) || 0.20;
+      const next = Math.min(25.0, Math.max(0.10, cur * factor));
+      document.getElementById('input-bet-amount').value = next.toFixed(2);
+      updateBetBaseRobux(next);
+    }
+    function updateBetBaseRobux(usd) {
+      const u = parseFloat(usd) || 0.20;
+      const baseRbx = Math.round(u * 100);
+      document.getElementById('label-base-robux').textContent = `${baseRbx} Robux Base`;
+      if (gameState === 'IDLE') {
+        btnMainText.textContent = `Launch with Wallet ($${u.toFixed(2)})`;
+      }
+    }
+
+    // Main Game Controls
+    function handleMainAction() {
+      if (gameState === 'IDLE') {
+        launchWithWallet();
+      } else if (gameState === 'FLYING') {
+        cashoutNow();
+      }
+    }
+
+    // Launch with Rolea Wallet
+    async function launchWithWallet() {
+      const token = localStorage.getItem('rolea_token') || '';
+      if (!token) {
+        if (window.RoleaAuth && typeof window.RoleaAuth.openAuthModal === 'function') {
+          window.RoleaAuth.openAuthModal('login');
+        } else {
+          window.location.assign('/signin?redirect=/crash');
+        }
+        return;
+      }
+
+      const betUSD = parseFloat(document.getElementById('input-bet-amount').value) || 0.20;
+      const autoCash = parseFloat(document.getElementById('input-auto-cashout').value) || 0;
+
+      btnMain.disabled = true;
+      btnMainText.textContent = 'Launching...';
+
+      try {
+        const res = await fetch('/api/crash/create-bet', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({
+            bet_amount_usd: betUSD,
+            auto_cashout: autoCash,
+            payment_method: 'wallet'
+          })
+        });
+        const j = await res.json().catch(() => ({}));
+
+        if (!res.ok || !j.ok) {
+          btnMain.disabled = false;
+          updateBetBaseRobux(betUSD);
+          if (j.error && j.error.toLowerCase().includes('insufficient') && window.RoleaAuth && typeof window.RoleaAuth.openWalletModal === 'function') {
+            if (confirm(j.error + '\n\nDo you want to top up your Rolea Wallet now?')) {
+              window.RoleaAuth.openWalletModal();
+            }
+          } else {
+            alert(j.error || j.detail || 'Failed to start Crash session.');
+          }
+          return;
+        }
+
+        activeSessionId = j.session_id;
+        activeBetUSD = betUSD;
+        activeBaseRobux = j.base_robux || Math.round(betUSD * 100);
+        targetCrashPoint = j.crash_point || 2.00;
+        hasCashedOut = false;
+
+        startRocketFlight();
+      } catch (e) {
+        btnMain.disabled = false;
+        updateBetBaseRobux(betUSD);
+        alert('Network error. Please try again.');
+      }
+    }
+
+    // Launch with ABA KHQR
+    async function launchWithKHQR() {
+      const betUSD = parseFloat(document.getElementById('input-bet-amount').value) || 0.20;
+      const autoCash = parseFloat(document.getElementById('input-auto-cashout').value) || 0;
+      const token = localStorage.getItem('rolea_token') || '';
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+
+      const btnKhqr = document.getElementById('btn-action-khqr');
+      btnKhqr.disabled = true;
+      btnKhqr.textContent = 'Generating KHQR...';
+
+      try {
+        const res = await fetch('/api/crash/create-bet', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            bet_amount_usd: betUSD,
+            auto_cashout: autoCash,
+            payment_method: 'khqr'
+          })
+        });
+        const j = await res.json().catch(() => ({}));
+        btnKhqr.disabled = false;
+        btnKhqr.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg><span>Launch with ABA KHQR</span>`;
+
+        if (!res.ok || !j.ok) {
+          alert(j.error || j.detail || 'Failed to create KHQR.');
+          return;
+        }
+
+        document.getElementById('khqr-img').src = j.qr_image || j.qr_url;
+        document.getElementById('khqr-amount').textContent = `$${betUSD.toFixed(2)} USD`;
+        if (j.aba_deeplink) {
+          const l = document.getElementById('khqr-aba-link');
+          l.href = j.aba_deeplink;
+          l.style.display = 'inline-flex';
+        }
+        document.getElementById('khqr-modal').classList.add('open');
+
+        // Poll ticket status
+        if (khqrPollTimer) clearInterval(khqrPollTimer);
+        khqrPollTimer = setInterval(() => pollCrashKHQR(j.ticket_id, betUSD), 2500);
+      } catch (e) {
+        btnKhqr.disabled = false;
+        alert('Network error. Please try again.');
+      }
+    }
+
+    async function pollCrashKHQR(ticketId, betUSD) {
+      try {
+        const res = await fetch(`/api/crash/ticket/${ticketId}?_t=` + Date.now());
+        const j = await res.json();
+        if (res.ok && j.ok && j.paid) {
+          clearInterval(khqrPollTimer);
+          closeKHQRModal();
+
+          activeSessionId = j.session_id;
+          activeBetUSD = betUSD;
+          activeBaseRobux = j.base_robux || Math.round(betUSD * 100);
+          targetCrashPoint = j.crash_point || 2.00;
+          hasCashedOut = false;
+
+          startRocketFlight();
+        }
+      } catch (e) {}
+    }
+
+    function closeKHQRModal() {
+      document.getElementById('khqr-modal').classList.remove('open');
+      if (khqrPollTimer) clearInterval(khqrPollTimer);
+    }
+
+    // Rocket Ascend Animation
+    function startRocketFlight() {
+      gameState = 'FLYING';
+      currentMultiplier = 1.00;
+      startTime = performance.now();
+      multText.classList.remove('crashed');
+      multText.style.color = '#ffffff';
+      statusText.textContent = 'ROCKET ASCENDING...';
+
+      btnMain.disabled = false;
+      btnMain.classList.add('btn-cashout-active');
+      document.getElementById('btn-action-khqr').style.display = 'none';
+
+      const autoCash = parseFloat(document.getElementById('input-auto-cashout').value) || 0;
+
+      function flightTick(now) {
+        if (gameState !== 'FLYING') return;
+
+        const elapsedSec = (now - startTime) / 1000;
+        // Exponential multiplier curve: m(t) = e^(0.065 * t)
+        currentMultiplier = Math.max(1.00, Math.pow(Math.E, 0.065 * elapsedSec));
+
+        multText.textContent = currentMultiplier.toFixed(2) + 'x';
+        const estRobux = Math.floor(activeBaseRobux * currentMultiplier);
+        btnMainText.textContent = `CASHOUT (${estRobux.toLocaleString()} Robux)`;
+
+        // Check Auto-Cashout
+        if (autoCash >= 1.05 && currentMultiplier >= autoCash && !hasCashedOut) {
+          cashoutNow();
+          return;
+        }
+
+        // Check Crash
+        if (currentMultiplier >= targetCrashPoint) {
+          triggerCrash();
+          return;
+        }
+
+        requestAnimationFrame(flightTick);
+      }
+      requestAnimationFrame(flightTick);
+    }
+
+    // User Cashout
+    async function cashoutNow() {
+      if (gameState !== 'FLYING' || hasCashedOut) return;
+      hasCashedOut = true;
+      const claimedMult = currentMultiplier;
+
+      try {
+        const token = localStorage.getItem('rolea_token') || '';
+        const res = await fetch('/api/crash/cashout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({
+            session_id: activeSessionId,
+            cashout_multiplier: parseFloat(claimedMult.toFixed(2))
+          })
+        });
+        const j = await res.json();
+        if (res.ok && j.ok && j.won) {
+          activeWinningOrder = j;
+          showWinModal(j.robux, claimedMult);
+          btnMain.classList.remove('btn-cashout-active');
+          btnMainText.textContent = `Cashed out @ ${claimedMult.toFixed(2)}x!`;
+          btnMain.disabled = true;
+        }
+      } catch (e) {}
+    }
+
+    // Crash Explosion
+    function triggerCrash() {
+      gameState = 'CRASHED';
+      currentMultiplier = targetCrashPoint;
+      multText.textContent = targetCrashPoint.toFixed(2) + 'x';
+      multText.classList.add('crashed');
+      statusText.textContent = 'CRASHED!';
+
+      btnMain.classList.remove('btn-cashout-active');
+      btnMain.disabled = true;
+      btnMainText.textContent = hasCashedOut ? 'Round Over' : 'Exploded!';
+
+      addHistoryPill(targetCrashPoint);
+
+      setTimeout(() => {
+        resetToIdle();
+      }, 3500);
+    }
+
+    function resetToIdle() {
+      gameState = 'IDLE';
+      multText.classList.remove('crashed');
+      multText.textContent = '1.00x';
+      statusText.textContent = 'PREPARING NEXT LAUNCH...';
+      btnMain.disabled = false;
+      document.getElementById('btn-action-khqr').style.display = 'flex';
+      updateBetBaseRobux(document.getElementById('input-bet-amount').value);
+    }
+
+    function addHistoryPill(point) {
+      const bar = document.getElementById('history-bar');
+      const pill = document.createElement('span');
+      let tier = 'low';
+      if (point >= 10.0) tier = 'mega';
+      else if (point >= 3.0) tier = 'high';
+      else if (point >= 1.8) tier = 'med';
+
+      pill.className = `history-pill ${tier}`;
+      pill.textContent = point.toFixed(2) + 'x';
+      bar.insertBefore(pill, bar.firstChild);
+      if (bar.children.length > 15) bar.removeChild(bar.lastChild);
+    }
+
+    function showWinModal(robux, mult) {
+      document.getElementById('modal-robux-won').textContent = `+${Number(robux).toLocaleString()} Robux`;
+      document.getElementById('modal-mult-badge').textContent = `@ ${mult.toFixed(2)}x Multiplier`;
+      document.getElementById('win-modal').classList.add('open');
+    }
+
+    function closeWinModal() {
+      document.getElementById('win-modal').classList.remove('open');
+    }
+
+    async function submitCrashClaim() {
+      const username = document.getElementById('claim-roblox-user').value.trim();
+      if (!username) {
+        alert('Please enter your Roblox username');
+        return;
+      }
+      if (!activeWinningOrder || !activeWinningOrder.order_id) {
+        alert('No active winning order to claim.');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/crash/claim', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            order_id: activeWinningOrder.order_id,
+            receipt_token: activeWinningOrder.receipt_token,
+            roblox_username: username
+          })
+        });
+        const j = await res.json();
+        if (res.ok && j.ok) {
+          alert('Claim submitted successfully! Admin will send your Robux shortly.');
+          closeWinModal();
+        } else {
+          alert(j.error || 'Failed to submit claim.');
+        }
+      } catch (e) {
+        alert('Network error.');
+      }
+    }
+
+    // Load Live Recent Winners
+    async function loadCrashConfig() {
+      try {
+        const res = await fetch('/api/crash/config?_t=' + Date.now());
+        const j = await res.json();
+        if (res.ok && j.ok) {
+          if (j.recent_crash_points && j.recent_crash_points.length > 0) {
+            const bar = document.getElementById('history-bar');
+            bar.innerHTML = j.recent_crash_points.map(p => {
+              let tier = 'low';
+              if (p >= 10.0) tier = 'mega';
+              else if (p >= 3.0) tier = 'high';
+              else if (p >= 1.8) tier = 'med';
+              return `<span class="history-pill ${tier}">${Number(p).toFixed(2)}x</span>`;
+            }).join('');
+          }
+          if (j.recent_winners && j.recent_winners.length > 0) {
+            const grid = document.getElementById('winners-grid');
+            grid.innerHTML = j.recent_winners.map(w => `
+              <div class="winner-row">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <img src="/media/robux-gold-coin.png" alt="Robux" style="width:26px;height:26px">
+                  <div>
+                    <b style="color:#ffffff;font-size:13px">${w.username || 'Lucky Player'}</b>
+                    <div style="font-size:11px;color:#94a3b8">@ ${Number(w.multiplier).toFixed(2)}x</div>
+                  </div>
+                </div>
+                <b style="color:#10b981;font-size:13.5px">+${Number(w.robux).toLocaleString()} R$</b>
+              </div>
+            `).join('');
+          }
+        }
+      } catch (e) {}
+    }
+    loadCrashConfig();
+    setInterval(loadCrashConfig, 10000);
+  </script>
+</body>
+</html>

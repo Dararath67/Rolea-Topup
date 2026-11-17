@@ -1,0 +1,17 @@
+{
+  "enabled": true,
+  "title": "Robux Crash",
+  "subtitle": "Watch the rocket ascend & cash out before the explosion!",
+  "house_edge_pct": 6.0,
+  "min_bet_usd": 0.10,
+  "max_bet_usd": 25.00,
+  "max_multiplier": 100.0,
+  "robux_per_usd": 100,
+  "cost_per_1k_robux_usd": 4.0,
+  "telegram_alert_enabled": true,
+  "history": [],
+  "total_bets": 0,
+  "total_wagered_usd": 0.0,
+  "total_robux_awarded": 0,
+  "recent_crash_points": [2.45, 1.18, 5.80, 1.05, 14.20, 3.10, 1.95, 8.40, 1.35, 22.50]
+}

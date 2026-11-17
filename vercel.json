@@ -15,6 +15,8 @@
     { "source": "/scratch", "destination": "/scratch.html" },
     { "source": "/box", "destination": "/box.html" },
     { "source": "/cases", "destination": "/box.html" },
+    { "source": "/crash", "destination": "/crash.html" },
+    { "source": "/rocket", "destination": "/crash.html" },
     { "source": "/check-order", "destination": "/check_order.html" },
     { "source": "/my-account", "destination": "/my_account.html" },
     { "source": "/profile", "destination": "/my_account.html" },

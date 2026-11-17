@@ -83,6 +83,7 @@ ADMIN_SECURITY_PATH = DATA_DIR / "admin_security.json"
 SPIN_PATH = DATA_DIR / "spin.json"
 SCRATCH_PATH = DATA_DIR / "scratch.json"
 BOX_PATH = DATA_DIR / "box.json"
+CRASH_PATH = DATA_DIR / "crash.json"
 FLASH_SALE_PATH = DATA_DIR / "flash_sale.json"
 
 # In-memory data store
@@ -858,6 +859,40 @@ pending_box_tickets: Dict[str, Dict[str, Any]] = {}
 
 def save_box_data():
     save_json(BOX_PATH, box_data)
+
+crash_data: Dict[str, Any] = load_json(CRASH_PATH, {
+    "enabled": True,
+    "title": "Robux Crash",
+    "subtitle": "Watch the rocket ascend & cash out before the explosion!",
+    "house_edge_pct": 6.0,
+    "min_bet_usd": 0.10,
+    "max_bet_usd": 25.00,
+    "max_multiplier": 100.0,
+    "robux_per_usd": 100,
+    "cost_per_1k_robux_usd": 4.0,
+    "telegram_alert_enabled": True,
+    "history": [],
+    "total_bets": 0,
+    "total_wagered_usd": 0.0,
+    "total_robux_awarded": 0,
+    "recent_crash_points": [2.45, 1.18, 5.80, 1.05, 14.20, 3.10, 1.95, 8.40, 1.35, 22.50]
+})
+
+active_crash_sessions: Dict[str, Dict[str, Any]] = {}
+pending_crash_tickets: Dict[str, Dict[str, Any]] = {}
+
+def save_crash_data():
+    save_json(CRASH_PATH, crash_data)
+
+def generate_crash_multiplier(house_edge_pct: float = 6.0, max_mult: float = 100.0) -> float:
+    r = secrets.randbelow(1000000) / 1000000.0
+    edge = max(1.0, min(20.0, house_edge_pct)) / 100.0
+    if r < edge:
+        return round(1.00 + (secrets.randbelow(10) / 100.0), 2)
+    mult = (1.0 - edge) / (1.0 - r)
+    mult = min(max_mult, max(1.01, mult))
+    return round(mult, 2)
+
 
 def roll_mystery_box(case_id: str, is_daily_free: bool = False, max_free_robux: int = 25) -> Tuple[Dict[str, Any], List[Dict[str, Any]], int]:
     cases = box_data.get("cases", {})
@@ -2822,6 +2857,49 @@ def _build_tg_admin_scratch(status_note: str = "") -> tuple[str, Dict[str, Any]]
     }
     return text, markup
 
+def _build_tg_admin_crash(status_note: str = "") -> tuple[str, Dict[str, Any]]:
+    global crash_data
+    en = bool(crash_data.get("enabled", True))
+    st_en = "🟢 បើកដំណើរការ (ON)" if en else "⛔ បិទដំណើរការ (OFF)"
+    tot_bets = int(crash_data.get("total_bets", 0))
+    tot_rev = float(crash_data.get("total_wagered_usd", 0.0))
+    tot_rbx = int(crash_data.get("total_robux_awarded", 0))
+    edge = float(crash_data.get("house_edge_pct", 6.0))
+    cost_per_r = float(crash_data.get("cost_per_1k_robux_usd", 4.0)) / 1000.0
+    est_cost = tot_rbx * cost_per_r
+    net_profit = tot_rev - est_cost
+    margin = (net_profit / tot_rev * 100) if tot_rev > 0 else 0
+
+    note_line = f"<b>{html.escape(status_note)}</b>\n\n" if status_note else ""
+
+    text = (
+        "🚀 <b>ផ្ទាំងគ្រប់គ្រង ROBUX CRASH</b>\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        f"{note_line}"
+        f"• ស្ថានភាពទូទៅ៖ <b>{st_en}</b>\n"
+        f"• House Edge (កម្រៃចំណេញ)៖ <b>{edge:.1f}%</b>\n"
+        f"• ចំនួនជុំលេងសរុប៖ <b>{tot_bets:,} Rounds</b>\n"
+        f"• ចំណូលសរុប (Wagered)៖ <code>${tot_rev:.2f} USD</code>\n"
+        f"• Robux បានចែកជូន៖ <b>{tot_rbx:,} R$</b> (ថ្លៃដើម: <code>${est_cost:.2f}</code>)\n"
+        f"• 💰 <b>ប្រាក់ចំណេញសុទ្ធ៖</b> <code>${net_profit:.2f} USD</code> ({margin:.1f}% Margin)\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        "🕹️ <i>ជ្រើសរើសប៊ូតុងខាងក្រោមដើម្បីគ្រប់គ្រង ឬ Simulate៖</i>"
+    )
+
+    markup = {
+        "inline_keyboard": [
+            [
+                {"text": "⛔ បិទ Robux Crash" if en else "🟢 បើក Robux Crash", "callback_data": "adm:crash_tog"},
+                {"text": "📊 Simulate 1,000 Rounds", "callback_data": "adm:crash_sim"}
+            ],
+            [
+                {"text": "🔄 Reset ស្ថិតិ Crash", "callback_data": "adm:crash_reset_stats"},
+                {"text": "🏠 ត្រឡប់ទៅ Home", "callback_data": "adm:home"}
+            ]
+        ]
+    }
+    return text, markup
+
 def _build_tg_admin_box(status_note: str = "") -> tuple[str, Dict[str, Any]]:
     global box_data
     en = bool(box_data.get("enabled", True))
@@ -2938,6 +3016,7 @@ def _build_tg_admin_home() -> tuple[str, Dict[str, Any]]:
     spin_str = "🟢 បើក (ON)" if spin_data.get("enabled", True) else "⛔ បិទ (OFF)"
     scratch_str = "🟢 បើក (ON)" if scratch_data.get("enabled", True) else "⛔ បិទ (OFF)"
     box_str = "🟢 បើក (ON)" if box_data.get("enabled", True) else "⛔ បិទ (OFF)"
+    crash_str = "🟢 បើក (ON)" if crash_data.get("enabled", True) else "⛔ បិទ (OFF)"
     fs_active = is_flash_sale_active()
     fs_rem = get_flash_sale_remaining_seconds()
     fs_h = fs_rem // 3600
@@ -2946,7 +3025,8 @@ def _build_tg_admin_home() -> tuple[str, Dict[str, Any]]:
     text = (
         f"🛡️ <b>{store_name} — ផ្ទាំងគ្រប់គ្រង Admin (Telegram Panel)</b>\n\n"
         f"🌐 <b>ស្ថានភាពហាង៖</b> {maint_str}\n"
-        f"🎡 <b>Spin៖</b> {spin_str}  |  🎫 <b>Scratch៖</b> {scratch_str}  |  📦 <b>Box៖</b> {box_str}\n"
+        f"🎡 <b>Spin៖</b> {spin_str}  |  🎫 <b>Scratch៖</b> {scratch_str}\n"
+        f"📦 <b>Box៖</b> {box_str}  |  🚀 <b>Crash៖</b> {crash_str}\n"
         f"⚡ <b>ស្ថានភាព Flash Sale៖</b> {fs_str}\n"
         f"👥 <b>អតិថិជនសរុប៖</b> {total_users} នាក់  |  💳 <b>លុយក្នុង Wallet៖</b> ${total_wallet:.2f}\n"
         f"📦 <b>Order កំពុងរង់ចាំ៖</b> {pending_cnt} កុម្ម៉ង់\n\n"
@@ -2974,6 +3054,9 @@ def _build_tg_admin_home() -> tuple[str, Dict[str, Any]]:
             [
                 {"text": "🎫 គ្រប់គ្រង Scratch Card", "callback_data": "adm:scratch"},
                 {"text": "📦 គ្រប់គ្រង Mystery Box", "callback_data": "adm:box"}
+            ],
+            [
+                {"text": "🚀 គ្រប់គ្រង Robux Crash", "callback_data": "adm:crash"}
             ],
             [
                 {"text": f"⚡ Flash Sale ({'ON' if fs_active else 'OFF'})", "callback_data": "adm:fsale"}
@@ -3574,6 +3657,34 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, text, markup)
 
+    elif sub.startswith("crash"):
+        if sub == "crash_tog":
+            crash_data["enabled"] = not crash_data.get("enabled", True)
+            save_crash_data()
+            st = "បើកដំណើរការ (ON)" if crash_data["enabled"] else "បិទដំណើរការ (OFF)"
+            status_note = f"✅ Robux Crash ត្រូវបាន {st}!"
+            await answer_callback_query(token, query_id, f"Crash: {st}")
+        elif sub == "crash_reset_stats":
+            crash_data["total_bets"] = 0
+            crash_data["total_wagered_usd"] = 0.0
+            crash_data["total_robux_awarded"] = 0
+            crash_data["history"] = []
+            save_crash_data()
+            status_note = "🔄 បាន Reset ស្ថិតិ Robux Crash ទាំងអស់ទៅ 0 រួចរាល់!"
+            await answer_callback_query(token, query_id, "Crash Stats Reset Done!")
+        elif sub == "crash_sim":
+            edge = float(crash_data.get("house_edge_pct", 6.0))
+            max_m = float(crash_data.get("max_multiplier", 100.0))
+            mults = [generate_crash_multiplier(edge, max_m) for _ in range(1000)]
+            avg_m = sum(mults) / 1000.0
+            status_note = f"📊 1,000 Rounds Sim: Avg Multiplier: {avg_m:.2f}x | Max: {max(mults):.2f}x | Edge: {edge}%"
+            await answer_callback_query(token, query_id, f"Avg Mult: {avg_m:.2f}x")
+        else:
+            await answer_callback_query(token, query_id, "")
+
+        text, markup = _build_tg_admin_crash(status_note)
+        if msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, text, markup)
     elif sub.startswith("box"):
         if sub == "box_tog":
             box_data["enabled"] = not box_data.get("enabled", True)
@@ -4323,6 +4434,42 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                 else:
                     sc_txt, sc_markup = _build_tg_admin_scratch()
                     asyncio.create_task(send_telegram_direct_message(token, chat_id, sc_txt, sc_markup))
+        elif text == "/crash" or text.startswith("/crash ") or text.startswith("/crash@") or text == "/rocket":
+            if not is_telegram_admin(from_id, from_uname, chat_id):
+                asyncio.create_task(record_unauthorized_bot_attempt(from_id, from_uname, chat_id, text))
+                asyncio.create_task(send_telegram_direct_message(token, chat_id, "Access Denied: Admin authentication required."))
+            else:
+                arg = text.split(" ", 1)[1].strip().lower() if " " in text else ""
+                if arg == "on":
+                    crash_data["enabled"] = True
+                    save_crash_data()
+                    c_txt, c_markup = _build_tg_admin_crash("✅ Robux Crash ត្រូវបានបើកដំណើរការ (ON)!")
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, c_txt, c_markup))
+                elif arg == "off":
+                    crash_data["enabled"] = False
+                    save_crash_data()
+                    c_txt, c_markup = _build_tg_admin_crash("⛔ Robux Crash ត្រូវបានបិទដំណើរការ (OFF)!")
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, c_txt, c_markup))
+                elif arg.startswith("edge "):
+                    try:
+                        eval_pct = round(float(arg.split()[1]), 1)
+                        crash_data["house_edge_pct"] = max(1.0, min(25.0, eval_pct))
+                        save_crash_data()
+                        c_txt, c_markup = _build_tg_admin_crash(f"✅ បានកំណត់ House Edge: {crash_data['house_edge_pct']}%")
+                        asyncio.create_task(send_telegram_direct_message(token, chat_id, c_txt, c_markup))
+                    except Exception:
+                        asyncio.create_task(send_telegram_direct_message(token, chat_id, "❌ ទម្រង់មិនត្រឹមត្រូវ ឧទាហរណ៍៖ <code>/crash edge 6.0</code>"))
+                elif arg == "reset":
+                    crash_data["total_bets"] = 0
+                    crash_data["total_wagered_usd"] = 0.0
+                    crash_data["total_robux_awarded"] = 0
+                    crash_data["history"] = []
+                    save_crash_data()
+                    c_txt, c_markup = _build_tg_admin_crash("🔄 បាន Reset ស្ថិតិ Robux Crash ទាំងអស់ទៅ 0 រួចរាល់!")
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, c_txt, c_markup))
+                else:
+                    c_txt, c_markup = _build_tg_admin_crash()
+                    asyncio.create_task(send_telegram_direct_message(token, chat_id, c_txt, c_markup))
         elif text == "/box" or text.startswith("/box ") or text.startswith("/box@") or text == "/mysterybox" or text.startswith("/mysterybox "):
             if not is_telegram_admin(from_id, from_uname, chat_id):
                 asyncio.create_task(record_unauthorized_bot_attempt(from_id, from_uname, chat_id, text))
@@ -4755,13 +4902,13 @@ def _get_rate_tier(path: str, is_authed_admin: bool = False) -> tuple[str, int, 
         return ("otp", 6, 60)
     if path in ("/api/auth/login", "/api/auth/register", "/api/auth/google", "/api/orders/claim-refund-wallet", "/api/auth/check-refund-autologin"):
         return ("auth", 10, 60)
-    if path in ("/api/spin/claim", "/api/spin/daily-free-spin", "/api/scratch/claim", "/api/scratch/daily-free", "/api/box/claim", "/api/box/daily-free"):
+    if path in ("/api/spin/claim", "/api/spin/daily-free-spin", "/api/scratch/claim", "/api/scratch/daily-free", "/api/box/claim", "/api/box/daily-free", "/api/crash/claim"):
         return ("spin_claim", 6, 60)
     if path == "/api/promo/apply":
         return ("promo_apply", 10, 60)
     if path == "/api/reviews/submit":
         return ("review_submit", 5, 60)
-    if path in ("/api/create-order", "/api/wallet/topup", "/api/spin/create-ticket", "/api/scratch/create-ticket", "/api/box/create-ticket"):
+    if path in ("/api/create-order", "/api/wallet/topup", "/api/spin/create-ticket", "/api/scratch/create-ticket", "/api/box/create-ticket", "/api/crash/create-bet", "/api/crash/cashout"):
         return ("pay_create", 12, 60)
     if path in ("/api/check-id", "/api/check-order"):
         return ("lookup", 25, 60)
@@ -7532,6 +7679,428 @@ async def admin_reset_box_stats():
     box_data["history"] = []
     save_box_data()
     return {"ok": True, "message": "Mystery Box statistics and history cleared."}
+
+
+# ==========================================
+# ROBUX CRASH ROCKET API
+# ==========================================
+
+@app.get("/api/crash/config")
+async def get_crash_config():
+    recent_winners = []
+    for h in crash_data.get("history", [])[:15]:
+        if h.get("won") and int(h.get("robux", 0)) > 0:
+            recent_winners.append({
+                "username": h.get("username", "Lucky Player"),
+                "multiplier": h.get("multiplier", 1.00),
+                "robux": h.get("robux", 0),
+                "created_at": h.get("created_at")
+            })
+
+    return {
+        "ok": True,
+        "enabled": bool(crash_data.get("enabled", True)),
+        "title": crash_data.get("title", "Robux Crash"),
+        "subtitle": crash_data.get("subtitle", ""),
+        "min_bet_usd": float(crash_data.get("min_bet_usd", 0.10)),
+        "max_bet_usd": float(crash_data.get("max_bet_usd", 25.00)),
+        "max_multiplier": float(crash_data.get("max_multiplier", 100.0)),
+        "robux_per_usd": int(crash_data.get("robux_per_usd", 100)),
+        "recent_crash_points": crash_data.get("recent_crash_points", [])[:15],
+        "recent_winners": recent_winners
+    }
+
+@app.post("/api/crash/create-bet")
+async def create_crash_bet(request: Request):
+    if not crash_data.get("enabled", True):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Robux Crash is temporarily disabled by Admin."})
+
+    body = await request.json() if (await request.body()) else {}
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid payload"})
+
+    bet_amount = round(float(body.get("bet_amount_usd") or 0.20), 2)
+    min_b = float(crash_data.get("min_bet_usd", 0.10))
+    max_b = float(crash_data.get("max_bet_usd", 25.00))
+
+    if bet_amount < min_b or bet_amount > max_b:
+        return JSONResponse(status_code=400, content={"ok": False, "error": f"Bet amount must be between ${min_b:.2f} and ${max_b:.2f} USD."})
+
+    pay_method = str(body.get("payment_method") or "wallet").lower().strip()
+    current_user = get_user_from_req(request)
+    client_ip = get_admin_effective_ip(request)
+
+    username = _sanitize_plain(body.get("username") or (current_user["username"] if current_user else "Lucky Player"), 60).lstrip("@")
+    blocked, b_reason = is_blacklisted(player_id=username or None, username=username or None, ip=client_ip)
+    if blocked:
+        return JSONResponse(status_code=403, content={"ok": False, "error": f"Account blocked: {b_reason}"})
+
+    session_id = "CRASH_" + secrets.token_hex(6).upper()
+    edge = float(crash_data.get("house_edge_pct", 6.0))
+    max_m = float(crash_data.get("max_multiplier", 100.0))
+    crash_point = generate_crash_multiplier(edge, max_m)
+    r_rate = int(crash_data.get("robux_per_usd", 100))
+    base_robux = int(round(bet_amount * r_rate))
+
+    now = datetime.now(timezone.utc)
+
+    if pay_method == "wallet":
+        if not current_user:
+            return JSONResponse(status_code=401, content={"ok": False, "error": "Please sign in to play Robux Crash with Rolea Wallet."})
+
+        async with _tx_lock:
+            wg_ok, wg_msg = _check_and_enforce_wallet_guard(current_user, bet_amount)
+            if not wg_ok:
+                return JSONResponse(status_code=403, content={"ok": False, "error": wg_msg})
+            if float(current_user.get("balance", 0.0)) < bet_amount:
+                return JSONResponse(status_code=400, content={"ok": False, "error": f"Insufficient Rolea Wallet balance (${float(current_user.get('balance', 0.0)):.2f}). Please top up first or use KHQR."})
+
+            current_user["balance"] = round(float(current_user.get("balance", 0.0)) - bet_amount, 2)
+            save_users()
+            wallet_transactions.insert(0, {
+                "id": "wtx_" + secrets.token_hex(4),
+                "user_id": current_user["id"],
+                "type": "spend",
+                "amount": -bet_amount,
+                "order_id": session_id,
+                "product": "Robux Crash Bet",
+                "date": now.isoformat()
+            })
+            save_wallet_tx()
+
+        # Save session
+        active_crash_sessions[session_id] = {
+            "session_id": session_id,
+            "user_id": current_user["id"],
+            "username": username,
+            "bet_usd": bet_amount,
+            "base_robux": base_robux,
+            "crash_point": crash_point,
+            "started_at": now.isoformat(),
+            "cashed_out": False,
+            "won": False,
+            "client_ip": client_ip,
+            "payment_method": "Rolea Wallet"
+        }
+
+        # Update crash stats
+        crash_data["total_bets"] = int(crash_data.get("total_bets", 0)) + 1
+        crash_data["total_wagered_usd"] = round(float(crash_data.get("total_wagered_usd", 0.0)) + bet_amount, 2)
+        save_crash_data()
+
+        return {
+            "ok": True,
+            "paid": True,
+            "session_id": session_id,
+            "bet_usd": bet_amount,
+            "base_robux": base_robux,
+            "crash_point": crash_point, # delivered to client loop
+            "remaining_balance": current_user["balance"]
+        }
+
+    # KHQR Ticket Flow
+    khqr_res = await create_khqrpay_order(bet_amount, session_id)
+    expires_at = (now + timedelta(minutes=5)).isoformat()
+    khqrpay_id = None
+    qr_url = ""
+    aba_deeplink = ""
+
+    if khqr_res and khqr_res.get("id"):
+        khqrpay_id = khqr_res["id"]
+        qr_url = khqr_res.get("qr_image", "")
+        aba_deeplink = khqr_res.get("aba_deeplink", "")
+        if khqr_res.get("expires_at"):
+            expires_at = khqr_res["expires_at"]
+
+    if not qr_url:
+        amt_str = f"{bet_amount:.2f}"
+        amt_len = f"{len(amt_str):02d}"
+        khqr_payload = f"00020101021229370016bakong@rolea010108{session_id}520459995303840540{amt_len}{amt_str}5802KH5911ROLEA TOPUP6010PHNOM PENH62240108{session_id}0708ROLEATOPUP6304"
+        qr_url = generate_khqr_data_url(khqr_payload)
+
+    pending_crash_tickets[session_id] = {
+        "session_id": session_id,
+        "user_id": current_user["id"] if current_user else None,
+        "username": username,
+        "bet_usd": bet_amount,
+        "base_robux": base_robux,
+        "crash_point": crash_point,
+        "paid": False,
+        "khqrpay_id": khqrpay_id,
+        "created_at": now.isoformat(),
+        "expires_at": expires_at,
+        "client_ip": client_ip,
+        "payment_method": "ABA KHQR"
+    }
+
+    return {
+        "ok": True,
+        "paid": False,
+        "ticket_id": session_id,
+        "session_id": session_id,
+        "bet_usd": bet_amount,
+        "qr_image": qr_url,
+        "aba_deeplink": aba_deeplink,
+        "expires_at": expires_at
+    }
+
+@app.get("/api/crash/ticket/{ticket_id}")
+async def get_crash_ticket(ticket_id: str):
+    ticket = pending_crash_tickets.get(ticket_id)
+    if not ticket:
+        return JSONResponse(status_code=404, content={"ok": False, "error": "Ticket not found"})
+
+    if not ticket.get("paid"):
+        khqrpay_id = ticket.get("khqrpay_id")
+        if khqrpay_id:
+            status_res = await check_khqrpay_status(khqrpay_id)
+            if status_res and status_res.get("paid"):
+                ticket["paid"] = True
+
+    if ticket.get("paid"):
+        active_crash_sessions[ticket_id] = {
+            "session_id": ticket_id,
+            "user_id": ticket.get("user_id"),
+            "username": ticket.get("username", "Lucky Player"),
+            "bet_usd": ticket.get("bet_usd", 0.20),
+            "base_robux": ticket.get("base_robux", 20),
+            "crash_point": ticket.get("crash_point", 2.00),
+            "started_at": datetime.now(timezone.utc).isoformat(),
+            "cashed_out": False,
+            "won": False,
+            "client_ip": ticket.get("client_ip"),
+            "payment_method": "ABA KHQR"
+        }
+        crash_data["total_bets"] = int(crash_data.get("total_bets", 0)) + 1
+        crash_data["total_wagered_usd"] = round(float(crash_data.get("total_wagered_usd", 0.0)) + ticket.get("bet_usd", 0.20), 2)
+        save_crash_data()
+
+        return {
+            "ok": True,
+            "paid": True,
+            "session_id": ticket_id,
+            "base_robux": ticket.get("base_robux"),
+            "crash_point": ticket.get("crash_point")
+        }
+
+    return {"ok": True, "paid": False}
+
+@app.post("/api/crash/cashout")
+async def cashout_crash_bet(request: Request):
+    body = await request.json() if (await request.body()) else {}
+    session_id = str(body.get("session_id") or "").strip()
+    cashout_mult = round(float(body.get("cashout_multiplier") or 1.00), 2)
+
+    sess = active_crash_sessions.get(session_id)
+    if not sess:
+        return JSONResponse(status_code=404, content={"ok": False, "error": "Session not found or expired"})
+
+    if sess.get("cashed_out"):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Already cashed out"})
+
+    crash_point = float(sess.get("crash_point", 1.00))
+
+    if cashout_mult > crash_point:
+        sess["cashed_out"] = True
+        sess["won"] = False
+        return {
+            "ok": True,
+            "won": False,
+            "message": f"Rocket crashed at {crash_point:.2f}x before cashout!",
+            "crash_point": crash_point
+        }
+
+    # WIN!
+    sess["cashed_out"] = True
+    sess["won"] = True
+    sess["claimed_mult"] = cashout_mult
+    base_robux = int(sess.get("base_robux", 20))
+    robux_won = int(round(base_robux * cashout_mult))
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    order_id = "CRASH_" + secrets.token_hex(4).upper()
+    receipt_token = secrets.token_hex(16)
+    clean_user = _sanitize_plain(sess.get("username", "Lucky Player"), 60)
+
+    # Record winning order in store orders queue
+    new_order = {
+        "order_id": order_id,
+        "token": receipt_token,
+        "user_id": sess.get("user_id"),
+        "player_id": "",
+        "username": clean_user,
+        "roblox_username": "",
+        "product_id": "robux",
+        "product_name": f"Robux Crash ({cashout_mult:.2f}x Win)",
+        "package_id": "crash_reward",
+        "package_name": f"{robux_won:,} Robux",
+        "amount": float(sess.get("bet_usd", 0.20)),
+        "robux_amount": robux_won,
+        "quantity": 1,
+        "payment_method": sess.get("payment_method", "Rolea Wallet"),
+        "status": "pending",
+        "step": "unclaimed",
+        "delivered": False,
+        "created_at": now_iso
+    }
+    orders.insert(0, new_order)
+    save_orders()
+
+    # Update stats & history
+    crash_data["total_robux_awarded"] = int(crash_data.get("total_robux_awarded", 0)) + robux_won
+    history = crash_data.setdefault("history", [])
+    history.insert(0, {
+        "order_id": order_id,
+        "username": clean_user,
+        "bet_usd": sess.get("bet_usd", 0.20),
+        "multiplier": cashout_mult,
+        "crash_point": crash_point,
+        "robux": robux_won,
+        "won": True,
+        "payment_method": sess.get("payment_method", "Rolea Wallet"),
+        "created_at": now_iso
+    })
+    if len(history) > 200:
+        crash_data["history"] = history[:200]
+
+    # Prepend to recent crash points
+    recent_pts = crash_data.setdefault("recent_crash_points", [])
+    recent_pts.insert(0, crash_point)
+    if len(recent_pts) > 20:
+        crash_data["recent_crash_points"] = recent_pts[:20]
+
+    save_crash_data()
+
+    # Telegram alert for Big Wins (>= 5.0x)
+    if crash_data.get("telegram_alert_enabled", True) and (cashout_mult >= 3.0 or robux_won >= 100):
+        async def _send_crash_tg():
+            bot_token = settings.get("telegram_bot_token")
+            chat_id = settings.get("telegram_chat_id")
+            if bot_token and chat_id:
+                msg = (
+                    f"🚀 <b>ROBUX CRASH BIG WIN!</b>\n\n"
+                    f"👤 Player: <b>{html.escape(clean_user)}</b>\n"
+                    f"💰 Multiplier: <b>{cashout_mult:.2f}x</b> (Crash Point: {crash_point:.2f}x)\n"
+                    f"🎉 Robux Won: <b>{robux_won:,} Robux</b>\n"
+                    f"💵 Bet Amount: ${sess.get('bet_usd', 0.20):.2f}\n"
+                    f"🆔 Order: <code>{order_id}</code>"
+                )
+                try:
+                    async with httpx.AsyncClient(timeout=10) as client:
+                        await client.post(
+                            f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                            json={"chat_id": chat_id, "text": msg, "parse_mode": "HTML"}
+                        )
+                except Exception:
+                    pass
+        asyncio.create_task(_send_crash_tg())
+
+    return {
+        "ok": True,
+        "won": True,
+        "robux": robux_won,
+        "multiplier": cashout_mult,
+        "crash_point": crash_point,
+        "order_id": order_id,
+        "receipt_token": receipt_token
+    }
+
+@app.post("/api/crash/claim")
+async def claim_crash_reward(request: Request):
+    body = await request.json() if (await request.body()) else {}
+    order_id = str(body.get("order_id") or "").strip()
+    token = str(body.get("receipt_token") or "").strip()
+    roblox_user = str(body.get("roblox_username") or "").strip().lstrip("@")
+
+    if not order_id or not roblox_user:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Order ID and Roblox username are required"})
+
+    ord_match = None
+    for o in orders:
+        if o.get("order_id") == order_id:
+            ord_match = o
+            break
+
+    if not ord_match:
+        return JSONResponse(status_code=404, content={"ok": False, "error": "Order not found"})
+
+    if token and ord_match.get("token") and ord_match.get("token") != token:
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Invalid claim receipt token"})
+
+    ord_match["player_id"] = roblox_user
+    ord_match["roblox_username"] = roblox_user
+    ord_match["step"] = "pending_claim"
+    ord_match["claim_submitted"] = True
+    save_orders()
+
+    return {
+        "ok": True,
+        "message": "Claim submitted successfully! Admin will send your Robux shortly."
+    }
+
+# Crash Admin Endpoints
+@app.get("/api/admin/crash")
+async def admin_get_crash():
+    return {
+        "ok": True,
+        "crash_data": crash_data
+    }
+
+@app.post("/api/admin/crash/save")
+async def admin_save_crash(request: Request):
+    body = await request.json() if (await request.body()) else {}
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid payload"})
+
+    crash_data["enabled"] = bool(body.get("enabled", True))
+    crash_data["title"] = str(body.get("title") or "Robux Crash").strip()
+    crash_data["subtitle"] = str(body.get("subtitle") or "").strip()
+    if "house_edge_pct" in body:
+        crash_data["house_edge_pct"] = round(float(body["house_edge_pct"]), 1)
+    if "min_bet_usd" in body:
+        crash_data["min_bet_usd"] = round(float(body["min_bet_usd"]), 2)
+    if "max_bet_usd" in body:
+        crash_data["max_bet_usd"] = round(float(body["max_bet_usd"]), 2)
+    if "max_multiplier" in body:
+        crash_data["max_multiplier"] = round(float(body["max_multiplier"]), 1)
+    if "cost_per_1k_robux_usd" in body:
+        crash_data["cost_per_1k_robux_usd"] = round(float(body["cost_per_1k_robux_usd"]), 2)
+    if "telegram_alert_enabled" in body:
+        crash_data["telegram_alert_enabled"] = bool(body["telegram_alert_enabled"])
+
+    save_crash_data()
+    return {"ok": True, "crash_data": crash_data}
+
+@app.post("/api/admin/crash/test-roll")
+async def admin_test_crash(request: Request):
+    edge = float(crash_data.get("house_edge_pct", 6.0))
+    max_m = float(crash_data.get("max_multiplier", 100.0))
+    mults = [generate_crash_multiplier(edge, max_m) for _ in range(1000)]
+
+    avg_mult = round(sum(mults) / len(mults), 2)
+    under_2x = sum(1 for m in mults if m < 2.0)
+    over_10x = sum(1 for m in mults if m >= 10.0)
+    max_rolled = max(mults)
+
+    return {
+        "ok": True,
+        "rounds_simulated": 1000,
+        "avg_multiplier": avg_mult,
+        "under_2x_count": under_2x,
+        "over_10x_count": over_10x,
+        "max_multiplier_rolled": max_rolled,
+        "house_edge_pct": edge
+    }
+
+@app.post("/api/admin/crash/reset-stats")
+async def admin_reset_crash_stats():
+    crash_data["total_bets"] = 0
+    crash_data["total_wagered_usd"] = 0.0
+    crash_data["total_robux_awarded"] = 0
+    crash_data["history"] = []
+    save_crash_data()
+    return {"ok": True, "message": "Robux Crash statistics and history cleared."}
+
 
 
 # CUSTOMER AUTHENTICATION & PROFILE
@@ -11582,6 +12151,13 @@ async def page_spin():
 @app.get("/scratch")
 async def page_scratch():
     return FileResponse(PUBLIC_DIR / "scratch.html")
+
+@app.get("/crash")
+async def page_crash():
+    p = PUBLIC_DIR / "crash.html"
+    if p.exists():
+        return FileResponse(p, media_type="text/html")
+    return JSONResponse(status_code=404, content={"error": "crash.html not found"})
 
 @app.get("/box")
 async def page_box():

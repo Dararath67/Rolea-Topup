@@ -77,19 +77,31 @@
   <!-- Category / Product Catalog Container -->
   <div class="container">
     <!-- Rewards Promo Hub (Spin Wheel) -->
-    <div style="margin-top:16px;margin-bottom:18px;">
-      <a href="/spin" id="home-spin-promo" style="display:flex;align-items:center;justify-content:space-between;gap:14px;background:#ffffff;color:#0f172a;padding:16px 20px;border-radius:18px;text-decoration:none;border:1.5px solid #e2e8f0;box-shadow:0 4px 18px rgba(15,23,42,0.04);transition:transform 0.2s,border-color 0.2s;">
-        <div style="display:flex;align-items:center;gap:12px;">
-          <div style="width:44px;height:44px;border-radius:14px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid #bfdbfe;">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.3"><circle cx="12" cy="12" r="10"/><path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M4.93 19.07L19.07 4.93"/></svg>
+    <div style="margin-top:16px;margin-bottom:18px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <a href="/crash" id="home-crash-promo" style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:linear-gradient(135deg, #0b0f19 0%, #1e1b4b 100%);color:#ffffff;padding:14px 16px;border-radius:18px;text-decoration:none;border:1.5px solid rgba(2, 132, 199, 0.4);box-shadow:0 4px 18px rgba(2, 132, 199, 0.15);transition:transform 0.2s;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:40px;height:40px;border-radius:12px;background:rgba(2, 132, 199, 0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid rgba(2, 132, 199, 0.4);">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.3"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/></svg>
           </div>
           <div>
-            <div style="font-size:10.5px;font-weight:900;letter-spacing:0.8px;text-transform:uppercase;color:#2563eb;">LUCKY WHEEL</div>
-            <div style="font-size:15px;font-weight:800;color:#0f172a;">Spin Robux Wheel</div>
-            <div style="font-size:11.5px;color:#64748b;margin-top:2px;">Win Up to 1,000 Robux</div>
+            <div style="font-size:10px;font-weight:900;letter-spacing:0.8px;text-transform:uppercase;color:#38bdf8;">NEW GAME 🚀</div>
+            <div style="font-size:14px;font-weight:800;color:#ffffff;">Robux Crash</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px;">Up to 100x Multiplier</div>
           </div>
         </div>
-        <span style="padding:8px 14px;background:#2563eb;color:#ffffff;border-radius:999px;font-size:12px;font-weight:800;white-space:nowrap;">Spin →</span>
+      </a>
+
+      <a href="/box" id="home-box-promo" style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:#ffffff;color:#0f172a;padding:14px 16px;border-radius:18px;text-decoration:none;border:1.5px solid #e2e8f0;box-shadow:0 4px 18px rgba(15,23,42,0.04);transition:transform 0.2s;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:40px;height:40px;border-radius:12px;background:#fef3c7;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid #fde68a;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.3"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:900;letter-spacing:0.8px;text-transform:uppercase;color:#d97706;">UNBOXING</div>
+            <div style="font-size:14px;font-weight:800;color:#0f172a;">Mystery Box</div>
+            <div style="font-size:11px;color:#64748b;margin-top:2px;">Win Up to 5,000 Robux</div>
+          </div>
+        </div>
       </a>
     </div>
 
@@ -225,11 +237,17 @@
     </svg>
     Home
   </a>
-  <a class="nav-item" href="/spin">
-    <svg class="i" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 3"/>
-    </svg>
-    Spin
+  <a class="nav-item" href="/box">
+    <img src="/media/rolea-logo.webp" alt="Boxes" style="width:22px;height:22px;object-fit:cover;border-radius:50%;display:block;margin:0 auto 2px">
+    Boxes
+  </a>
+  <a class="nav-item" href="/scratch">
+    <img src="/media/rolea-logo.webp" alt="Scratch" style="width:22px;height:22px;object-fit:cover;border-radius:50%;display:block;margin:0 auto 2px">
+    Scratch
+  </a>
+  <a class="nav-item" href="/crash">
+    <svg class="i" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/></svg>
+    Crash
   </a>
   <a class="nav-item" href="/check-order">
     <svg class="i" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">

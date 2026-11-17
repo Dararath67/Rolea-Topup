@@ -1371,6 +1371,10 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
         <span class="nav-label">Roblox Mystery Box</span>
       </a>
+      <a data-tab="crash" id="nav-crash" title="Robux Crash">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/></svg>
+        <span class="nav-label">Robux Crash 🚀</span>
+      </a>
       <a data-tab="inventory" id="nav-inventory" title="Robux Bot & Cookie">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
           <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
@@ -2760,6 +2764,146 @@
       </div>
     </div>
 
+    <!-- TAB: ROBUX CRASH -->
+    <div class="tab-content" id="tab-crash" style="display:none">
+      <!-- KPI Cards -->
+      <div class="stats-row" style="grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));margin-bottom:22px">
+        <div class="kpi-card">
+          <div>
+            <div class="kpi-label">Total Bets Placed</div>
+            <div class="kpi-value" id="crash-kpi-total">0</div>
+            <div class="kpi-sub">Total rocket launches</div>
+          </div>
+          <div class="kpi-icon blue">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/></svg>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div>
+            <div class="kpi-label">Crash Revenue</div>
+            <div class="kpi-value" id="crash-kpi-rev" style="color:#059669">$0.00</div>
+            <div class="kpi-sub">Total wagered income</div>
+          </div>
+          <div class="kpi-icon emerald">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div>
+            <div class="kpi-label">Robux Awarded</div>
+            <div class="kpi-value" id="crash-kpi-robux">0 R$</div>
+            <div class="kpi-sub">Total cashouts paid</div>
+          </div>
+          <div class="kpi-icon purple">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+        </div>
+
+        <div class="kpi-card" style="border:1.5px solid #bbf7d0;background:linear-gradient(145deg,#ffffff 0%,#f0fdf4 100%)">
+          <div>
+            <div class="kpi-label" style="color:#15803d;font-weight:800">Expected House Margin</div>
+            <div class="kpi-value" id="crash-kpi-margin" style="color:#16a34a">6.0%</div>
+            <div class="kpi-sub" id="crash-kpi-profit">Net profit: $0.00</div>
+          </div>
+          <div class="kpi-icon emerald" style="background:#dcfce7;color:#16a34a">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings Panel -->
+      <div class="card-panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <h3>Robux Crash Settings &amp; Multiplier Controls</h3>
+            <span>Control house edge margin, max multiplier, bet bounds, and Telegram alerts</span>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" class="btn-top" onclick="runCrashSimulation()" style="font-weight:700">Simulate 1,000 Rounds</button>
+            <button type="button" class="btn-top primary" onclick="saveCrashConfig()" style="font-weight:700">Save Crash Config</button>
+          </div>
+        </div>
+
+        <div id="crash-sim-box" style="display:none;margin-bottom:18px;padding:14px 18px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:12px;font-size:13px;line-height:1.6;color:#166534"></div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));gap:16px;margin-bottom:20px">
+          <div style="padding:14px;border:1px solid #e2e8f0;border-radius:12px;display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <b style="font-size:13.5px;color:#0f172a">Enable Robux Crash</b>
+              <div style="font-size:11.5px;color:#64748b;margin-top:2px">Toggle Crash tab &amp; game launch on frontend</div>
+            </div>
+            <input type="checkbox" id="crash-set-enabled" checked style="width:20px;height:20px;cursor:pointer">
+          </div>
+
+          <div style="padding:14px;border:1px solid #e2e8f0;border-radius:12px;display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <b style="font-size:13.5px;color:#0f172a">Telegram Big Win Alerts</b>
+              <div style="font-size:11.5px;color:#64748b;margin-top:2px">Notify admin on high multiplier cashouts</div>
+            </div>
+            <input type="checkbox" id="crash-set-telegram" checked style="width:20px;height:20px;cursor:pointer">
+          </div>
+
+          <div style="padding:14px;border:1px solid #e2e8f0;border-radius:12px">
+            <b style="font-size:13.5px;color:#0f172a;display:block;margin-bottom:6px">House Edge (% Margin)</b>
+            <input type="number" step="0.5" min="1.0" max="25.0" id="crash-set-edge" value="6.0" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-weight:700">
+          </div>
+
+          <div style="padding:14px;border:1px solid #e2e8f0;border-radius:12px">
+            <b style="font-size:13.5px;color:#0f172a;display:block;margin-bottom:6px">Max Multiplier Limit</b>
+            <input type="number" step="10" min="10" max="500" id="crash-set-maxmult" value="100.0" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-weight:700">
+          </div>
+
+          <div style="padding:14px;border:1px solid #e2e8f0;border-radius:12px">
+            <b style="font-size:13.5px;color:#0f172a;display:block;margin-bottom:6px">Min Bet ($ USD)</b>
+            <input type="number" step="0.05" min="0.05" max="5.00" id="crash-set-minbet" value="0.10" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-weight:700">
+          </div>
+
+          <div style="padding:14px;border:1px solid #e2e8f0;border-radius:12px">
+            <b style="font-size:13.5px;color:#0f172a;display:block;margin-bottom:6px">Max Bet ($ USD)</b>
+            <input type="number" step="1.0" min="1.00" max="100.00" id="crash-set-maxbet" value="25.00" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-weight:700">
+          </div>
+
+          <div style="padding:14px;border:1px solid #e2e8f0;border-radius:12px">
+            <b style="font-size:13.5px;color:#0f172a;display:block;margin-bottom:6px">Cost per 1,000 Robux ($ USD)</b>
+            <input type="number" step="0.10" id="crash-set-cost1k" value="4.00" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-weight:700">
+          </div>
+        </div>
+
+        <!-- Recent Customer Bets Table -->
+        <div style="margin-top:24px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+            <div>
+              <h4 style="margin:0;font-size:15px;font-weight:800;color:#0f172a">Recent Customer Bets &amp; Cashouts (Live Feed)</h4>
+              <span style="font-size:12px;color:#64748b">Real-time record of all rocket crash rounds played</span>
+            </div>
+            <button type="button" class="btn-top" onclick="resetCrashStats()" style="color:#dc2626;border-color:#fecaca">Reset Crash Stats</button>
+          </div>
+          <div style="overflow-x:auto;max-height:360px">
+            <table class="data-table" style="width:100%">
+              <thead>
+                <tr>
+                  <th>Order / Session ID</th>
+                  <th>Player Username</th>
+                  <th>Wager ($ USD)</th>
+                  <th>Cashout Mult</th>
+                  <th>Crash Point</th>
+                  <th>Robux Won</th>
+                  <th>Payment</th>
+                  <th>Result</th>
+                  <th>Played At</th>
+                </tr>
+              </thead>
+              <tbody id="crash-history-tbody">
+                <!-- Populated via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- TAB: ADMIN SECURITY & ACCESS CONTROL -->
     <div class="tab-content" id="tab-security" style="display:none">
       <!-- Warning if initial password has not been changed -->
@@ -4133,6 +4277,8 @@ function switchTab(tabId, updateUrl = true) {
     loadAdminScratchData();
   } else if (tabId === 'box' && typeof loadAdminBoxData === 'function') {
     loadAdminBoxData();
+  } else if (tabId === 'crash' && typeof loadAdminCrashData === 'function') {
+    loadAdminCrashData();
   }
 }
 
@@ -4147,7 +4293,7 @@ function restoreActiveTab() {
     } catch (e) {}
   }
 
-  const validTabs = ['plans', 'roblox', 'tiktok', 'spin', 'scratch', 'box', 'inventory', 'blacklist', 'orders', 'overview', 'banners', 'settings', 'security', 'promos', 'users', 'flashsale'];
+  const validTabs = ['plans', 'roblox', 'tiktok', 'spin', 'scratch', 'box', 'crash', 'inventory', 'blacklist', 'orders', 'overview', 'banners', 'settings', 'security', 'promos', 'users', 'flashsale'];
   if (tab && validTabs.includes(tab)) {
     switchTab(tab, false);
   }
@@ -7710,6 +7856,138 @@ async function resetBoxStats() {
   try {
     const res = await fetch('/api/admin/box/reset-stats', { method: 'POST' });
     if (res.ok) { toast('Mystery Box stats reset!'); loadAdminBoxData(); }
+  } catch (e) {}
+}
+
+let adminCrashData = null;
+
+async function loadAdminCrashData() {
+  try {
+    const res = await fetch('/api/admin/crash?_t=' + Date.now());
+    const j = await res.json();
+    if (!res.ok || !j.ok) return;
+
+    adminCrashData = j.crash_data;
+    const totalBets = Number(adminCrashData.total_bets || 0);
+    const totalRev = Number(adminCrashData.total_wagered_usd || 0);
+    const totalRobux = Number(adminCrashData.total_robux_awarded || 0);
+    const cost1k = Number(adminCrashData.cost_per_1k_robux_usd || 4.0);
+    const estCost = (totalRobux / 1000) * cost1k;
+    const netProfit = totalRev - estCost;
+    const margin = totalRev > 0 ? (((totalRev - estCost) / totalRev) * 100).toFixed(1) : (adminCrashData.house_edge_pct || '6.0');
+
+    const kpiTot = document.getElementById('crash-kpi-total');
+    if (kpiTot) kpiTot.textContent = totalBets.toLocaleString();
+    const kpiRev = document.getElementById('crash-kpi-rev');
+    if (kpiRev) kpiRev.textContent = '$' + totalRev.toFixed(2);
+    const kpiRbx = document.getElementById('crash-kpi-robux');
+    if (kpiRbx) kpiRbx.textContent = totalRobux.toLocaleString() + ' R$';
+    const kpiMar = document.getElementById('crash-kpi-margin');
+    if (kpiMar) kpiMar.textContent = margin + '%';
+    const kpiProf = document.getElementById('crash-kpi-profit');
+    if (kpiProf) kpiProf.textContent = 'Net profit: $' + netProfit.toFixed(2);
+
+    const setEn = document.getElementById('crash-set-enabled');
+    if (setEn) setEn.checked = adminCrashData.enabled !== false;
+    const setTg = document.getElementById('crash-set-telegram');
+    if (setTg) setTg.checked = adminCrashData.telegram_alert_enabled !== false;
+    const setEdge = document.getElementById('crash-set-edge');
+    if (setEdge) setEdge.value = adminCrashData.house_edge_pct ?? 6.0;
+    const setMaxM = document.getElementById('crash-set-maxmult');
+    if (setMaxM) setMaxM.value = adminCrashData.max_multiplier ?? 100.0;
+    const setMinB = document.getElementById('crash-set-minbet');
+    if (setMinB) setMinB.value = adminCrashData.min_bet_usd ?? 0.10;
+    const setMaxB = document.getElementById('crash-set-maxbet');
+    if (setMaxB) setMaxB.value = adminCrashData.max_bet_usd ?? 25.00;
+    const setCost = document.getElementById('crash-set-cost1k');
+    if (setCost) setCost.value = adminCrashData.cost_per_1k_robux_usd ?? 4.00;
+
+    const hBody = document.getElementById('crash-history-tbody');
+    if (hBody) {
+      const hist = adminCrashData.history || [];
+      if (hist.length === 0) {
+        hBody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:20px">No customer Crash rounds recorded yet.</td></tr>';
+      } else {
+        hBody.innerHTML = hist.slice(0, 50).map(h => {
+          const isWin = bool(h.won);
+          const resBadge = isWin
+            ? `<span style="background:#dcfce7;color:#15803d;padding:3px 9px;border-radius:8px;font-weight:800">+${Number(h.robux || 0).toLocaleString()} Robux</span>`
+            : '<span style="background:#fee2e2;color:#b91c1c;padding:3px 9px;border-radius:8px;font-weight:700">Crashed (0 R$)</span>';
+          const dt = h.created_at ? new Date(h.created_at).toLocaleString() : 'Just now';
+          return `
+            <tr>
+              <td><code style="font-weight:700">${h.order_id || 'CRASH'}</code></td>
+              <td><b>${escHtml(h.username || 'Lucky Player')}</b></td>
+              <td>$${Number(h.bet_usd || 0.20).toFixed(2)}</td>
+              <td><b style="color:#10b981">${Number(h.multiplier || 1.00).toFixed(2)}x</b></td>
+              <td><span style="color:#ef4444;font-weight:700">${Number(h.crash_point || 1.00).toFixed(2)}x</span></td>
+              <td>${resBadge}</td>
+              <td><span style="text-transform:uppercase;font-size:11px;font-weight:700">${h.payment_method || 'Wallet'}</span></td>
+              <td>${isWin ? '<b style="color:#10b981">✓ WON</b>' : '<b style="color:#ef4444">✕ LOST</b>'}</td>
+              <td style="font-size:12px;color:#64748b">${dt}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+  } catch (e) {
+    console.error('loadAdminCrashData error:', e);
+  }
+}
+
+async function saveCrashConfig() {
+  try {
+    const payload = {
+      enabled: document.getElementById('crash-set-enabled').checked,
+      telegram_alert_enabled: document.getElementById('crash-set-telegram').checked,
+      house_edge_pct: parseFloat(document.getElementById('crash-set-edge').value) || 6.0,
+      max_multiplier: parseFloat(document.getElementById('crash-set-maxmult').value) || 100.0,
+      min_bet_usd: parseFloat(document.getElementById('crash-set-minbet').value) || 0.10,
+      max_bet_usd: parseFloat(document.getElementById('crash-set-maxbet').value) || 25.00,
+      cost_per_1k_robux_usd: parseFloat(document.getElementById('crash-set-cost1k').value) || 4.00
+    };
+    const res = await fetch('/api/admin/crash/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      toast('Robux Crash configuration saved!');
+      loadAdminCrashData();
+    } else {
+      toast(j.error || 'Failed to save crash settings');
+    }
+  } catch (e) {
+    toast('Error saving crash settings');
+  }
+}
+
+async function runCrashSimulation() {
+  try {
+    toast('Running 1,000-round Crash simulation...');
+    const res = await fetch('/api/admin/crash/test-roll', { method: 'POST' });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      const box = document.getElementById('crash-sim-box');
+      box.style.display = 'block';
+      box.innerHTML = `
+        <b>1,000 Rounds Crash Simulation Results:</b><br>
+        Average Multiplier: <b>${j.avg_multiplier}x</b> · Max Multiplier Hit: <b>${j.max_multiplier_rolled}x</b><br>
+        Rounds &lt; 2.00x: <b>${j.under_2x_count}</b> (${(j.under_2x_count/10).toFixed(1)}%) · Rounds &ge; 10.00x (Mega Wins): <b>${j.over_10x_count}</b> (${(j.over_10x_count/10).toFixed(1)}%)<br>
+        <b style="color:#059669">Configured House Edge: ${j.house_edge_pct}% Margin</b>
+      `;
+    }
+  } catch (e) {
+    toast('Simulation failed');
+  }
+}
+
+async function resetCrashStats() {
+  if (!(await adminDialog.confirm('Reset Crash Stats?', 'Reset all Crash stats and history?', 'danger', 'Reset Stats'))) return;
+  try {
+    const res = await fetch('/api/admin/crash/reset-stats', { method: 'POST' });
+    if (res.ok) { toast('Crash stats reset!'); loadAdminCrashData(); }
   } catch (e) {}
 }
 
