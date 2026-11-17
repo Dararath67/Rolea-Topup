@@ -5678,10 +5678,6 @@ async def security_and_no_cache_middleware(request: Request, call_next):
 async def client_disconnect_exception_handler(request: Request, exc: ClientDisconnect):
     return Response(status_code=499)
 
-@app.exception_handler(asyncio.CancelledError)
-async def cancelled_error_exception_handler(request: Request, exc: asyncio.CancelledError):
-    return Response(status_code=499)
-
 @app.exception_handler(json.JSONDecodeError)
 async def json_decode_exception_handler(request: Request, exc: json.JSONDecodeError):
     return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid JSON payload"})
