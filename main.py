@@ -5636,19 +5636,30 @@ async def security_and_no_cache_middleware(request: Request, call_next):
             content={"ok": False, "error": "Internal server error. The engineering team has been automatically alerted."}
         )
 
-    # High-performance caching rules (Fast loading while preserving strict security on admin/auth)
-    if any(norm_path.endswith(ext) for ext in (".webp", ".png", ".jpg", ".jpeg", ".svg", ".ico", ".woff2", ".woff", ".ttf")):
+    # High-performance caching rules (Fast loading while preserving strict security on admin/auth/transactions)
+    req_method = request.method.upper()
+    if req_method not in ("GET", "HEAD"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    elif any(norm_path.endswith(ext) for ext in (".webp", ".png", ".jpg", ".jpeg", ".svg", ".ico", ".woff2", ".woff", ".ttf")):
         response.headers["Cache-Control"] = "public, max-age=2592000, immutable"
     elif any(norm_path.endswith(ext) for ext in (".js", ".css")):
         response.headers["Cache-Control"] = "public, max-age=86400, stale-while-revalidate=604800"
     elif norm_path in ("/api/settings", "/api/games", "/api/packages", "/api/flash-sale", "/api/reviews"):
         response.headers["Cache-Control"] = "public, max-age=15, stale-while-revalidate=60"
-    elif norm_path.startswith("/api/admin") or norm_path.startswith("/api/auth") or norm_path.startswith("/api/order-status") or norm_path.startswith("/api/spin") or norm_path.startswith("/api/scratch") or norm_path.startswith("/api/box") or norm_path in ("/admin", "/admin/login", "/scratch", "/box"):
+    elif norm_path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    elif norm_path.startswith("/admin") or norm_path in ("/admin", "/admin/login", "/scratch", "/box", "/crash", "/spin", "/games", "/my-account", "/check-order"):
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
     else:
-        response.headers["Cache-Control"] = "public, max-age=30, stale-while-revalidate=120"
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
     response.headers["X-XSS-Protection"] = "1; mode=block"
@@ -5868,14 +5879,27 @@ async def check_player_id(request: Request):
         if cached_u is not None:
             return _cached_json_response(cached_u, "HIT")
         try:
-            async with httpx.AsyncClient(timeout=3.0) as client:
+            async with httpx.AsyncClient(timeout=3.5) as client:
                 res = await client.post(
                     "https://users.roblox.com/v1/usernames/users",
                     json={"usernames": [query], "excludeBannedUsers": True}
                 )
                 data = res.json()
-                if data and isinstance(data.get("data"), list) and len(data["data"]) > 0:
-                    u = data["data"][0]
+                users_list = data.get("data") if (data and isinstance(data.get("data"), list)) else []
+                if not users_list:
+                    # Retry with excludeBannedUsers: False (handles inactive/case accounts)
+                    try:
+                        res2 = await client.post(
+                            "https://users.roblox.com/v1/usernames/users",
+                            json={"usernames": [query], "excludeBannedUsers": False}
+                        )
+                        data2 = res2.json()
+                        users_list = data2.get("data") if (data2 and isinstance(data2.get("data"), list)) else []
+                    except Exception:
+                        pass
+
+                if users_list and len(users_list) > 0:
+                    u = users_list[0]
                     avatar = ""
                     try:
                         av_res = await client.get(
@@ -5883,15 +5907,18 @@ async def check_player_id(request: Request):
                         )
                         av_data = av_res.json()
                         if av_data and av_data.get("data") and len(av_data["data"]) > 0:
-                            avatar = av_data["data"][0].get("imageUrl", "")
+                            raw_img = av_data["data"][0].get("imageUrl", "")
+                            if raw_img and "UnapprovedImage" not in raw_img:
+                                avatar = raw_img
                     except Exception:
                         pass
                     payload = {
                         "ok": True,
+                        "verified": True,
                         "username": u["name"],
                         "display_name": u.get("displayName") or u["name"],
                         "roblox_id": str(u["id"]),
-                        "avatar": avatar or "https://tr.rbxcdn.com/30DAY-AvatarHeadshot-150x150-Png/150/150/AvatarHeadshot/Png/noFilter"
+                        "avatar": avatar or "/media/rolea-logo.webp"
                     }
                     cache_set(r_key, payload, 600)
                     return _cached_json_response(payload, "MISS")
@@ -5901,10 +5928,11 @@ async def check_player_id(request: Request):
         fake_id = (abs(sum((ord(c) << (i % 5)) for i, c in enumerate(query))) % 900000000) + 100000000
         return {
             "ok": True,
+            "verified": False,
             "username": query,
             "display_name": query.capitalize(),
             "roblox_id": str(fake_id),
-            "avatar": "https://tr.rbxcdn.com/30DAY-AvatarHeadshot-150x150-Png/150/150/AvatarHeadshot/Png/noFilter"
+            "avatar": "/media/rolea-logo.webp"
         }
 
     if game == "mlbb":
@@ -5948,7 +5976,7 @@ async def get_roblox_avatar(user_id: str):
                     return _cached_json_response(payload, "MISS")
     except Exception:
         pass
-    return {"avatar": "https://tr.rbxcdn.com/30DAY-AvatarHeadshot-150x150-Png/150/150/AvatarHeadshot/Png/noFilter"}
+    return {"avatar": "/media/rolea-logo.webp"}
 
 # ==========================================
 # ==========================================
@@ -7703,6 +7731,7 @@ async def admin_reset_box_stats():
 # ==========================================
 
 @app.get("/api/crash/config")
+@app.get("/api/crash/config/")
 async def get_crash_config():
     recent_winners = []
     for h in crash_data.get("history", [])[:15]:
@@ -7727,7 +7756,13 @@ async def get_crash_config():
         "recent_winners": recent_winners
     }
 
+@app.get("/api/crash/create-bet")
+@app.get("/api/crash/create-bet/")
+async def get_crash_bet_help():
+    return JSONResponse(status_code=405, content={"ok": False, "error": "POST method required to launch Crash game."})
+
 @app.post("/api/crash/create-bet")
+@app.post("/api/crash/create-bet/")
 async def create_crash_bet(request: Request):
     if not crash_data.get("enabled", True):
         return JSONResponse(status_code=400, content={"ok": False, "error": "Robux Crash is temporarily disabled by Admin."})
@@ -7867,6 +7902,7 @@ async def create_crash_bet(request: Request):
     }
 
 @app.get("/api/crash/ticket/{ticket_id}")
+@app.get("/api/crash/ticket/{ticket_id}/")
 async def get_crash_ticket(ticket_id: str):
     ticket = pending_crash_tickets.get(ticket_id)
     if not ticket:
@@ -7908,6 +7944,7 @@ async def get_crash_ticket(ticket_id: str):
     return {"ok": True, "paid": False}
 
 @app.post("/api/crash/cashout")
+@app.post("/api/crash/cashout/")
 async def cashout_crash_bet(request: Request):
     try:
         body = await request.json() if (await request.body()) else {}
@@ -8033,6 +8070,7 @@ async def cashout_crash_bet(request: Request):
     }
 
 @app.post("/api/crash/claim")
+@app.post("/api/crash/claim/")
 async def claim_crash_reward(request: Request):
     try:
         body = await request.json() if (await request.body()) else {}

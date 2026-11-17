@@ -914,7 +914,8 @@
               window.RoleaAuth.openWalletModal();
             }
           } else {
-            alert(j.error || j.detail || 'Failed to start Crash session.');
+            const err = j.error || (j.detail ? String(j.detail) : 'Failed to start Crash session.');
+            alert(err);
           }
           return;
         }
@@ -960,7 +961,8 @@
         btnKhqr.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg><span>Launch with ABA KHQR</span>`;
 
         if (!res.ok || !j.ok) {
-          alert(j.error || j.detail || 'Failed to create KHQR.');
+          const err = j.error || (j.detail ? String(j.detail) : 'Failed to create KHQR.');
+          alert(err);
           return;
         }
 

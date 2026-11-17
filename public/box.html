@@ -709,37 +709,45 @@
       gap: 10px;
       flex-wrap: wrap;
     }
-    .vault-input-wrap {
-      position: relative;
-      flex: 1;
-      min-width: 200px;
-    }
-    .vault-input-prefix {
-      position: absolute;
-      left: 14px;
-      top: 50%;
-      transform: translateY(-50%);
-      font-size: 14px;
-      font-weight: 800;
-      color: #94a3b8;
-      pointer-events: none;
-    }
-    .vault-input {
-      width: 100%;
-      box-sizing: border-box;
-      padding: 11px 14px 11px 32px;
+    .vault-input-group {
+      display: flex;
+      align-items: stretch;
       background: #ffffff;
       border: 1.5px solid #cbd5e1;
       border-radius: 12px;
-      font-size: 13.5px;
-      font-weight: 700;
-      color: #0f172a;
-      outline: none;
+      overflow: hidden;
+      flex: 1;
+      min-width: 200px;
       transition: all 0.2s;
     }
-    .vault-input:focus {
+    .vault-input-group:focus-within {
       border-color: #0284c7;
       box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.12);
+    }
+    .vault-addon-prefix {
+      background: #f1f5f9;
+      border-right: 1.5px solid #cbd5e1;
+      color: #64748b;
+      font-weight: 800;
+      font-size: 14px;
+      padding: 0 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      flex: none;
+    }
+    input[type="text"].vault-input-field {
+      border: none !important;
+      outline: none !important;
+      background: transparent !important;
+      padding: 11px 13px !important;
+      font-size: 14px !important;
+      font-weight: 700 !important;
+      color: #0f172a !important;
+      width: 100% !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
     }
     .btn-vault-submit {
       padding: 11px 18px;
@@ -1194,16 +1202,16 @@
 
     <div id="win-claim-form" style="display:none;text-align:left">
       <label style="display:block;font-size:12px;font-weight:800;color:#334155;margin-bottom:6px">Roblox Username (ឈ្មោះគណនី Roblox ទទួល Robux):</label>
-      <div style="position:relative;margin-bottom:8px">
-        <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:14px;font-weight:800;color:#94a3b8">@</span>
-        <input type="text" id="claim-roblox-username" placeholder="e.g. Builderman" oninput="onModalUserTyped()" style="width:100%;box-sizing:border-box;padding:12px 14px 12px 32px;border:1.5px solid #cbd5e1;border-radius:12px;font-size:14px;font-weight:700;color:#0f172a;outline:none">
+      <div class="vault-input-group" style="margin-bottom:8px">
+        <span class="vault-addon-prefix">@</span>
+        <input type="text" id="claim-roblox-username" class="vault-input-field" placeholder="e.g. Builderman" oninput="onModalUserTyped()" autocomplete="off" spellcheck="false">
       </div>
       <!-- Live avatar verify in modal -->
       <div class="roblox-verify-preview" id="modal-verify-preview" style="display:none;margin-bottom:12px">
-        <img src="" class="verify-avatar-img" id="modal-verify-avatar">
+        <img src="/media/rolea-logo.webp" class="verify-avatar-img" id="modal-verify-avatar" onerror="this.onerror=null;this.src='/media/rolea-logo.webp';">
         <div class="verify-avatar-info">
           <b class="verify-name" id="modal-verify-name"></b>
-          <span class="verify-check">Verified Roblox Account</span>
+          <span class="verify-check" id="modal-verify-check">Verified Roblox Account</span>
         </div>
       </div>
       <p style="margin:0 0 14px;font-size:12px;color:#64748b">Admin នឹងផ្ញើ Robux ជូនតាម Gamepass ឬ Group Payout ក្នុងរយៈពេល 5-15 នាទី។ រង្វាន់នេះក៏ត្រូវបានរក្សាទុកក្នុងកាតាប Robux Vault ផងដែរ។</p>
@@ -1722,7 +1730,8 @@ function verifyRobloxUser(rawUsername, cb) {
         username: j.username,
         displayName: j.display_name || j.username,
         avatar: j.avatar || '/media/rolea-logo.webp',
-        playerId: j.player_id || ''
+        verified: j.verified !== false,
+        playerId: j.roblox_id || j.player_id || ''
       });
     } else {
       if (typeof cb === 'function') cb(null);
@@ -1745,8 +1754,20 @@ function onModalUserTyped() {
   modalVerifyTimer = setTimeout(() => {
     verifyRobloxUser(val, (info) => {
       if (info && preview) {
-        document.getElementById('modal-verify-avatar').src = info.avatar;
-        document.getElementById('modal-verify-name').textContent = `@${info.username} (${info.displayName})`;
+        const av = document.getElementById('modal-verify-avatar');
+        if (av) av.src = info.avatar || '/media/rolea-logo.webp';
+        const nameEl = document.getElementById('modal-verify-name');
+        if (nameEl) nameEl.textContent = `@${info.username} (${info.displayName})`;
+        const checkEl = document.getElementById('modal-verify-check');
+        if (checkEl) {
+          if (info.verified) {
+            checkEl.textContent = 'Verified Roblox Account';
+            checkEl.style.color = '#10b981';
+          } else {
+            checkEl.textContent = 'Account Not Confirmed on Roblox';
+            checkEl.style.color = '#d97706';
+          }
+        }
         preview.style.display = 'inline-flex';
       } else if (preview) {
         preview.style.display = 'none';
@@ -1769,8 +1790,18 @@ function onVaultUserTyped(orderId) {
       if (info && preview) {
         const avEl = document.getElementById(`verify-avatar-${orderId}`);
         const nameEl = document.getElementById(`verify-name-${orderId}`);
-        if (avEl) avEl.src = info.avatar;
+        const checkEl = document.getElementById(`verify-check-${orderId}`);
+        if (avEl) avEl.src = info.avatar || '/media/rolea-logo.webp';
         if (nameEl) nameEl.textContent = `@${info.username} (${info.displayName})`;
+        if (checkEl) {
+          if (info.verified) {
+            checkEl.textContent = 'Verified Roblox Account';
+            checkEl.style.color = '#10b981';
+          } else {
+            checkEl.textContent = 'Account Not Confirmed on Roblox';
+            checkEl.style.color = '#d97706';
+          }
+        }
         preview.style.display = 'inline-flex';
       } else if (preview) {
         preview.style.display = 'none';
@@ -2085,10 +2116,11 @@ function renderVaultItems(items) {
             Roblox Username (ឈ្មោះគណនី Roblox ទទួល Robux):
           </label>
           <div class="vault-claim-row">
-            <div class="vault-input-wrap">
-              <span class="vault-input-prefix">@</span>
-              <input type="text" class="vault-input" id="roblox-user-${r.order_id}" 
+            <div class="vault-input-group">
+              <span class="vault-addon-prefix">@</span>
+              <input type="text" class="vault-input-field" id="roblox-user-${r.order_id}" 
                      placeholder="e.g. Builderman" value="${escHtml(userVal)}"
+                     autocomplete="off" spellcheck="false"
                      oninput="onVaultUserTyped('${r.order_id}')">
             </div>
             <button type="button" class="btn-vault-submit ${isRej ? 'btn-resubmit' : ''}" id="btn-submit-${r.order_id}"
@@ -2101,10 +2133,10 @@ function renderVaultItems(items) {
           </div>
           <!-- Live Avatar Verification -->
           <div class="roblox-verify-preview" id="verify-preview-${r.order_id}" style="display:none">
-            <img src="" class="verify-avatar-img" id="verify-avatar-${r.order_id}">
+            <img src="/media/rolea-logo.webp" class="verify-avatar-img" id="verify-avatar-${r.order_id}" onerror="this.onerror=null;this.src='/media/rolea-logo.webp';">
             <div class="verify-avatar-info">
               <b class="verify-name" id="verify-name-${r.order_id}"></b>
-              <span class="verify-check">Verified Roblox Account</span>
+              <span class="verify-check" id="verify-check-${r.order_id}">Verified Roblox Account</span>
             </div>
           </div>
         </div>

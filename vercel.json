@@ -1,7 +1,18 @@
 {
   "framework": null,
+  "trailingSlash": false,
   "buildCommand": "rm -rf dist && mkdir -p dist && cp -r public/. dist/ && rm -f dist/admin.html dist/admin_login.html",
   "outputDirectory": "dist",
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" },
+        { "key": "CDN-Cache-Control", "value": "no-store" },
+        { "key": "Vercel-CDN-Cache-Control", "value": "no-store" }
+      ]
+    }
+  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "http://51.81.90.228:35507/api/$1" },
     { "source": "/media/(.*)", "destination": "http://51.81.90.228:35507/media/$1" },
