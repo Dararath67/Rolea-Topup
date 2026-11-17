@@ -331,6 +331,15 @@
       0% { box-shadow: 0 0 16px rgba(16, 185, 129, 0.4); transform: scale(1); }
       100% { box-shadow: 0 0 32px rgba(16, 185, 129, 0.8); transform: scale(1.02); }
     }
+    .btn-cashed-out {
+      background: #dcfce7 !important;
+      color: #15803d !important;
+      border: 1.5px solid #86efac !important;
+      box-shadow: 0 4px 14px rgba(22, 163, 74, 0.2) !important;
+      cursor: default !important;
+      transform: none !important;
+      animation: none !important;
+    }
 
     .btn-khqr-action {
       background: #f8fafc;
@@ -723,7 +732,7 @@
       let rocketX = originX;
       let rocketY = originY;
 
-      if (gameState === 'FLYING' || gameState === 'CRASHED') {
+      if (gameState === 'FLYING' || gameState === 'CRASHED' || gameState === 'CASHED_OUT') {
         const progress = Math.min(1, Math.log(currentMultiplier) / Math.log(15));
         rocketX = originX + (w - 120) * progress;
         rocketY = originY - (h - 120) * Math.pow(progress, 0.85);
@@ -743,7 +752,7 @@
       }
 
       // Draw Rocket or Explosion
-      if (gameState === 'FLYING' || (gameState === 'IDLE' && rocketX === originX)) {
+      if (gameState === 'FLYING' || gameState === 'CASHED_OUT' || (gameState === 'IDLE' && rocketX === originX)) {
         drawRocket(rocketX, rocketY);
       } else if (gameState === 'CRASHED') {
         drawExplosion(rocketX, rocketY);
@@ -772,8 +781,9 @@
       ctx.translate(x, y);
       ctx.rotate(-Math.PI / 4.5);
 
-      if (gameState === 'FLYING') {
-        // Flame particles
+      if (gameState === 'FLYING' || gameState === 'CASHED_OUT') {
+        // Flame particles (golden/green celebratory when cashed out)
+        const isWon = gameState === 'CASHED_OUT';
         for (let i = 0; i < 2; i++) {
           particles.push({
             x: x - 12 + Math.random() * 6,
@@ -782,7 +792,7 @@
             vy: Math.random() * 3 + 1,
             size: Math.random() * 4 + 2,
             alpha: 0.9,
-            color: Math.random() > 0.5 ? 'rgba(245, 158, 11, ALPHA)' : 'rgba(239, 68, 68, ALPHA)'
+            color: isWon ? 'rgba(16, 185, 129, ALPHA)' : (Math.random() > 0.5 ? 'rgba(245, 158, 11, ALPHA)' : 'rgba(239, 68, 68, ALPHA)')
           });
         }
       }
@@ -996,23 +1006,28 @@
       if (khqrPollTimer) clearInterval(khqrPollTimer);
     }
 
+    let animationFrameId = null;
+
     // Rocket Ascend Animation
     function startRocketFlight() {
       gameState = 'FLYING';
+      hasCashedOut = false;
       currentMultiplier = 1.00;
       startTime = performance.now();
       multText.classList.remove('crashed');
       multText.style.color = '#ffffff';
       statusText.textContent = 'ROCKET ASCENDING...';
+      statusText.style.color = '#94a3b8';
 
       btnMain.disabled = false;
+      btnMain.classList.remove('btn-cashed-out');
       btnMain.classList.add('btn-cashout-active');
       document.getElementById('btn-action-khqr').style.display = 'none';
 
       const autoCash = parseFloat(document.getElementById('input-auto-cashout').value) || 0;
 
       function flightTick(now) {
-        if (gameState !== 'FLYING') return;
+        if (gameState !== 'FLYING' || hasCashedOut) return;
 
         const elapsedSec = (now - startTime) / 1000;
         // Exponential multiplier curve: m(t) = e^(0.065 * t)
@@ -1020,7 +1035,10 @@
 
         multText.textContent = currentMultiplier.toFixed(2) + 'x';
         const estRobux = Math.floor(activeBaseRobux * currentMultiplier);
-        btnMainText.textContent = `CASHOUT (${estRobux.toLocaleString()} Robux)`;
+
+        if (!hasCashedOut && gameState === 'FLYING') {
+          btnMainText.textContent = `CASHOUT (${estRobux.toLocaleString()} Robux)`;
+        }
 
         // Check Auto-Cashout
         if (autoCash >= 1.05 && currentMultiplier >= autoCash && !hasCashedOut) {
@@ -1034,16 +1052,36 @@
           return;
         }
 
-        requestAnimationFrame(flightTick);
+        animationFrameId = requestAnimationFrame(flightTick);
       }
-      requestAnimationFrame(flightTick);
+      animationFrameId = requestAnimationFrame(flightTick);
     }
 
     // User Cashout
     async function cashoutNow() {
       if (gameState !== 'FLYING' || hasCashedOut) return;
       hasCashedOut = true;
+      gameState = 'CASHED_OUT';
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+      }
+
       const claimedMult = currentMultiplier;
+      const estRobux = Math.floor(activeBaseRobux * claimedMult);
+
+      // Instant freeze and victory feedback
+      multText.textContent = claimedMult.toFixed(2) + 'x';
+      multText.style.color = '#10b981';
+      statusText.textContent = `CASHED OUT! WON ${estRobux.toLocaleString()} ROBUX!`;
+      statusText.style.color = '#10b981';
+
+      btnMain.classList.remove('btn-cashout-active');
+      btnMain.classList.add('btn-cashed-out');
+      btnMain.disabled = true;
+      btnMainText.textContent = `Cashed out @ ${claimedMult.toFixed(2)}x (+${estRobux.toLocaleString()} Robux)`;
+
+      addHistoryPill(claimedMult);
 
       try {
         const token = localStorage.getItem('rolea_token') || '';
@@ -1058,28 +1096,40 @@
             cashout_multiplier: parseFloat(claimedMult.toFixed(2))
           })
         });
-        const j = await res.json();
+        const j = await res.json().catch(() => ({}));
+
         if (res.ok && j.ok && j.won) {
           activeWinningOrder = j;
           showWinModal(j.robux, claimedMult);
-          btnMain.classList.remove('btn-cashout-active');
-          btnMainText.textContent = `Cashed out @ ${claimedMult.toFixed(2)}x!`;
-          btnMain.disabled = true;
+          if (window.RoleaAuth && typeof window.RoleaAuth.checkCurrentUser === 'function') {
+            try { window.RoleaAuth.checkCurrentUser(); } catch(e) {}
+          }
+        } else if (j.won === false) {
+          triggerCrash();
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error('Cashout request error:', e);
+      }
     }
 
     // Crash Explosion
     function triggerCrash() {
+      if (gameState === 'CASHED_OUT' || hasCashedOut) return;
       gameState = 'CRASHED';
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+      }
       currentMultiplier = targetCrashPoint;
       multText.textContent = targetCrashPoint.toFixed(2) + 'x';
       multText.classList.add('crashed');
+      multText.style.color = '#ef4444';
       statusText.textContent = 'CRASHED!';
+      statusText.style.color = '#ef4444';
 
-      btnMain.classList.remove('btn-cashout-active');
+      btnMain.classList.remove('btn-cashout-active', 'btn-cashed-out');
       btnMain.disabled = true;
-      btnMainText.textContent = hasCashedOut ? 'Round Over' : 'Exploded!';
+      btnMainText.textContent = 'Exploded!';
 
       addHistoryPill(targetCrashPoint);
 
@@ -1090,10 +1140,18 @@
 
     function resetToIdle() {
       gameState = 'IDLE';
+      hasCashedOut = false;
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+      }
       multText.classList.remove('crashed');
+      multText.style.color = '#ffffff';
       multText.textContent = '1.00x';
       statusText.textContent = 'PREPARING NEXT LAUNCH...';
+      statusText.style.color = '#94a3b8';
       btnMain.disabled = false;
+      btnMain.classList.remove('btn-cashout-active', 'btn-cashed-out');
       document.getElementById('btn-action-khqr').style.display = 'flex';
       updateBetBaseRobux(document.getElementById('input-bet-amount').value);
     }
@@ -1123,6 +1181,9 @@
 
     function closeWinModal() {
       document.getElementById('win-modal').classList.remove('open');
+      if (gameState === 'CASHED_OUT') {
+        resetToIdle();
+      }
     }
 
     async function submitCrashClaim() {
