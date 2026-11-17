@@ -7598,7 +7598,7 @@ async def get_unclaimed_box_rewards(request: Request):
 
     unclaimed = []
     for o in orders:
-        if o.get("package_id") == "box_reward" and (o.get("step") in ("unclaimed", "rejected_resubmit") or (not o.get("delivered") and not o.get("claim_submitted"))):
+        if o.get("package_id") == "box_reward" and (o.get("step") in ("unclaimed", "rejected_resubmit", "pending") or not o.get("delivered")):
             if cur_u and o.get("user_id") == cur_u["id"]:
                 unclaimed.append(o)
             elif isinstance(local_orders, list):

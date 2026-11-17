@@ -1115,6 +1115,9 @@
     function showWinModal(robux, mult) {
       document.getElementById('modal-robux-won').textContent = `+${Number(robux).toLocaleString()} Robux`;
       document.getElementById('modal-mult-badge').textContent = `@ ${mult.toFixed(2)}x Multiplier`;
+      const saved = localStorage.getItem('rolea_roblox_username') || '';
+      const input = document.getElementById('claim-roblox-user');
+      if (input && saved) input.value = saved;
       document.getElementById('win-modal').classList.add('open');
     }
 
@@ -1123,9 +1126,9 @@
     }
 
     async function submitCrashClaim() {
-      const username = document.getElementById('claim-roblox-user').value.trim();
+      const username = document.getElementById('claim-roblox-user').value.trim().replace(/^@+/, '');
       if (!username) {
-        alert('Please enter your Roblox username');
+        alert('Please enter your Roblox username (សូមបញ្ចូលឈ្មោះគណនី Roblox)');
         return;
       }
       if (!activeWinningOrder || !activeWinningOrder.order_id) {
@@ -1145,7 +1148,8 @@
         });
         const j = await res.json();
         if (res.ok && j.ok) {
-          alert('Claim submitted successfully! Admin will send your Robux shortly.');
+          localStorage.setItem('rolea_roblox_username', username);
+          alert('Claim submitted successfully! Admin will send your Robux shortly.\n\n(សំណើត្រូវបានផ្ញើជោគជ័យ! Admin នឹងបាញ់ Robux ជូនភ្លាមៗ)');
           closeWinModal();
         } else {
           alert(j.error || 'Failed to submit claim.');
