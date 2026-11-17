@@ -24,6 +24,9 @@
       --border-color: #e2e8f0;
       --card-bg: #ffffff;
     }
+    html {
+      scroll-behavior: smooth;
+    }
     body {
       background: #f8fafc;
       color: #0f172a;
@@ -1030,40 +1033,15 @@
       
     </div>
 
-    <!-- Robux Loot Vault & Prize Claims Inventory -->
-    <div class="box-vault-section" id="box-vault-section" style="display:none">
-      <div class="vault-card">
-        <div class="vault-header">
-          <div class="vault-title-group">
-            <div class="vault-icon-badge">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.3">
-                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
-                <line x1="3" y1="6" x2="21" y2="6"/>
-                <path d="M16 10a4 4 0 0 1-8 0"/>
-              </svg>
-            </div>
-            <div>
-              <div class="vault-title-row">
-                <h3 class="vault-title">កាតាបរង្វាន់ Robux &amp; កន្លែងស្នើសុំ Claim</h3>
-                <span class="vault-count-badge" id="vault-count-badge">0 Rewards</span>
-              </div>
-              <p class="vault-desc">រង្វាន់ Robux ឈ្នះរបស់អ្នកត្រូវបានរក្សាទុកដោយសុវត្ថិភាព — ដាក់ឈ្មោះ Roblox ដើម្បីឲ្យ Admin ផ្ញើជូន</p>
-            </div>
-          </div>
-          <button type="button" class="btn-vault-refresh" id="btn-vault-refresh" onclick="checkUnclaimedRewards(true)" title="Refresh status">
-            <svg id="vault-refresh-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
-              <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
-              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-            </svg>
-            <span>Refresh</span>
-          </button>
-        </div>
-
-        <!-- Inventory Items List -->
-        <div class="vault-items-list" id="vault-items-list">
-          <!-- Populated dynamically by JS -->
-        </div>
-      </div>
+    <!-- Mini Quick-Jump Shortcut (Only appears if user has pending rewards, does NOT push cases down) -->
+    <div id="vault-top-shortcut" style="display:none;margin-bottom:14px">
+      <a href="#box-vault-section" style="display:inline-flex;align-items:center;gap:8px;padding:6px 14px;background:#fefce8;border:1.5px solid #fde047;border-radius:999px;text-decoration:none;font-size:12px;font-weight:800;color:#b45309;box-shadow:0 2px 8px rgba(245,158,11,0.15);transition:all 0.15s">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.3">
+          <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>
+        </svg>
+        <span id="vault-top-shortcut-text">អ្នកមានរង្វាន់ Robux កំពុងរង់ចាំ — មើលកាតាបខាងក្រោម</span>
+        <span style="color:#d97706">↓</span>
+      </a>
     </div>
 
     <!-- 4 Tiered Case Selector Cards -->
@@ -1150,6 +1128,42 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
           <span id="btn-open-khqr-text">Open with ABA KHQR ($0.20)</span>
         </button>
+      </div>
+    </div>
+
+    <!-- Robux Loot Vault & Prize Claims Inventory (Positioned Below Stage) -->
+    <div class="box-vault-section" id="box-vault-section" style="display:none">
+      <div class="vault-card">
+        <div class="vault-header">
+          <div class="vault-title-group">
+            <div class="vault-icon-badge">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.3">
+                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+                <line x1="3" y1="6" x2="21" y2="6"/>
+                <path d="M16 10a4 4 0 0 1-8 0"/>
+              </svg>
+            </div>
+            <div>
+              <div class="vault-title-row">
+                <h3 class="vault-title">កាតាបរង្វាន់ Robux &amp; កន្លែងស្នើសុំ Claim</h3>
+                <span class="vault-count-badge" id="vault-count-badge">0 Rewards</span>
+              </div>
+              <p class="vault-desc">រង្វាន់ Robux ឈ្នះរបស់អ្នកត្រូវបានរក្សាទុកដោយសុវត្ថិភាព — ដាក់ឈ្មោះ Roblox ដើម្បីឲ្យ Admin ផ្ញើជូន</p>
+            </div>
+          </div>
+          <button type="button" class="btn-vault-refresh" id="btn-vault-refresh" onclick="checkUnclaimedRewards(true)" title="Refresh status">
+            <svg id="vault-refresh-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+              <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+            <span>Refresh</span>
+          </button>
+        </div>
+
+        <!-- Inventory Items List -->
+        <div class="vault-items-list" id="vault-items-list">
+          <!-- Populated dynamically by JS -->
+        </div>
       </div>
     </div>
 
@@ -1935,12 +1949,24 @@ async function checkUnclaimedRewards(isManual = false) {
     });
     const j = await res.json();
     const vaultSec = document.getElementById('box-vault-section');
+    const shortcutEl = document.getElementById('vault-top-shortcut');
+    const shortcutText = document.getElementById('vault-top-shortcut-text');
 
     if (res.ok && j.ok && j.unclaimed && j.unclaimed.length > 0) {
       if (vaultSec) vaultSec.style.display = 'block';
+      if (shortcutEl) {
+        const hasRej = j.unclaimed.some(x => x.rejected || x.step === 'rejected_resubmit');
+        if (shortcutText) {
+          shortcutText.textContent = hasRej
+            ? `⚠️ រង្វាន់ #BOX ត្រូវការកែឈ្មោះ Roblox — ចុចមើលកាតាបខាងក្រោម`
+            : `🎁 អ្នកមាន ${j.unclaimed.length} រង្វាន់ Robux កំពុងរង់ចាំ — មើលកាតាបខាងក្រោម`;
+        }
+        shortcutEl.style.display = 'block';
+      }
       renderVaultItems(j.unclaimed);
     } else {
       if (vaultSec) vaultSec.style.display = 'none';
+      if (shortcutEl) shortcutEl.style.display = 'none';
     }
   } catch (_) {}
 }
