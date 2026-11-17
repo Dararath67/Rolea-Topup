@@ -7695,8 +7695,8 @@ async function loadAdminBoxData() {
           const claimBadge = isThank
             ? '<span style="color:#94a3b8">—</span>'
             : (h.delivered
-                ? '<span style="color:#10b981;font-weight:700">✓ Delivered</span>'
-                : '<span style="color:#f59e0b;font-weight:700">⏳ Pending Claim</span>');
+                ? '<span style="color:#10b981;font-weight:700">Delivered</span>'
+                : '<span style="color:#f59e0b;font-weight:700">Pending Claim</span>');
           const dt = h.created_at ? new Date(h.created_at).toLocaleString() : 'Just now';
           const cName = h.case_name || (h.case_id ? h.case_id.toUpperCase() : 'Mystery Case');
           return `
@@ -7943,7 +7943,7 @@ async function loadAdminCrashData() {
               <td><span style="color:#ef4444;font-weight:700">${Number(h.crash_point || 1.00).toFixed(2)}x</span></td>
               <td>${resBadge}</td>
               <td><span style="text-transform:uppercase;font-size:11px;font-weight:700">${h.payment_method || 'Wallet'}</span></td>
-              <td>${isWin ? '<b style="color:#10b981">✓ WON</b>' : '<b style="color:#ef4444">✕ LOST</b>'}</td>
+              <td>${isWin ? '<b style="color:#10b981">WON</b>' : '<b style="color:#ef4444">LOST</b>'}</td>
               <td style="font-size:12px;color:#64748b">${dt}</td>
             </tr>
           `;

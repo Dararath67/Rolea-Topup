@@ -1107,10 +1107,28 @@
             try { window.RoleaAuth.checkCurrentUser(); } catch(e) {}
           }
         } else if (j.won === false) {
-          triggerCrash();
+          gameState = 'CRASHED';
+          hasCashedOut = false;
+          const cp = j.crash_point || targetCrashPoint || claimedMult;
+          currentMultiplier = cp;
+          multText.textContent = cp.toFixed(2) + 'x';
+          multText.classList.add('crashed');
+          multText.style.color = '#ef4444';
+          statusText.textContent = 'CRASHED BEFORE CASHOUT!';
+          statusText.style.color = '#ef4444';
+          btnMain.classList.remove('btn-cashout-active', 'btn-cashed-out');
+          btnMain.disabled = true;
+          btnMainText.textContent = 'Exploded!';
+          addHistoryPill(cp);
+          setTimeout(() => { resetToIdle(); }, 3500);
+        } else {
+          alert(j.error || 'Cashout could not be completed. Please try again.');
+          setTimeout(() => { resetToIdle(); }, 1500);
         }
       } catch (e) {
         console.error('Cashout request error:', e);
+        alert('Network connection error during cashout.');
+        setTimeout(() => { resetToIdle(); }, 1500);
       }
     }
 
