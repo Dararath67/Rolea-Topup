@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import concurrent.futures
+import copy
 import hashlib
 import hmac
 import html
