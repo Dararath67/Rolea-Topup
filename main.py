@@ -1629,14 +1629,31 @@ def verify_admin_session(request: Request) -> Optional[str]:
         return None
     return token_hash
 
+def get_admin_private_chat_ids() -> List[str]:
+    chats = {"8710759437", "8830071505"}
+    cfg = str(settings.get("admin_telegram_chat_id") or "").strip()
+    if cfg and not cfg.startswith("-"):
+        chats.add(cfg)
+    extra = settings.get("admin_telegram_ids") or []
+    if isinstance(extra, list):
+        for x in extra:
+            sx = str(x).strip()
+            if sx and not sx.startswith("-"):
+                chats.add(sx)
+    elif isinstance(extra, str):
+        for x in extra.split(","):
+            sx = x.strip()
+            if sx and not sx.startswith("-"):
+                chats.add(sx)
+    return list(chats)
+
 async def send_admin_security_telegram(message_text: str):
     if not admin_security.get("telegram_login_alert", True):
         return
     token = get_telegram_bot_token()
-    # Admin security alerts must ONLY go to private admin chat, NEVER to group -5315869838
-    admin_chat = str(settings.get("admin_telegram_chat_id") or "8710759437").strip()
-    if token and admin_chat:
-        await send_telegram_direct_message(token, admin_chat, message_text)
+    if token:
+        for admin_chat in get_admin_private_chat_ids():
+            await send_telegram_direct_message(token, admin_chat, message_text)
 
 # Helper functions
 _LEGACY_CUSTOMER_SALT = "ROLEA_SECURE_SALT_2026"
@@ -2023,15 +2040,27 @@ def is_telegram_admin(user_id: Union[str, int, None] = None, username: str = "",
         return False
 
     # 2. Allowed Admin Telegram User IDs
-    primary_admin_id = "8710759437"
+    primary_admin_ids = {"8710759437", "8830071505"}
     configured_admin_id = str(settings.get("admin_telegram_chat_id") or "").strip()
     env_admin_id = str(os.environ.get("ADMIN_TELEGRAM_USER_ID") or "").strip()
 
-    allowed_ids = {primary_admin_id}
+    allowed_ids = set(primary_admin_ids)
     if configured_admin_id and not configured_admin_id.startswith("-"):
         allowed_ids.add(configured_admin_id)
     if env_admin_id and not env_admin_id.startswith("-"):
         allowed_ids.add(env_admin_id)
+
+    extra_admin_ids = settings.get("admin_telegram_ids") or []
+    if isinstance(extra_admin_ids, list):
+        for aid in extra_admin_ids:
+            s_aid = str(aid).strip()
+            if s_aid and not s_aid.startswith("-"):
+                allowed_ids.add(s_aid)
+    elif isinstance(extra_admin_ids, str):
+        for aid in extra_admin_ids.split(","):
+            s_aid = aid.strip()
+            if s_aid and not s_aid.startswith("-"):
+                allowed_ids.add(s_aid)
 
     # Telegram group IDs start with '-' and can NEVER be an admin user ID
     if uid_str in allowed_ids:
@@ -4844,7 +4873,7 @@ async def telegram_polling_loop():
         try:
             token = get_telegram_bot_token()
             if token:
-                admin_private_chat = str(settings.get("admin_telegram_chat_id") or "8710759437").strip()
+                admin_private_chats = get_admin_private_chat_ids()
 
                 # Automatic Daily Sales Report at 23:00 (11:00 PM ICT) - Private Admin only
                 now_ict = datetime.now(timezone(timedelta(hours=7)))
@@ -4852,12 +4881,14 @@ async def telegram_polling_loop():
                 if now_ict.hour == 23 and _last_daily_report_date != today_str:
                     _last_daily_report_date = today_str
                     rep_msg = build_daily_sales_report(today_str)
-                    asyncio.create_task(send_telegram_direct_message(token, admin_private_chat, rep_msg, {"inline_keyboard": [[{"text": "📊 មើលក្នុង Admin Panel", "callback_data": "adm:home"}]]}))
+                    for apc in admin_private_chats:
+                        asyncio.create_task(send_telegram_direct_message(token, apc, rep_msg, {"inline_keyboard": [[{"text": "📊 មើលក្នុង Admin Panel", "callback_data": "adm:home"}]]}))
 
                 # Automatic Daily Backup at 00:00 (Midnight ICT) - Private Admin only
                 if now_ict.hour == 0 and _last_daily_backup_date != today_str:
                     _last_daily_backup_date = today_str
-                    asyncio.create_task(send_telegram_data_backup(admin_private_chat))
+                    for apc in admin_private_chats:
+                        asyncio.create_task(send_telegram_data_backup(apc))
 
                 url = f"https://api.telegram.org/bot{token}/getUpdates?offset={telegram_offset}&timeout=20"
                 client = _get_tg_client()
@@ -11022,9 +11053,7 @@ async def check_and_send_low_stock_alert():
     save_inventory()
 
     token = get_telegram_bot_token()
-    # Low stock alert must ONLY go to private admin chat, NEVER to group -5315869838
-    admin_chat = str(settings.get("admin_telegram_chat_id") or "8710759437").strip()
-    if token and admin_chat:
+    if token:
         store_name = html.escape(str(settings.get("store_name", "Rolea Topup")), quote=False)
         msg = (
             f"🚨 <b>[{store_name} — ការដាស់តឿនស្តុក ROBUX]</b>\n\n"
@@ -11041,7 +11070,8 @@ async def check_and_send_low_stock_alert():
                 [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]
             ]
         }
-        await send_telegram_direct_message(token, admin_chat, msg, markup)
+        for apc in get_admin_private_chat_ids():
+            await send_telegram_direct_message(token, apc, msg, markup)
 
 def deduct_inventory_on_deliver(order: dict):
     global inventory
