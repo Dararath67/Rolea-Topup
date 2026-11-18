@@ -758,11 +758,11 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.3">
           <polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
         </svg>
-        <span id="vault-top-shortcut-text">🎁 My Box Rewards (Inventory)</span>
+        <span id="vault-top-shortcut-text">My Box Rewards (Inventory)</span>
         <span id="box-top-badge" style="background:#ea580c;color:#ffffff;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:900;display:none">0</span>
         <span style="color:#d97706">↓</span>
       </a>
-      <div style="font-size:12px;color:#64748b;font-weight:600">⚡ Instant Robux Unboxing</div>
+      <div style="font-size:12px;color:#64748b;font-weight:600">Instant Robux Unboxing</div>
     </div>
 
     <!-- 4 Tiered Case Selector Cards -->
@@ -872,7 +872,9 @@
       </div>
       <div id="box-rewards-list" style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
         <div style="text-align:center;padding:24px 14px;color:#94a3b8;font-size:13px;font-weight:600;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:14px">
-          <div style="font-size:26px;margin-bottom:6px">🎁</div>
+          <div style="width:44px;height:44px;border-radius:50%;background:#f1f5f9;display:inline-flex;align-items:center;justify-content:center;margin-bottom:8px;color:#94a3b8">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+          </div>
           <div style="font-size:14px;font-weight:700;color:#475569">មិនទាន់មានរង្វាន់រង់ចាំ Claim ទេ (Empty Inventory)</div>
           <div style="font-size:12px;color:#94a3b8;margin-top:3px">បើក Mystery Box ឈ្នះរង្វាន់ Robux នឹងរក្សាទុកនៅទីនេះដោយស្វ័យប្រវត្តិ!</div>
         </div>
@@ -1641,7 +1643,7 @@ async function checkUnclaimedRewards(forceShow) {
       renderVaultItems(items);
     } else {
       if (topBadge) topBadge.style.display = 'none';
-      if (shortcutText) shortcutText.textContent = '🎁 My Box Rewards (Inventory)';
+      if (shortcutText) shortcutText.textContent = 'My Box Rewards (Inventory)';
       renderBoxVaultEmpty();
     }
   } catch (_) {
@@ -1654,7 +1656,9 @@ function renderBoxVaultEmpty() {
   if (!container) return;
   container.innerHTML = `
     <div style="text-align:center;padding:24px 14px;color:#94a3b8;font-size:13px;font-weight:600;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:14px">
-      <div style="font-size:26px;margin-bottom:6px">🎁</div>
+      <div style="width:44px;height:44px;border-radius:50%;background:#f1f5f9;display:inline-flex;align-items:center;justify-content:center;margin-bottom:8px;color:#94a3b8">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+      </div>
       <div style="font-size:14px;font-weight:700;color:#475569">មិនទាន់មានរង្វាន់រង់ចាំ Claim ទេ (Empty Inventory)</div>
       <div style="font-size:12px;color:#94a3b8;margin-top:3px">បើក Mystery Box ឈ្នះរង្វាន់ Robux នឹងរក្សាទុកនៅទីនេះដោយស្វ័យប្រវត្តិ!</div>
     </div>
