@@ -1050,10 +1050,10 @@ const defaultDemoCard = {
   win_robux: 0,
   cells: [
     { cell_id: 0, robux: 100, label: "100 Robux", is_match: false },
-    { cell_id: 1, robux: 50, label: "50 Robux", is_match: false },
-    { cell_id: 2, robux: 100, label: "100 Robux", is_match: false },
+    { cell_id: 1, robux: 0, label: "Thank You", is_match: false },
+    { cell_id: 2, robux: 50, label: "50 Robux", is_match: false },
     { cell_id: 3, robux: 25, label: "25 Robux", is_match: false },
-    { cell_id: 4, robux: 200, label: "200 Robux", is_match: false },
+    { cell_id: 4, robux: 0, label: "Thank You", is_match: false },
     { cell_id: 5, robux: 10, label: "10 Robux", is_match: false }
   ]
 };
@@ -1159,12 +1159,13 @@ function renderCardCells(cardData) {
 
     const under = document.createElement('div');
     under.style.textAlign = 'center';
+    const isZero = !cell.robux || Number(cell.robux) <= 0 || cell.label === 'Thank You';
     under.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:center;gap:4px">
-        <div class="cell-under-val">${cell.robux ? cell.robux.toLocaleString() : '0'}</div>
-        ${cell.robux > 0 ? '<img src="/media/robux-gold-coin.png" alt="R$" style="width:16px;height:16px;display:inline-block">' : ''}
+        <div class="cell-under-val" style="${isZero ? 'font-size:14px;font-weight:800;color:#64748b;line-height:1.2;' : ''}">${isZero ? 'Thank You' : Number(cell.robux).toLocaleString()}</div>
+        ${!isZero ? '<img src="/media/robux-gold-coin.png" alt="R$" style="width:16px;height:16px;display:inline-block">' : ''}
       </div>
-      <div class="cell-under-tag">${cell.robux > 0 ? 'Robux' : 'Thank You'}</div>
+      <div class="cell-under-tag" style="${isZero ? 'color:#94a3b8;font-size:10px;' : ''}">${isZero ? 'Better Luck' : 'Robux'}</div>
     `;
     wrap.appendChild(under);
 
@@ -1414,8 +1415,11 @@ function checkAllCellsFinished() {
       statusEl.style.background = '#f8fafc';
       statusEl.style.borderColor = '#e2e8f0';
       statusEl.style.color = '#64748b';
-      statusEl.innerHTML = `<span>No 3 matching numbers — better luck on your next scratch!</span>`;
+      statusEl.innerHTML = `<span>Thank You for playing — No 3 matching numbers! Better luck on your next scratch!</span>`;
     }
+    setTimeout(() => {
+      showWinnerModal(currentCard);
+    }, 700);
   }
 }
 
@@ -1898,14 +1902,18 @@ function showWinnerModal(card) {
     onModalUserTyped();
   }
 
-  if (card.win_robux > 0) {
-    title.textContent = `You Won ${card.win_robux.toLocaleString()} Robux!`;
+  const btnClose = document.querySelector('#res-modal button[onclick="closeResultModal()"]');
+
+  if (card && Number(card.win_robux || 0) > 0) {
+    title.textContent = `You Won ${Number(card.win_robux).toLocaleString()} Robux!`;
     desc.textContent = `Please enter your Roblox username so Admin can deliver your Robux!`;
     claimBox.style.display = 'block';
+    if (btnClose) btnClose.textContent = 'Claim Later / Close';
   } else {
-    title.textContent = `Better Luck Next Time!`;
-    desc.textContent = `Thank you for playing Rolea Lucky Scratch!`;
+    title.textContent = `Thank You / Better Luck Next Time!`;
+    desc.textContent = `Thank you for playing Rolea Lucky Scratch! (គ្មានលេខត្រូវគ្នា ៣ ទេ — សូមជូនពរសំណាងល្អលើកក្រោយ)`;
     claimBox.style.display = 'none';
+    if (btnClose) btnClose.textContent = 'Scratch Another Card →';
   }
   modal.classList.add('open');
 }

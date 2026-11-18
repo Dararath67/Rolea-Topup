@@ -1076,20 +1076,25 @@ def generate_scratch_card(is_daily_free: bool = False, max_free_robux: int = 10)
                 "is_match": False
             })
     else:
+        # Non-winning ticket ("Thank You" / 0 Robux outcome)
+        # Clearly include "Thank You" cells on the scratch card
         pool = list(all_positive)
         sys_rng.shuffle(pool)
         c1 = pool[0 % len(pool)]
         c2 = pool[1 % len(pool)]
         c3 = pool[2 % len(pool)]
-        c4 = pool[3 % len(pool)]
-        cells = [
-            {"robux": int(c1["robux"]), "label": c1["label"], "is_match": False},
-            {"robux": int(c1["robux"]), "label": c1["label"], "is_match": False},
-            {"robux": int(c2["robux"]), "label": c2["label"], "is_match": False},
-            {"robux": int(c3["robux"]), "label": c3["label"], "is_match": False},
-            {"robux": int(c3["robux"]), "label": c3["label"], "is_match": False},
-            {"robux": int(c4["robux"]), "label": c4["label"], "is_match": False},
-        ]
+        # 50% chance match 3 Thank You cells, 50% chance 2 Thank You cells + near miss numbers
+        ty_count = 3 if sys_rng.random() < 0.6 else 2
+        cells = []
+        for _ in range(ty_count):
+            cells.append({"robux": 0, "label": "Thank You", "is_match": (ty_count >= 3)})
+        cells.append({"robux": int(c1["robux"]), "label": c1["label"], "is_match": False})
+        cells.append({"robux": int(c2["robux"]), "label": c2["label"], "is_match": False})
+        if ty_count < 3:
+            cells.append({"robux": int(c1["robux"]), "label": c1["label"], "is_match": False})
+            cells.append({"robux": int(c3["robux"]), "label": c3["label"], "is_match": False})
+        else:
+            cells.append({"robux": int(c3["robux"]), "label": c3["label"], "is_match": False})
 
     sys_rng.shuffle(cells)
     for idx, c in enumerate(cells):
