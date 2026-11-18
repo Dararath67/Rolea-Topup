@@ -27,6 +27,9 @@
     html {
       scroll-behavior: smooth;
     }
+    html {
+      scroll-behavior: smooth;
+    }
     body {
       background: #f8fafc;
       color: #0f172a;
@@ -749,15 +752,17 @@
       
     </div>
 
-    <!-- Mini Quick-Jump Shortcut (Only appears if user has pending rewards, does NOT push cases down) -->
-    <div id="vault-top-shortcut" style="display:none;margin-bottom:14px">
-      <a href="#box-rewards-card" style="display:inline-flex;align-items:center;gap:8px;padding:6px 14px;background:#fefce8;border:1.5px solid #fde047;border-radius:999px;text-decoration:none;font-size:12px;font-weight:800;color:#b45309;box-shadow:0 2px 8px rgba(245,158,11,0.15);transition:all 0.15s">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.3">
-          <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>
+    <!-- Mini Quick-Jump Shortcut to Inventory -->
+    <div id="vault-top-shortcut" style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <a href="#box-rewards-card" style="display:inline-flex;align-items:center;gap:8px;padding:7px 16px;background:#fefce8;border:1.5px solid #fde047;border-radius:999px;text-decoration:none;font-size:12.5px;font-weight:800;color:#b45309;box-shadow:0 2px 8px rgba(245,158,11,0.15);transition:all 0.15s">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.3">
+          <polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
         </svg>
-        <span id="vault-top-shortcut-text">អ្នកមានរង្វាន់ Robux កំពុងរង់ចាំ — មើលកាតាបខាងក្រោម</span>
+        <span id="vault-top-shortcut-text">🎁 My Box Rewards (Inventory)</span>
+        <span id="box-top-badge" style="background:#ea580c;color:#ffffff;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:900;display:none">0</span>
         <span style="color:#d97706">↓</span>
       </a>
+      <div style="font-size:12px;color:#64748b;font-weight:600">⚡ Instant Robux Unboxing</div>
     </div>
 
     <!-- 4 Tiered Case Selector Cards -->
@@ -847,11 +852,14 @@
       </div>
     </div>
 
-    <!-- My Box Rewards -->
-    <div class="my-rewards-card" id="box-rewards-card" style="display:none">
+    <!-- My Box Rewards (Inventory) -->
+    <div class="my-rewards-card" id="box-rewards-card" style="background:#ffffff;border:1.5px solid #fde68a;border-radius:20px;padding:22px;margin-top:24px;margin-bottom:24px;box-shadow:0 8px 24px rgba(245,158,11,0.08);">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
         <div>
-          <h3 style="margin:0;font-size:17px;font-weight:800;color:#0f172a">My Box Rewards</h3>
+          <div style="display:flex;align-items:center;gap:8px">
+            <h3 style="margin:0;font-size:17px;font-weight:800;color:#0f172a">My Box Rewards</h3>
+            <span style="font-size:11px;font-weight:800;background:#fef08a;color:#854d0e;padding:2px 8px;border-radius:999px">Inventory</span>
+          </div>
           <p style="margin:4px 0 0;font-size:12.5px;color:#64748b">Unclaimed or pending Robux prizes saved to your account &amp; device — claim anytime!</p>
         </div>
         <button type="button" class="btn-vault-refresh" id="btn-vault-refresh" onclick="checkUnclaimedRewards(true)" title="Refresh status">
@@ -862,7 +870,13 @@
           <span>Refresh</span>
         </button>
       </div>
-      <div id="box-rewards-list" style="display:flex;flex-direction:column;gap:10px;margin-top:14px"></div>
+      <div id="box-rewards-list" style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
+        <div style="text-align:center;padding:24px 14px;color:#94a3b8;font-size:13px;font-weight:600;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:14px">
+          <div style="font-size:26px;margin-bottom:6px">🎁</div>
+          <div style="font-size:14px;font-weight:700;color:#475569">មិនទាន់មានរង្វាន់រង់ចាំ Claim ទេ (Empty Inventory)</div>
+          <div style="font-size:12px;color:#94a3b8;margin-top:3px">បើក Mystery Box ឈ្នះរង្វាន់ Robux នឹងរក្សាទុកនៅទីនេះដោយស្វ័យប្រវត្តិ!</div>
+        </div>
+      </div>
     </div>
 
     <!-- Live Recent Winners Feed -->
@@ -1611,23 +1625,40 @@ async function checkUnclaimedRewards(forceShow) {
     const items = (j && j.ok && Array.isArray(j.unclaimed)) ? j.unclaimed : [];
     boxRewards = items;
 
-    if (res.ok && j.ok && items.length > 0) {
-      if (rewardsCard) rewardsCard.style.display = 'block';
-      if (shortcutEl) {
+    const topBadge = document.getElementById('box-top-badge');
+
+    if (items.length > 0) {
+      if (topBadge) {
+        topBadge.textContent = items.length;
+        topBadge.style.display = 'inline-block';
+      }
+      if (shortcutText) {
         const hasRej = items.some(x => x.rejected || x.step === 'rejected_resubmit');
-        if (shortcutText) {
-          shortcutText.textContent = hasRej
-            ? 'រង្វាន់ Box ត្រូវការកែឈ្មោះ Roblox — ចុចមើលខាងក្រោម'
-            : ('អ្នកមាន ' + items.length + ' រង្វាន់ Robux កំពុងរង់ចាំ — មើលខាងក្រោម');
-        }
-        shortcutEl.style.display = 'inline-flex';
+        shortcutText.textContent = hasRej
+          ? 'រង្វាន់ Box ត្រូវការកែឈ្មោះ Roblox — ចុចមើល ↓'
+          : ('អ្នកមាន ' + items.length + ' រង្វាន់ Robux — ចុចមើល ↓');
       }
       renderVaultItems(items);
     } else {
-      if (rewardsCard) rewardsCard.style.display = 'none';
-      if (shortcutEl) shortcutEl.style.display = 'none';
+      if (topBadge) topBadge.style.display = 'none';
+      if (shortcutText) shortcutText.textContent = '🎁 My Box Rewards (Inventory)';
+      renderBoxVaultEmpty();
     }
-  } catch (_) {}
+  } catch (_) {
+    renderBoxVaultEmpty();
+  }
+}
+
+function renderBoxVaultEmpty() {
+  const container = document.getElementById('box-rewards-list');
+  if (!container) return;
+  container.innerHTML = `
+    <div style="text-align:center;padding:24px 14px;color:#94a3b8;font-size:13px;font-weight:600;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:14px">
+      <div style="font-size:26px;margin-bottom:6px">🎁</div>
+      <div style="font-size:14px;font-weight:700;color:#475569">មិនទាន់មានរង្វាន់រង់ចាំ Claim ទេ (Empty Inventory)</div>
+      <div style="font-size:12px;color:#94a3b8;margin-top:3px">បើក Mystery Box ឈ្នះរង្វាន់ Robux នឹងរក្សាទុកនៅទីនេះដោយស្វ័យប្រវត្តិ!</div>
+    </div>
+  `;
 }
 
 function renderVaultItems(items) {
