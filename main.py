@@ -7147,14 +7147,18 @@ async def claim_scratch_reward(request: Request):
     }
 
 @app.post("/api/scratch/unclaimed")
+@app.get("/api/scratch/unclaimed")
 async def get_unclaimed_scratch_rewards(request: Request):
-    body = await request.json() if (await request.body()) else {}
+    try:
+        body = await request.json() if (request.method == "POST" and await request.body()) else {}
+    except Exception:
+        body = {}
     cur_u = get_user_from_req(request)
     local_orders = body.get("local_orders", [])
 
     unclaimed = []
     for o in orders:
-        if o.get("package_id") == "scratch_reward" and (o.get("step") in ("unclaimed", "rejected_resubmit", "pending") or not o.get("delivered")):
+        if o.get("package_id") == "scratch_reward" and (o.get("step") in ("unclaimed", "rejected_resubmit", "pending", "pending_claim") or not o.get("delivered")):
             if cur_u and o.get("user_id") == cur_u["id"]:
                 unclaimed.append(o)
             elif isinstance(local_orders, list):
@@ -8156,6 +8160,29 @@ async def claim_crash_reward(request: Request):
         "ok": True,
         "message": "Claim submitted successfully! Admin will send your Robux shortly."
     }
+
+@app.post("/api/crash/unclaimed")
+@app.get("/api/crash/unclaimed")
+async def get_unclaimed_crash_rewards(request: Request):
+    try:
+        body = await request.json() if (request.method == "POST" and await request.body()) else {}
+    except Exception:
+        body = {}
+    cur_u = get_user_from_req(request)
+    local_orders = body.get("local_orders", [])
+
+    unclaimed = []
+    for o in orders:
+        if o.get("package_id") == "crash_reward" and (o.get("step") in ("unclaimed", "rejected_resubmit", "pending", "pending_claim") or not o.get("delivered")):
+            if cur_u and o.get("user_id") == cur_u["id"]:
+                unclaimed.append(o)
+            elif isinstance(local_orders, list):
+                for lo in local_orders:
+                    if lo.get("order_id") == o.get("order_id") and lo.get("token") == o.get("token"):
+                        unclaimed.append(o)
+                        break
+
+    return {"ok": True, "unclaimed": unclaimed}
 
 # Crash Admin Endpoints
 @app.get("/api/admin/crash")

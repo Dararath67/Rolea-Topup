@@ -1705,8 +1705,17 @@ let scratchRewards = [];
 
 async function loadVaultUnclaimed(forceShow) {
   try {
+    const raw = localStorage.getItem('rolea_scratch_orders') || '[]';
+    let local = [];
+    try { local = JSON.parse(raw); } catch (_) {}
+    const token = localStorage.getItem('rolea_token') || '';
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+
     const res = await fetch('/api/scratch/unclaimed', {
-      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ local_orders: local })
     });
     const j = await res.json();
     const rewardsCard = document.getElementById('scratch-rewards-card');
