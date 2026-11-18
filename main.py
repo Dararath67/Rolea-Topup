@@ -3269,6 +3269,7 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
 
     from_user = query.get("from", {})
     admin_label = f"@{from_user['username']}" if from_user.get("username") else (from_user.get("first_name") or "Admin")
+    status_note = ""
 
     if sub == "home":
         _tg_admin_state.pop(chat_id, None)
@@ -3736,6 +3737,7 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
             await edit_telegram_message(token, chat_id, msg_id, text, markup)
 
     elif sub.startswith("crash"):
+        status_note = ""
         if sub == "crash_tog":
             crash_data["enabled"] = not crash_data.get("enabled", True)
             save_crash_data()
@@ -3758,12 +3760,14 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
             status_note = f"📊 1,000 Rounds Sim: Avg Multiplier: {avg_m:.2f}x | Max: {max(mults):.2f}x | Edge: {edge}%"
             await answer_callback_query(token, query_id, f"Avg Mult: {avg_m:.2f}x")
         else:
+            status_note = ""
             await answer_callback_query(token, query_id, "")
 
         text, markup = _build_tg_admin_crash(status_note)
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, text, markup)
     elif sub.startswith("box"):
+        status_note = ""
         if sub == "box_tog":
             box_data["enabled"] = not box_data.get("enabled", True)
             save_box_data()
@@ -3797,6 +3801,7 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
                 await edit_telegram_message(token, chat_id, msg_id, c_text, c_markup)
             return
         else:
+            status_note = ""
             await answer_callback_query(token, query_id, "")
 
         text, markup = _build_tg_admin_box(status_note)
