@@ -1462,6 +1462,10 @@
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 3L10 14"/><path d="M21 3l-7 18-4-7-7-4z"/></svg>
                   <span>ឆាតជាមួយ Admin (@${safeHandle})</span>
                 </a>
+                <a href="https://t.me/RothzStore_bot" target="_blank" rel="noopener noreferrer" class="rsd-tg-btn" style="margin-top:8px;background:linear-gradient(135deg, #0284c7 0%, #0369a1 100%);box-shadow:0 4px 14px rgba(2,132,199,0.35)">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M20.665 3.717l-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42 10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701h-.002l-.313 4.674c.458 0 .66-.21.916-.457l2.199-2.138 4.574 3.379c.843.464 1.45.225 1.66-.782l2.996-14.116c.307-1.23-.47-1.787-1.208-1.527z"/></svg>
+                  <span>បើក Telegram Bot (@RothzStore_bot)</span>
+                </a>
               </div>
 
               <!-- Quick Order Tracker -->

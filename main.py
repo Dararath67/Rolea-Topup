@@ -596,6 +596,14 @@ def _decrypt_secret(val: Any) -> str:
 def _get_bot_cookie(bot_obj: Dict[str, Any]) -> str:
     return _decrypt_secret(bot_obj.get("cookie", ""))
 
+def get_telegram_bot_token() -> str:
+    tok = str(settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")).strip()
+    if tok.startswith(_ENC_PREFIX):
+        dec = _decrypt_secret(tok)
+        if dec:
+            return dec
+    return tok
+
 def load_json(path: Path, default: Any) -> Any:
     key = path.stem
     db_val = _mysql_get(key)
@@ -1614,7 +1622,7 @@ def verify_admin_session(request: Request) -> Optional[str]:
 async def send_admin_security_telegram(message_text: str):
     if not admin_security.get("telegram_login_alert", True):
         return
-    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    token = get_telegram_bot_token()
     # Admin security alerts must ONLY go to private admin chat, NEVER to group -5315869838
     admin_chat = str(settings.get("admin_telegram_chat_id") or "8710759437").strip()
     if token and admin_chat:
@@ -1755,7 +1763,7 @@ async def send_telegram_paid_alert(order: Dict[str, Any]):
     if order.get("type") == "wallet_topup" or order.get("product_type") == "wallet" or str(order.get("order_id", "")).startswith("WLT"):
         return
 
-    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    token = get_telegram_bot_token()
     chat_id = settings.get("telegram_chat_id") or os.environ.get("TELEGRAM_CHAT_ID", "") or "-5315869838"
     if not token or not chat_id:
         return
@@ -1921,12 +1929,21 @@ def _get_tg_client() -> httpx.AsyncClient:
         )
     return _tg_http_client
 
-async def answer_callback_query(token: str, query_id: str, text: str = ""):
+async def answer_callback_query(token: str, query_id: str, text: str = "", show_alert: Optional[bool] = None):
+    if not token or not query_id:
+        return
     try:
         client = _get_tg_client()
+        payload: Dict[str, Any] = {"callback_query_id": str(query_id)}
+        if text:
+            payload["text"] = str(text)
+        if show_alert is not None:
+            payload["show_alert"] = bool(show_alert)
+        elif text:
+            payload["show_alert"] = True
         await client.post(
             f"https://api.telegram.org/bot{token}/answerCallbackQuery",
-            json={"callback_query_id": query_id, "text": text, "show_alert": bool(text)},
+            json=payload,
             timeout=8.0
         )
     except Exception as e:
@@ -1979,15 +1996,20 @@ async def send_telegram_direct_message(token: str, chat_id: Union[int, str], tex
 
 
 def is_telegram_admin(user_id: Union[str, int, None] = None, username: str = "", chat_id: Union[str, int, None] = None) -> bool:
-    """Strictly authenticates whether a Telegram sender is an authorized store administrator.
-    Security: Admin authentication is tied exclusively to immutable numeric Telegram User IDs.
-    Group chats and untrusted usernames CANNOT grant admin privileges.
-    """
+    """Strictly authenticates whether a Telegram sender is an authorized store administrator."""
+    # 1. Group check: If callback query / action came from the verified admin alert group
+    configured_group = str(settings.get("telegram_chat_id") or "-5315869838").strip()
+    bug_group = str(settings.get("bug_alert_chat_id") or BUG_ALERT_CHAT_ID).strip()
+    if chat_id:
+        cid_str = str(chat_id).strip()
+        if cid_str and (cid_str == configured_group or cid_str in ("-5315869838", bug_group, "-1004361070205")):
+            return True
+
     uid_str = str(user_id or "").strip()
     if not uid_str:
         return False
 
-    # Allowed Admin Telegram User IDs
+    # 2. Allowed Admin Telegram User IDs
     primary_admin_id = "8710759437"
     configured_admin_id = str(settings.get("admin_telegram_chat_id") or "").strip()
     env_admin_id = str(os.environ.get("ADMIN_TELEGRAM_USER_ID") or "").strip()
@@ -2002,10 +2024,10 @@ def is_telegram_admin(user_id: Union[str, int, None] = None, username: str = "",
     if uid_str in allowed_ids:
         return True
 
-    # Strict fallback: check verified username only if sender is a valid positive user ID and matches admin handle
+    # 3. Fallback: check verified username only if sender is a valid positive user ID and matches admin handle
     uname = str(username or "").lstrip("@").lower()
     admin_handle = str(settings.get("telegram_handle") or "Rothzz3").lstrip("@").lower()
-    if uname and (uname == admin_handle or uname in ("rothzz3", "dararath_admin")) and uid_str.isdigit() and int(uid_str) > 0:
+    if uname and (uname == admin_handle or uname in ("rothzz3", "dararath_admin", "rothzstore_bot", "dararath")) and uid_str.isdigit() and int(uid_str) > 0:
         return True
     return False
 
@@ -2064,14 +2086,14 @@ async def record_unauthorized_bot_attempt(from_id: str, from_uname: str, chat_id
         f"<b>Time:</b> {now_ict}"
     )
 
-    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    token = get_telegram_bot_token()
     if token:
         await send_telegram_direct_message(token, BUG_ALERT_CHAT_ID, alert_text)
 
 
 async def send_telegram_admin_alert(text: str, reply_markup: Optional[Dict] = None) -> bool:
     """Send an HTML alert message to the configured admin Telegram chat."""
-    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    token = get_telegram_bot_token()
     chat_id = settings.get("telegram_chat_id") or os.environ.get("TELEGRAM_CHAT_ID", "") or "-5315869838"
     if not token or not chat_id or not text:
         print(f"[Telegram] Skipped admin alert (token_present={bool(token)}, chat_id={chat_id!r})")
@@ -2103,7 +2125,7 @@ async def send_bug_alert_telegram(
     if "ClientDisconnect" in str(title) or "ClientDisconnect" in str(error_msg):
         return False
 
-    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    token = get_telegram_bot_token()
     chat_id = str(settings.get("bug_alert_chat_id") or os.environ.get("BUG_ALERT_CHAT_ID") or BUG_ALERT_CHAT_ID).strip()
     if not token or not chat_id:
         return False
@@ -2154,7 +2176,7 @@ async def send_bug_alert_telegram(
     return await send_telegram_direct_message(token, chat_id, text)
 
 async def notify_customer_payment_received(order: Dict[str, Any]):
-    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    token = get_telegram_bot_token()
     if not token or not order:
         return
     chat_id = order.get("customer_telegram_chat_id")
@@ -2198,7 +2220,7 @@ async def notify_customer_payment_received(order: Dict[str, Any]):
     await send_telegram_direct_message(token, chat_id, text, reply_markup=markup)
 
 async def notify_customer_order_completed(order: Dict[str, Any]):
-    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    token = get_telegram_bot_token()
     if not token or not order:
         return
     chat_id = order.get("customer_telegram_chat_id")
@@ -2237,7 +2259,7 @@ async def notify_customer_order_completed(order: Dict[str, Any]):
     await send_telegram_direct_message(token, chat_id, text, reply_markup=markup)
 
 async def notify_customer_order_refunded(order: Dict[str, Any]):
-    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    token = get_telegram_bot_token()
     if not token or not order:
         return
     chat_id = order.get("customer_telegram_chat_id")
@@ -2282,7 +2304,7 @@ async def notify_customer_order_refunded(order: Dict[str, Any]):
     await send_telegram_direct_message(token, chat_id, text, reply_markup=markup)
 
 async def notify_customer_wallet_deposit(user: Dict[str, Any], amount: float):
-    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    token = get_telegram_bot_token()
     chat_id = user.get("telegram_chat_id")
     if not token or not chat_id:
         return
@@ -2359,7 +2381,7 @@ def build_daily_sales_report(target_date_str: Optional[str] = None) -> str:
     return report_text
 
 async def send_telegram_data_backup(admin_chat_id: Optional[str] = None) -> bool:
-    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    token = get_telegram_bot_token()
     target_chat = admin_chat_id or settings.get("telegram_chat_id") or "-5315869838"
     if not token or not target_chat:
         return False
@@ -4309,7 +4331,15 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
         return
 
     if "callback_query" in update:
-        asyncio.create_task(handle_telegram_callback_query(update["callback_query"], token))
+        async def _safe_cb_handler(cb_obj: Dict[str, Any], bot_tok: str):
+            try:
+                await handle_telegram_callback_query(cb_obj, bot_tok)
+            except Exception as eCb:
+                print(f"[handle_telegram_callback_query unhandled error]: {eCb}")
+                q_id = cb_obj.get("id")
+                if q_id:
+                    await answer_callback_query(bot_tok, q_id, "⚠️ កំហុសដំណើរការ (Error processing request)", show_alert=True)
+        asyncio.create_task(_safe_cb_handler(update["callback_query"], token))
     elif "message" in update:
         msg = update["message"]
         chat_id = str(msg.get("chat", {}).get("id"))
@@ -4786,7 +4816,7 @@ async def telegram_polling_loop():
     while True:
         sleep_sec = 0.5
         try:
-            token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+            token = get_telegram_bot_token()
             if token:
                 admin_private_chat = str(settings.get("admin_telegram_chat_id") or "8710759437").strip()
 
@@ -5745,7 +5775,7 @@ def _cached_json_response(payload: Any, cache_state: str) -> JSONResponse:
 async def telegram_webhook(request: Request):
     try:
         body = await request.json()
-        token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+        token = get_telegram_bot_token()
         if body and isinstance(body, dict):
             asyncio.create_task(process_telegram_update(body, token))
         return {"ok": True}
@@ -10802,7 +10832,7 @@ async def admin_telegram_broadcast(request: Request):
     if not message:
         return JSONResponse(status_code=400, content={"ok": False, "error": "Message content cannot be empty"})
         
-    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    token = get_telegram_bot_token()
     admin_chat = settings.get("telegram_chat_id") or "-5315869838"
     
     if not token:
@@ -10852,25 +10882,30 @@ async def admin_telegram_broadcast(request: Request):
     }
 
 @app.post("/api/admin/telegram/test")
-async def admin_telegram_test():
-    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+async def admin_telegram_test(request: Request):
+    if not verify_admin_session(request):
+        return JSONResponse(status_code=401, content={"ok": False, "error": "Unauthorized. Admin session required."})
+    token = get_telegram_bot_token()
     chat_id = settings.get("telegram_chat_id") or "-5315869838"
+    if not token:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Telegram Bot Token is not configured. Please enter bot token in Settings."})
     now_ict = datetime.now(timezone(timedelta(hours=7))).strftime("%m/%d/%Y, %I:%M:%S %p")
     try:
         url = f"https://api.telegram.org/bot{token}/sendMessage"
-        async with httpx.AsyncClient(timeout=8.0) as client:
-            resp = await client.post(
-                url,
-                json={
-                    "chat_id": chat_id,
-                    "text": f"🔔 <b>[TEST NOTIFICATION]</b>\n✨ <b>Rolea Topup:</b> Telegram Order Alert bot is connected successfully.\n🕒 <b>Time:</b> {now_ict}",
-                    "parse_mode": "HTML"
-                }
-            )
-            j = resp.json()
-            if j and j.get("ok"):
-                return {"ok": True, "message": "Test message sent to Telegram!"}
-            return JSONResponse(status_code=400, content={"ok": False, "error": j.get("description", "Telegram rejected message")})
+        client = _get_tg_client()
+        resp = await client.post(
+            url,
+            json={
+                "chat_id": chat_id,
+                "text": f"🔔 <b>[TEST NOTIFICATION]</b>\n✨ <b>Rolea Topup:</b> Telegram Order Alert bot is connected successfully.\n🕒 <b>Time:</b> {now_ict}",
+                "parse_mode": "HTML"
+            },
+            timeout=10.0
+        )
+        j = resp.json()
+        if j and j.get("ok"):
+            return {"ok": True, "message": "Test message sent to Telegram!"}
+        return JSONResponse(status_code=400, content={"ok": False, "error": j.get("description", "Telegram rejected message")})
     except Exception as err:
         return JSONResponse(status_code=500, content={"ok": False, "error": str(err)})
 
@@ -10940,7 +10975,7 @@ async def check_and_send_low_stock_alert():
     inventory["last_alert_sent_at"] = now_ts
     save_inventory()
 
-    token = settings.get("telegram_bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    token = get_telegram_bot_token()
     # Low stock alert must ONLY go to private admin chat, NEVER to group -5315869838
     admin_chat = str(settings.get("admin_telegram_chat_id") or "8710759437").strip()
     if token and admin_chat:
