@@ -77,31 +77,38 @@
   <!-- Category / Product Catalog Container -->
   <div class="container">
 
-    <!-- Flash Sale Countdown Banner -->
-    <a href="/game/roblox" id="home-flash-sale-promo" style="display:none;background:linear-gradient(135deg, #7f1d1d 0%, #b91c1c 50%, #dc2626 100%);color:#ffffff;border-radius:18px;padding:16px 20px;margin-bottom:20px;text-decoration:none;box-shadow:0 6px 20px rgba(220,38,38,0.25);transition:transform 0.2s ease,box-shadow 0.2s ease;">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <!-- Flash Sale Countdown Banner (Crisp Modern White Card) -->
+    <a href="/game/roblox" id="home-flash-sale-promo" style="display:none;background:#ffffff;border:1.5px solid #fee2e2;border-radius:20px;padding:16px 22px;margin-bottom:24px;text-decoration:none;box-shadow:0 10px 30px -4px rgba(225,29,72,0.08), 0 4px 12px rgba(15,23,42,0.04);transition:transform 0.2s cubic-bezier(0.16,1,0.3,1),box-shadow 0.2s cubic-bezier(0.16,1,0.3,1);box-sizing:border-box;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
         <div style="display:flex;align-items:center;gap:14px;">
-          <div style="width:46px;height:46px;border-radius:14px;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.3"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg, #ff4d6d 0%, #e11d48 100%);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 6px 16px rgba(225,29,72,0.32);">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
           </div>
           <div>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <span style="font-size:10.5px;font-weight:900;letter-spacing:0.8px;text-transform:uppercase;background:rgba(255,255,255,0.2);padding:2px 7px;border-radius:5px;">FLASH SALE</span>
-              <span id="home-fs-title" style="font-size:16px;font-weight:800;color:#ffffff;">FLASH SALE ពិសេសចុងសប្តាហ៍</span>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <span style="font-size:11px;font-weight:900;letter-spacing:0.6px;text-transform:uppercase;background:#ffe4e6;color:#e11d48;padding:3px 9px;border-radius:6px;border:1px solid #fecdd3;display:inline-flex;align-items:center;gap:4px;">
+                <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#e11d48;"></span>
+                FLASH SALE
+              </span>
+              <span id="home-fs-title" style="font-size:16px;font-weight:800;color:#0f172a;letter-spacing:-0.2px;">FLASH SALE ពិសេសចុងសប្តាហ៍</span>
             </div>
-            <div id="home-fs-sub" style="font-size:12px;opacity:0.9;margin-top:3px;">កញ្ចប់ Robux បញ្ចុះតម្លៃពិសេស មានកំណត់ម៉ោង!</div>
+            <div id="home-fs-sub" style="font-size:12.5px;color:#64748b;margin-top:4px;font-weight:500;">កញ្ចប់ Robux បញ្ចុះតម្លៃពិសេស មានកំណត់ម៉ោង!</div>
           </div>
         </div>
-        <div style="display:flex;align-items:center;gap:12px;">
-          <div style="text-align:right;">
-            <div style="font-size:10.5px;font-weight:700;opacity:0.85;">Ends in:</div>
-            <div style="display:flex;align-items:center;gap:4px;font-family:'JetBrains Mono',monospace;font-weight:800;font-size:14px;">
-              <span style="background:rgba(0,0,0,0.3);padding:3px 7px;border-radius:6px;" id="home-fs-h">00</span>:
-              <span style="background:rgba(0,0,0,0.3);padding:3px 7px;border-radius:6px;" id="home-fs-m">00</span>:
-              <span style="background:rgba(0,0,0,0.3);padding:3px 7px;border-radius:6px;" id="home-fs-s">00</span>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:8px;background:#f8fafc;padding:6px 12px;border-radius:12px;border:1px solid #e2e8f0;">
+            <span style="font-size:11.5px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Ends in:</span>
+            <div style="display:flex;align-items:center;gap:4px;font-family:'JetBrains Mono',monospace;font-weight:800;font-size:14px;color:#0f172a;">
+              <span style="background:#0f172a;color:#ffffff;padding:3px 8px;border-radius:7px;min-width:24px;text-align:center;box-shadow:0 2px 5px rgba(15,23,42,0.18);" id="home-fs-h">00</span>
+              <span style="color:#94a3b8;font-weight:900;">:</span>
+              <span style="background:#0f172a;color:#ffffff;padding:3px 8px;border-radius:7px;min-width:24px;text-align:center;box-shadow:0 2px 5px rgba(15,23,42,0.18);" id="home-fs-m">00</span>
+              <span style="color:#94a3b8;font-weight:900;">:</span>
+              <span style="background:#0f172a;color:#ffffff;padding:3px 8px;border-radius:7px;min-width:24px;text-align:center;box-shadow:0 2px 5px rgba(15,23,42,0.18);" id="home-fs-s">00</span>
             </div>
           </div>
-          <span style="padding:9px 18px;background:#ffffff;color:#dc2626;border-radius:999px;font-size:13px;font-weight:800;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,0.15);">Shop Deals →</span>
+          <span style="padding:10px 22px;background:linear-gradient(135deg, #ff4d6d 0%, #e11d48 100%);color:#ffffff;border-radius:999px;font-size:13.5px;font-weight:800;white-space:nowrap;box-shadow:0 4px 14px rgba(225,29,72,0.32);display:inline-flex;align-items:center;gap:6px;">
+            Shop Deals <span aria-hidden="true" style="font-size:15px;display:inline-block;">→</span>
+          </span>
         </div>
       </div>
     </a>
