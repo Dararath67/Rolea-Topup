@@ -1295,9 +1295,14 @@ blacklist: Dict[str, Any] = load_json(BLACKLIST_PATH, {
 def get_total_inventory_stock() -> int:
     global inventory
     try:
+        if inventory.get("manual_stock_enabled"):
+            return max(0, int(inventory.get("manual_stock_robux") or 0))
         bots = inventory.get("bots", [])
-        if bots:
-            return max(0, sum(int(float(b.get("group_funds") or 0)) for b in bots if isinstance(b, dict) and b.get("enabled", True)))
+        active_bots = [b for b in bots if isinstance(b, dict) and b.get("enabled", True)]
+        if active_bots:
+            return max(0, sum(int(float(b.get("group_funds") or 0)) for b in active_bots))
+        if inventory.get("manual_stock_robux"):
+            return max(0, int(inventory.get("manual_stock_robux") or 0))
     except Exception:
         pass
     return 0
@@ -1577,7 +1582,7 @@ def _check_and_enforce_wallet_guard(user: Dict[str, Any], spend_amount: float) -
 
 def _get_turnstile_config() -> tuple[str, str]:
     site_key = str(settings.get("turnstile_site_key") or os.environ.get("TURNSTILE_SITE_KEY") or "").strip()
-    secret_key = str(settings.get("turnstile_secret_key") or os.environ.get("TURNSTILE_SECRET_KEY") or "").strip()
+    secret_key = _decrypt_secret(str(settings.get("turnstile_secret_key") or os.environ.get("TURNSTILE_SECRET_KEY") or "")).strip()
     return site_key, secret_key
 
 async def _verify_turnstile_if_enabled(request: Request, body: Dict[str, Any]) -> tuple[bool, str]:
@@ -1700,7 +1705,7 @@ def generate_khqr_data_url(khqr_payload: str) -> str:
 # External API helpers
 async def create_khqrpay_order(amount: float, order_id: str) -> Optional[Dict[str, Any]]:
     base_url = (settings.get("khqrpay_base_url") or "https://khqrpay.site").rstrip("/")
-    api_key = settings.get("khqrpay_api_key") or os.environ.get("KHQRPAY_API_KEY", "")
+    api_key = _decrypt_secret(settings.get("khqrpay_api_key") or os.environ.get("KHQRPAY_API_KEY", ""))
     try:
         async with httpx.AsyncClient(timeout=6.0) as client:
             res = await client.post(
@@ -1722,7 +1727,7 @@ async def create_khqrpay_order(amount: float, order_id: str) -> Optional[Dict[st
 
 async def check_khqrpay_status(payment_id: str) -> Optional[Dict[str, Any]]:
     base_url = (settings.get("khqrpay_base_url") or "https://khqrpay.site").rstrip("/")
-    api_key = settings.get("khqrpay_api_key") or os.environ.get("KHQRPAY_API_KEY", "")
+    api_key = _decrypt_secret(settings.get("khqrpay_api_key") or os.environ.get("KHQRPAY_API_KEY", ""))
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             res = await client.get(
@@ -1918,7 +1923,7 @@ async def send_smtp_email(to_email: str, subject: str, html_body: str, text_body
     host = str(settings.get("smtp_host") or "smtp.gmail.com").strip()
     port = int(settings.get("smtp_port") or 587)
     sender = str(settings.get("smtp_email") or "").strip()
-    password = str(settings.get("smtp_password") or "").strip()
+    password = _decrypt_secret(str(settings.get("smtp_password") or "")).strip()
     if not sender or not password:
         return False, "SMTP email & App Password not configured"
     return await asyncio.to_thread(_send_smtp_sync, host, port, sender, password, to_email, subject, html_body, text_body)
@@ -2007,7 +2012,10 @@ def is_telegram_admin(user_id: Union[str, int, None] = None, username: str = "",
     bug_group = str(settings.get("bug_alert_chat_id") or BUG_ALERT_CHAT_ID).strip()
     if chat_id:
         cid_str = str(chat_id).strip()
-        if cid_str and (cid_str == configured_group or cid_str in ("-5315869838", bug_group, "-1004361070205")):
+        cg_norm = configured_group.replace("-100", "-")
+        cid_norm = cid_str.replace("-100", "-")
+        bg_norm = bug_group.replace("-100", "-")
+        if cid_str and (cid_norm in (cg_norm, "-5315869838", bg_norm, "-4361070205")):
             return True
 
     uid_str = str(user_id or "").strip()
@@ -2276,16 +2284,24 @@ async def notify_customer_order_refunded(order: Dict[str, Any]):
         return
 
     oid = str(order.get("order_id") or "")
-    if order.get("package_id") in ("spin_reward", "scratch_reward", "box_reward"):
+    pkg_id = order.get("package_id")
+    if pkg_id in ("spin_reward", "scratch_reward", "box_reward", "crash_reward"):
         rob_won = int(order.get("robux_amount", 0))
+        game_info = {
+            "spin_reward": ("Lucky Spin", "https://rolea-topup.vercel.app/spin", "🎡"),
+            "scratch_reward": ("Lucky Scratch", "https://rolea-topup.vercel.app/scratch", "🎫"),
+            "box_reward": ("Mystery Box", "https://rolea-topup.vercel.app/box", "📦"),
+            "crash_reward": ("Robux Crash", "https://rolea-topup.vercel.app/crash", "🚀")
+        }.get(pkg_id, ("Game", "https://rolea-topup.vercel.app/games", "🎁"))
+
         text = (
             f"⚠️ <b>[សំណើបើករង្វាន់ត្រូវបានបដិសេធ / CLAIM REJECTED]</b>\n\n"
             f"ការស្នើសុំបើករង្វាន់ <code>#{html.escape(oid, quote=False)}</code> (<b>+{rob_won:,} Robux</b>) ត្រូវបាន Admin បដិសេធ (អាចមកពីខុសឈ្មោះ Roblox ឬមិនទាន់បាន Setup Gamepass/Private Server)។\n\n"
-            f"🔄 <b>ដំណោះស្រាយ៖</b> លោកអ្នកអាចចូលទៅកាន់ទំព័រ Lucky Spin វិញ ដើម្បីកែប្រែឈ្មោះ Roblox និងចុច Submit សំណើម្តងទៀតបានគ្រប់ពេល!"
+            f"🔄 <b>ដំណោះស្រាយ៖</b> លោកអ្នកអាចចូលទៅកាន់ទំព័រ <b>{game_info[0]}</b> វិញ ដើម្បីកែប្រែឈ្មោះ Roblox និងចុច Submit សំណើម្តងទៀតបានគ្រប់ពេល!"
         )
         markup = {
             "inline_keyboard": [
-                [{"text": "🎡 ចូលទៅកាន់ Lucky Spin", "url": "https://rolea-topup.vercel.app/spin"}],
+                [{"text": f"{game_info[2]} ចូលទៅកាន់ {game_info[0]}", "url": game_info[1]}],
                 [{"text": "🏠 ម៉ឺនុយដើម", "callback_data": "cust:home"}]
             ]
         }
@@ -4256,7 +4272,7 @@ async def handle_telegram_callback_query(query: Dict[str, Any], token: str):
                 await edit_telegram_message(token, msg["chat"]["id"], msg["message_id"], updated_text)
 
         elif action == "reject":
-            is_reward_claim = order.get("package_id") in ("spin_reward", "scratch_reward", "box_reward")
+            is_reward_claim = order.get("package_id") in ("spin_reward", "scratch_reward", "box_reward", "crash_reward")
             if is_reward_claim:
                 ok_rej, rej_msg = process_reward_claim_reject(order)
                 if not ok_rej:
@@ -4266,7 +4282,12 @@ async def handle_telegram_callback_query(query: Dict[str, Any], token: str):
                 await answer_callback_query(token, query_id, f"⚠️ បានបដិសេធសំណើបើករង្វាន់! មិនបង្វិលលុយទេ ហើយអនុញ្ញាតឱ្យអតិថិជន Submit ម្តងទៀត។")
 
                 rob_amt = int(order.get("robux_amount", 0))
-                reward_type_name = "កងបង្វិល (Spin Reward)" if order.get("package_id") == "spin_reward" else ("កាតកោស (Scratch Reward)" if order.get("package_id") == "scratch_reward" else "ប្រអប់សំណាង (Mystery Box)")
+                reward_type_name = {
+                    "spin_reward": "កងបង្វិល (Spin Reward)",
+                    "scratch_reward": "កាតកោស (Scratch Reward)",
+                    "box_reward": "ប្រអប់សំណាង (Mystery Box)",
+                    "crash_reward": "កាំជ្រួច (Robux Crash)"
+                }.get(order.get("package_id"), "រង្វាន់ពិសេស (Game Reward)")
                 updated_text = (
                     f"❌ <b>[សំណើបើករង្វាន់ត្រូវបានបដិសេធ (REJECTED)]</b>\n"
                     f"🏪 <b>ហាង៖</b> {html.escape(str(settings.get('store_name', 'Rolea Topup')), quote=False)}\n"
@@ -8088,7 +8109,7 @@ async def cashout_crash_bet(request: Request):
     # Telegram alert for Big Wins (>= 5.0x)
     if crash_data.get("telegram_alert_enabled", True) and (cashout_mult >= 3.0 or robux_won >= 100):
         async def _send_crash_tg():
-            bot_token = settings.get("telegram_bot_token")
+            bot_token = get_telegram_bot_token()
             chat_id = settings.get("telegram_chat_id")
             if bot_token and chat_id:
                 msg = (
@@ -8099,14 +8120,7 @@ async def cashout_crash_bet(request: Request):
                     f"💵 Bet Amount: ${sess.get('bet_usd', 0.20):.2f}\n"
                     f"🆔 Order: <code>{order_id}</code>"
                 )
-                try:
-                    async with httpx.AsyncClient(timeout=10) as client:
-                        await client.post(
-                            f"https://api.telegram.org/bot{bot_token}/sendMessage",
-                            json={"chat_id": chat_id, "text": msg, "parse_mode": "HTML"}
-                        )
-                except Exception:
-                    pass
+                await send_telegram_direct_message(bot_token, chat_id, msg)
         asyncio.create_task(_send_crash_tg())
 
     return {
@@ -8424,7 +8438,7 @@ async def customer_forgot_password(request: Request):
 
     smtp_ready = bool(settings.get("smtp_email") and settings.get("smtp_password"))
     user_email = str(user.get("email") or "").strip()
-    tg_token = settings.get("telegram_bot_token")
+    tg_token = get_telegram_bot_token()
     user_chat = user.get("telegram_chat_id")
 
     otp_code = f"{secrets.randbelow(900000) + 100000}"
@@ -9970,7 +9984,7 @@ async def admin_forgot_password(request: Request):
 
     configured_admin_email = str(settings.get("admin_recovery_email") or settings.get("smtp_email") or "").strip().lower()
     smtp_ready = bool(settings.get("smtp_email") and settings.get("smtp_password"))
-    tg_token = settings.get("telegram_bot_token")
+    tg_token = get_telegram_bot_token()
     tg_chat = settings.get("telegram_chat_id")
 
     if req_email:

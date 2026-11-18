@@ -2,11 +2,11 @@
   "enabled": false,
   "title": "FLASH SALE ពិសេសចុងសប្តាហ៍",
   "subtitle": "កញ្ចប់ Robux បញ្ចុះតម្លៃពិសេស មានកំណត់ម៉ោង!",
-  "end_time": "2026-11-16T07:34:00.000Z",
+  "end_time": "2026-11-18T13:34:00.000Z",
   "deals": {
-    "6aedea450bc5af89ab0ba8b1": {
-      "sale_price": 0.42,
-      "discount_percent": 16
+    "6aee1ad13f2228cb3063790e": {
+      "sale_price": 0.85,
+      "discount_percent": 15
     }
   }
 }

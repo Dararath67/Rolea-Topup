@@ -1,7 +1,7 @@
 {
   "enabled": true,
   "title": "Golden Scratch Card",
-  "subtitle": "Match 3 Robux symbols on the lucky card to win up to 1,000 R$!",
+  "subtitle": "",
   "card_price_usd": 0.25,
   "cost_per_1k_robux_usd": 4.0,
   "daily_free_scratch_enabled": true,
@@ -11,13 +11,13 @@
     {
       "label": "Thank You",
       "robux": 0,
-      "weight": 40,
+      "weight": 70,
       "color": "#64748b"
     },
     {
       "label": "10 Robux",
       "robux": 10,
-      "weight": 30,
+      "weight": 20,
       "color": "#2563eb"
     },
     {
@@ -47,18 +47,139 @@
     {
       "label": "500 Robux",
       "robux": 500,
-      "weight": 0.8,
+      "weight": 0.05,
       "color": "#e11d48"
     },
     {
       "label": "1,000 Robux",
       "robux": 1000,
-      "weight": 0.2,
+      "weight": 0.02,
       "color": "#d97706"
     }
   ],
   "total_cards_scratched": 0,
   "total_revenue_usd": 0.0,
   "total_robux_awarded": 0,
-  "history": []
+  "history": [
+    {
+      "scratch_id": "SCRATCH00B58D6F",
+      "username": "rathadararat",
+      "label": "10 Robux",
+      "robux": 10,
+      "price_usd": 0.25,
+      "payment_method": "Rolea Wallet",
+      "order_id": "SCRATCH00B58D6F",
+      "created_at": "2026-11-18T13:42:55.650293+00:00"
+    },
+    {
+      "scratch_id": "SCRATCH05F923FE",
+      "username": "rathadararat",
+      "label": "10 Robux",
+      "robux": 10,
+      "price_usd": 0.25,
+      "payment_method": "Daily Free Scratch",
+      "order_id": "SCRATCH05F923FE",
+      "created_at": "2026-11-18T11:32:04.128273+00:00"
+    },
+    {
+      "scratch_id": "SCRATCH847A7EE0",
+      "username": "Tchk37",
+      "label": "10 Robux",
+      "robux": 10,
+      "price_usd": 0.25,
+      "payment_method": "Daily Free Scratch",
+      "order_id": "SCRATCH847A7EE0",
+      "created_at": "2026-11-18T07:51:04.412705+00:00"
+    },
+    {
+      "scratch_id": "SCRATCHD3B02221",
+      "username": "ItzMeZento",
+      "label": "10 Robux",
+      "robux": 10,
+      "price_usd": 0.25,
+      "payment_method": "Daily Free Scratch",
+      "order_id": "SCRATCHD3B02221",
+      "created_at": "2026-11-17T11:56:40.413229+00:00"
+    },
+    {
+      "scratch_id": "SCRATCHEB941D4B",
+      "username": "rathadararat",
+      "label": "25 Robux",
+      "robux": 25,
+      "price_usd": 0.25,
+      "payment_method": "Rolea Wallet",
+      "order_id": "SCRATCHEB941D4B",
+      "created_at": "2026-11-17T11:21:26.514017+00:00"
+    },
+    {
+      "scratch_id": "SCRATCH1A49DC36",
+      "username": "rathadararat",
+      "label": "25 Robux",
+      "robux": 25,
+      "price_usd": 0.25,
+      "payment_method": "Rolea Wallet",
+      "order_id": "SCRATCH1A49DC36",
+      "created_at": "2026-11-17T08:37:18.330836+00:00"
+    },
+    {
+      "scratch_id": "SCRATCHAB473A4B",
+      "username": "rathadararat",
+      "label": "Thank You",
+      "robux": 0,
+      "price_usd": 0.25,
+      "payment_method": "Rolea Wallet",
+      "order_id": null,
+      "created_at": "2026-11-17T08:37:10.200329+00:00"
+    },
+    {
+      "scratch_id": "SCRATCH67863385",
+      "username": "rathadararat",
+      "label": "Thank You",
+      "robux": 0,
+      "price_usd": 0.25,
+      "payment_method": "Rolea Wallet",
+      "order_id": null,
+      "created_at": "2026-11-17T08:36:46.867751+00:00"
+    },
+    {
+      "scratch_id": "SCRATCH76A7F823",
+      "username": "raphopsoeun",
+      "label": "Thank You",
+      "robux": 0,
+      "price_usd": 0.25,
+      "payment_method": "Daily Free Scratch",
+      "order_id": null,
+      "created_at": "2026-11-17T07:14:49.120457+00:00"
+    },
+    {
+      "scratch_id": "SCRATCH13778598",
+      "username": "rathadararat",
+      "label": "10 Robux",
+      "robux": 10,
+      "price_usd": 0.25,
+      "payment_method": "Rolea Wallet",
+      "order_id": "SCRATCH13778598",
+      "created_at": "2026-11-17T06:13:13.225282+00:00"
+    },
+    {
+      "scratch_id": "SCRATCHC848AA21",
+      "username": "pozzsart1680",
+      "label": "10 Robux",
+      "robux": 10,
+      "price_usd": 0.25,
+      "payment_method": "Daily Free Scratch",
+      "order_id": "SCRATCHC848AA21",
+      "created_at": "2026-11-17T06:10:35.991519+00:00"
+    },
+    {
+      "scratch_id": "SCRATCHEE58A86C",
+      "username": "rathadararat",
+      "label": "10 Robux",
+      "robux": 10,
+      "price_usd": 0.25,
+      "payment_method": "Rolea Wallet",
+      "order_id": "SCRATCHEE58A86C",
+      "created_at": "2026-11-17T03:50:06.898323+00:00"
+    }
+  ]
 }

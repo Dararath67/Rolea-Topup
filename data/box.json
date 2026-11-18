@@ -1,11 +1,11 @@
 {
   "enabled": true,
   "title": "Roblox Mystery Box",
-  "subtitle": "Open lucky cases to reveal instant Robux prizes!",
+  "subtitle": "",
   "daily_free_enabled": false,
   "daily_free_cooldown_hours": 24,
   "daily_free_max_robux": 25,
-  "cost_per_1k_robux_usd": 4.0,
+  "cost_per_1k_robux_usd": 5.0,
   "cases": {
     "bronze": {
       "id": "bronze",
@@ -17,25 +17,25 @@
         {
           "robux": 0,
           "label": "Thank You",
-          "weight": 70.0,
+          "weight": 77,
           "color": "#94a3b8"
         },
         {
           "robux": 10,
           "label": "10 Robux",
-          "weight": 18.0,
+          "weight": 10,
           "color": "#10b981"
         },
         {
           "robux": 15,
           "label": "15 Robux",
-          "weight": 7.0,
+          "weight": 5,
           "color": "#0ea5e9"
         },
         {
           "robux": 25,
           "label": "25 Robux",
-          "weight": 3.5,
+          "weight": 2,
           "color": "#8b5cf6"
         },
         {
@@ -62,25 +62,25 @@
         {
           "robux": 0,
           "label": "Thank You",
-          "weight": 68.0,
+          "weight": 77,
           "color": "#94a3b8"
         },
         {
           "robux": 50,
           "label": "50 Robux",
-          "weight": 18.0,
+          "weight": 10,
           "color": "#10b981"
         },
         {
           "robux": 75,
           "label": "75 Robux",
-          "weight": 8.0,
+          "weight": 5,
           "color": "#0ea5e9"
         },
         {
           "robux": 100,
           "label": "100 Robux",
-          "weight": 4.0,
+          "weight": 4,
           "color": "#8b5cf6"
         },
         {
@@ -92,7 +92,7 @@
         {
           "robux": 350,
           "label": "350 Robux",
-          "weight": 0.5,
+          "weight": 0.2,
           "color": "#ef4444"
         }
       ]
@@ -100,44 +100,44 @@
     "golden": {
       "id": "golden",
       "name": "Golden Case",
-      "price_usd": 1.0,
+      "price_usd": 1,
       "color": "#f59e0b",
       "badge": "High Tier",
       "items": [
         {
           "robux": 0,
           "label": "Thank You",
-          "weight": 66.0,
+          "weight": 66,
           "color": "#94a3b8"
         },
         {
-          "robux": 150,
-          "label": "150 Robux",
-          "weight": 18.0,
+          "robux": 60,
+          "label": "60 Robux",
+          "weight": 15,
           "color": "#10b981"
         },
         {
           "robux": 200,
           "label": "200 Robux",
-          "weight": 9.0,
+          "weight": 5,
           "color": "#0ea5e9"
         },
         {
           "robux": 350,
           "label": "350 Robux",
-          "weight": 4.5,
+          "weight": 2.5,
           "color": "#8b5cf6"
         },
         {
           "robux": 600,
           "label": "600 Robux",
-          "weight": 2.0,
+          "weight": 0.01,
           "color": "#f59e0b"
         },
         {
           "robux": 1200,
           "label": "1,200 Robux",
-          "weight": 0.5,
+          "weight": 0.01,
           "color": "#ef4444"
         }
       ]
@@ -152,44 +152,70 @@
         {
           "robux": 0,
           "label": "Thank You",
-          "weight": 65.0,
+          "weight": 65,
           "color": "#94a3b8"
+        },
+        {
+          "robux": 100,
+          "label": "100 Robux",
+          "weight": 15,
+          "color": "#10b981"
         },
         {
           "robux": 500,
           "label": "500 Robux",
-          "weight": 18.0,
-          "color": "#10b981"
-        },
-        {
-          "robux": 800,
-          "label": "800 Robux",
-          "weight": 10.0,
+          "weight": 10,
           "color": "#0ea5e9"
         },
         {
           "robux": 1500,
           "label": "1,500 Robux",
-          "weight": 4.5,
+          "weight": 0.01,
           "color": "#8b5cf6"
         },
         {
           "robux": 3000,
           "label": "3,000 Robux",
-          "weight": 2.0,
+          "weight": 0.01,
           "color": "#f59e0b"
         },
         {
           "robux": 5000,
           "label": "5,000 Robux",
-          "weight": 0.5,
+          "weight": 0.01,
           "color": "#ef4444"
         }
       ]
     }
   },
-  "history": [],
-  "total_boxes_opened": 0,
-  "total_revenue_usd": 0.0,
-  "total_robux_awarded": 0
+  "history": [
+    {
+      "box_id": "BOX54B13807",
+      "case_id": "bronze",
+      "case_name": "Bronze Case",
+      "username": "rathadararat",
+      "label": "10 Robux",
+      "robux": 10,
+      "price_usd": 0.2,
+      "payment_method": "Rolea Wallet",
+      "order_id": "BOX54B13807",
+      "created_at": "2026-11-18T11:31:47.862697+00:00"
+    },
+    {
+      "box_id": "BOX3E945E50",
+      "case_id": "bronze",
+      "case_name": "Bronze Case",
+      "username": "Rio",
+      "label": "10 Robux",
+      "robux": 10,
+      "price_usd": 0.2,
+      "payment_method": "Rolea Wallet",
+      "order_id": "BOX3E945E50",
+      "created_at": "2026-11-17T03:05:29.925569+00:00"
+    }
+  ],
+  "total_boxes_opened": 2,
+  "total_revenue_usd": 0.4,
+  "total_robux_awarded": 20,
+  "telegram_alert_enabled": true
 }

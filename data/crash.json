@@ -1,17 +1,77 @@
 {
   "enabled": true,
   "title": "Robux Crash",
-  "subtitle": "Watch the rocket ascend & cash out before the explosion!",
-  "house_edge_pct": 6.0,
-  "min_bet_usd": 0.10,
-  "max_bet_usd": 25.00,
+  "subtitle": "",
+  "house_edge_pct": 15.0,
+  "min_bet_usd": 0.1,
+  "max_bet_usd": 25.0,
   "max_multiplier": 100.0,
   "robux_per_usd": 100,
-  "cost_per_1k_robux_usd": 4.0,
+  "cost_per_1k_robux_usd": 5.0,
   "telegram_alert_enabled": true,
-  "history": [],
-  "total_bets": 0,
-  "total_wagered_usd": 0.0,
-  "total_robux_awarded": 0,
-  "recent_crash_points": [2.45, 1.18, 5.80, 1.05, 14.20, 3.10, 1.95, 8.40, 1.35, 22.50]
+  "history": [
+    {
+      "order_id": "CRASH_5C703238",
+      "username": "rathadararat",
+      "bet_usd": 0.2,
+      "multiplier": 1.19,
+      "crash_point": 49.02,
+      "robux": 24,
+      "won": true,
+      "payment_method": "Rolea Wallet",
+      "created_at": "2026-11-18T14:00:11.580488+00:00"
+    },
+    {
+      "order_id": "CRASH_A4B98C6D",
+      "username": "rathadararat",
+      "bet_usd": 1.0,
+      "multiplier": 2.0,
+      "crash_point": 2.89,
+      "robux": 200,
+      "won": true,
+      "payment_method": "Rolea Wallet",
+      "created_at": "2026-11-17T11:25:45.146151+00:00"
+    },
+    {
+      "order_id": "CRASH_B193F615",
+      "username": "rathadararat",
+      "bet_usd": 0.2,
+      "multiplier": 2.0,
+      "crash_point": 3.98,
+      "robux": 40,
+      "won": true,
+      "payment_method": "Rolea Wallet",
+      "created_at": "2026-11-17T11:25:17.641488+00:00"
+    },
+    {
+      "order_id": "CRASH_F8C1DF76",
+      "username": "rathadararat",
+      "bet_usd": 0.2,
+      "multiplier": 1.43,
+      "crash_point": 5.36,
+      "robux": 29,
+      "won": true,
+      "payment_method": "Rolea Wallet",
+      "created_at": "2026-11-17T03:07:46.959366+00:00"
+    }
+  ],
+  "total_bets": 7,
+  "total_wagered_usd": 3.0,
+  "total_robux_awarded": 293,
+  "recent_crash_points": [
+    49.02,
+    2.89,
+    3.98,
+    5.36,
+    2.45,
+    1.18,
+    5.8,
+    1.05,
+    14.2,
+    3.1,
+    1.95,
+    8.4,
+    1.35,
+    22.5
+  ]
 }
