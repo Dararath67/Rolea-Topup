@@ -8342,6 +8342,29 @@ async def cashout_crash_bet(request: Request):
         return JSONResponse(status_code=400, content={"ok": False, "error": "Already cashed out"})
 
     crash_point = float(sess.get("crash_point", 1.00))
+    started_at_str = sess.get("started_at")
+    now_dt = datetime.now(timezone.utc)
+
+    # Mathematical Anti-Speedhack & Flight Verification
+    if started_at_str:
+        try:
+            started_dt = datetime.fromisoformat(started_at_str.replace("Z", "+00:00"))
+            elapsed_sec = max(0.0, (now_dt - started_dt).total_seconds())
+            crash_flight_duration = max(0.0, math.log(max(1.0, crash_point)) / 0.065)
+            if elapsed_sec > (crash_flight_duration + 0.6):
+                sess["cashed_out"] = True
+                sess["won"] = False
+                return {
+                    "ok": True,
+                    "won": False,
+                    "message": f"Rocket crashed at {crash_point:.2f}x before cashout!",
+                    "crash_point": crash_point
+                }
+            max_possible_mult = round(math.exp(0.065 * (elapsed_sec + 0.8)), 2)
+            if cashout_mult > max_possible_mult:
+                cashout_mult = max(1.00, min(cashout_mult, max_possible_mult))
+        except Exception:
+            pass
 
     if cashout_mult > crash_point:
         sess["cashed_out"] = True
@@ -10030,8 +10053,21 @@ async def khqrpay_webhook(request: Request):
         if not order:
             return JSONResponse(status_code=404, content={"ok": False, "error": "Order not found"})
 
-        verified_paid, v_st = verify_khqr_bank_payment(payment_data, float(order.get("amount", 0)), expected_order_id=order.get("order_id"))
-        if verified_paid and not order.get("paid"):
+        # Security: Server-to-Server Verification with KHQRPay official API
+        # Prevents spoofed/forged HTTP POST attacks from unauthorized actors
+        khqr_id = str(order.get("khqrpay_id") or target_kid or "").strip()
+        live_bank_data = payment_data
+        if khqr_id:
+            official_check = await check_khqrpay_status(khqr_id)
+            if official_check:
+                live_bank_data = official_check
+            else:
+                return JSONResponse(status_code=400, content={"ok": False, "error": "Unable to verify transaction with KHQRPay bank server"})
+
+        verified_paid, v_st = verify_khqr_bank_payment(live_bank_data, float(order.get("amount", 0)), expected_order_id=order.get("order_id"))
+        cred_key = str(khqr_id or order.get("order_id"))
+        if verified_paid and not order.get("paid") and cred_key not in _credited_khqr_ids:
+            _credited_khqr_ids.add(cred_key)
             order["paid"] = True
             if order.get("type") == "wallet_topup":
                 order["status"] = "completed"
