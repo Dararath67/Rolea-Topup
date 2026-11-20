@@ -3114,58 +3114,160 @@ def _build_tg_admin_home() -> tuple[str, Dict[str, Any]]:
     box_str = "🟢 បើក (ON)" if box_data.get("enabled", True) else "⛔ បិទ (OFF)"
     crash_str = "🟢 បើក (ON)" if crash_data.get("enabled", True) else "⛔ បិទ (OFF)"
     fs_active = is_flash_sale_active()
-    fs_rem = get_flash_sale_remaining_seconds()
-    fs_h = fs_rem // 3600
-    fs_m = (fs_rem % 3600) // 60
-    fs_str = f"⚡ បើកដំណើរការ (នៅសល់ {fs_h}h {fs_m}m)" if fs_active else "⛔ បិទដំណើរការ"
+
     text = (
         f"🛡️ <b>{store_name} — ផ្ទាំងគ្រប់គ្រង Admin (Telegram Panel)</b>\n\n"
         f"🌐 <b>ស្ថានភាពហាង៖</b> {maint_str}\n"
-        f"🎡 <b>Spin៖</b> {spin_str}  |  🎫 <b>Scratch៖</b> {scratch_str}\n"
-        f"📦 <b>Box៖</b> {box_str}  |  🚀 <b>Crash៖</b> {crash_str}\n"
-        f"⚡ <b>ស្ថានភាព Flash Sale៖</b> {fs_str}\n"
         f"👥 <b>អតិថិជនសរុប៖</b> {total_users} នាក់  |  💳 <b>លុយក្នុង Wallet៖</b> ${total_wallet:.2f}\n"
-        f"📦 <b>Order កំពុងរង់ចាំ៖</b> {pending_cnt} កុម្ម៉ង់\n\n"
-        f"👇 <i>សូមចុចប៊ូតុងខាងក្រោមដើម្បីគ្រប់គ្រង (មិនបាច់វាយអក្សរ)៖</i>"
+        f"📦 <b>Order កំពុងរង់ចាំ៖</b> {pending_cnt} កុម្ម៉ង់  |  ⚡ <b>Flash Sale៖</b> {'🟢 បើក' if fs_active else '⛔ បិទ'}\n"
+        f"🎮 <b>Games៖</b> Spin ({spin_str}) · Scratch ({scratch_str}) · Box ({box_str}) · Crash ({crash_str})\n\n"
+        f"📁 <b>សូមជ្រើសរើសផ្នែកដែលចង់គ្រប់គ្រង (Categories)៖</b>"
     )
     markup = {
         "inline_keyboard": [
-            [{"text": "💰 បញ្ចូល / កាត់លុយ Wallet អតិថិជន", "callback_data": "adm:users:0"}],
             [
-                {"text": "🔍 ស្វែងរកតាម User ID", "callback_data": "adm:find"},
-                {"text": "🔎 ស្វែងរកតាម Order ID", "callback_data": "adm:find_ord"}
+                {"text": "👤 គណនីអតិថិជន & Wallet", "callback_data": "adm:cat_acc"},
+                {"text": f"📦 ការកុម្ម៉ង់ & របាយការណ៍ ({pending_cnt})", "callback_data": "adm:cat_ord"}
             ],
             [
-                {"text": f"📦 Order កំពុងរង់ចាំ ({pending_cnt})", "callback_data": "adm:pending:0"},
-                {"text": "📊 ស្ថិតិហាងសរុប", "callback_data": "adm:stats"}
+                {"text": "🎮 គ្រប់គ្រងហ្គេម & រង្វាន់", "callback_data": "adm:cat_games"},
+                {"text": "⚙️ ប្រព័ន្ធ & ស្តុកហាង", "callback_data": "adm:cat_settings"}
             ],
             [
-                {"text": "📊 របាយការណ៍លក់ថ្ងៃនេះ", "callback_data": "adm:daily_rep"},
+                {"text": "💰 បញ្ចូល/កាត់លុយ Wallet (Quick)", "callback_data": "adm:users:0"},
+                {"text": "🔍 ស្វែងរក User", "callback_data": "adm:find"}
+            ],
+            [
+                {"text": "🔄 Refresh ផ្ទាំងបញ្ជា", "callback_data": "adm:home"}
+            ]
+        ]
+    }
+    return text, markup
+
+def _build_tg_cat_accounts() -> tuple[str, Dict[str, Any]]:
+    total_users = len(users)
+    total_wallet = sum(float(u.get("balance") or 0.0) for u in users)
+    frozen_cnt = sum(1 for u in users if u.get("wallet_frozen"))
+    text = (
+        f"👤 <b>[CATEGORY: គណនីអតិថិជន & WALLET]</b>\n\n"
+        f"👥 <b>អតិថិជនសរុប៖</b> {total_users} នាក់\n"
+        f"💳 <b>ទឹកប្រាក់សរុបក្នុង Wallet៖</b> ${total_wallet:.2f} USD\n"
+        f"❄️ <b>គណនីបង្កក (Frozen)៖</b> {frozen_cnt} នាក់\n\n"
+        f"👇 <i>សូមជ្រើសរើសមុខងារខាងក្រោម៖</i>"
+    )
+    markup = {
+        "inline_keyboard": [
+            [{"text": "💰 បញ្ចូល / កាត់លុយ Wallet (Top-up Money)", "callback_data": "adm:users:0"}],
+            [
+                {"text": "🔍 ស្វែងរកតាម User ID / Username", "callback_data": "adm:find"},
+                {"text": "👥 បញ្ជីអតិថិជនទាំងអស់", "callback_data": "adm:users:0"}
+            ],
+            [
+                {"text": "🏠 ម៉ឺនុយដើម (Main Menu)", "callback_data": "adm:home"}
+            ]
+        ]
+    }
+    return text, markup
+
+def _build_tg_cat_orders() -> tuple[str, Dict[str, Any]]:
+    pending_cnt = sum(
+        1 for o in orders 
+        if o.get("paid") 
+        and not o.get("delivered") 
+        and o.get("status") not in ("completed", "refunded", "expired")
+        and o.get("type") != "wallet_topup" 
+        and o.get("product_type") != "wallet" 
+        and not str(o.get("order_id", "")).startswith("WLT")
+        and not (o.get("package_id") in ("spin_reward", "scratch_reward", "box_reward") and not o.get("claim_submitted"))
+    )
+    today_dt = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today_orders = [o for o in orders if str(o.get("created_at", "")).startswith(today_dt) and o.get("paid")]
+    today_rev = sum(float(o.get("amount") or 0.0) for o in today_orders)
+    text = (
+        f"📦 <b>[CATEGORY: ការកុម្ម៉ង់ & របាយការណ៍ / ORDERS]</b>\n\n"
+        f"📦 <b>Order កំពុងរង់ចាំ (Pending)៖</b> {pending_cnt} កុម្ម៉ង់\n"
+        f"💵 <b>ការលក់ថ្ងៃនេះ៖</b> {len(today_orders)} Orders (${today_rev:.2f} USD)\n\n"
+        f"👇 <i>សូមជ្រើសរើសមុខងារខាងក្រោម៖</i>"
+    )
+    markup = {
+        "inline_keyboard": [
+            [{"text": f"📦 Order កំពុងរង់ចាំ ({pending_cnt})", "callback_data": "adm:pending:0"}],
+            [
+                {"text": "🔎 ស្វែងរកតាម Order ID", "callback_data": "adm:find_ord"},
+                {"text": "📊 របាយការណ៍លក់ថ្ងៃនេះ", "callback_data": "adm:daily_rep"}
+            ],
+            [
+                {"text": "📈 ស្ថិតិហាងសរុប", "callback_data": "adm:stats"},
                 {"text": "💾 Backup Data ចូល Telegram", "callback_data": "adm:backup_now"}
             ],
             [
-                {"text": "🏪 បិទ/បើក ហ្គេមនីមួយៗ", "callback_data": "adm:games"},
-                {"text": "🎡 គ្រប់គ្រង Spin", "callback_data": "adm:spin"}
+                {"text": "🏠 ម៉ឺនុយដើម (Main Menu)", "callback_data": "adm:home"}
+            ]
+        ]
+    }
+    return text, markup
+
+def _build_tg_cat_games() -> tuple[str, Dict[str, Any]]:
+    spin_str = "🟢 បើក (ON)" if spin_data.get("enabled", True) else "⛔ បិទ (OFF)"
+    scratch_str = "🟢 បើក (ON)" if scratch_data.get("enabled", True) else "⛔ បិទ (OFF)"
+    box_str = "🟢 បើក (ON)" if box_data.get("enabled", True) else "⛔ បិទ (OFF)"
+    crash_str = "🟢 បើក (ON)" if crash_data.get("enabled", True) else "⛔ បិទ (OFF)"
+    text = (
+        f"🎮 <b>[CATEGORY: គ្រប់គ្រងហ្គេម & រង្វាន់ / MINI-GAMES]</b>\n\n"
+        f"🎡 <b>Lucky Spin៖</b> {spin_str}\n"
+        f"🎫 <b>Golden Scratch៖</b> {scratch_str}\n"
+        f"📦 <b>Mystery Box៖</b> {box_str}\n"
+        f"🚀 <b>Robux Crash៖</b> {crash_str}\n\n"
+        f"👇 <i>ជ្រើសរើសហ្គេមដើម្បីកែប្រែភាគរយឈ្នះ រង្វាន់ និងបើក/បិទ៖</i>"
+    )
+    markup = {
+        "inline_keyboard": [
+            [
+                {"text": "🎡 គ្រប់គ្រង Spin", "callback_data": "adm:spin"},
+                {"text": "🎫 គ្រប់គ្រង Scratch", "callback_data": "adm:scratch"}
             ],
             [
-                {"text": "🎫 គ្រប់គ្រង Scratch Card", "callback_data": "adm:scratch"},
-                {"text": "📦 គ្រប់គ្រង Mystery Box", "callback_data": "adm:box"}
-            ],
-            [
+                {"text": "📦 គ្រប់គ្រង Mystery Box", "callback_data": "adm:box"},
                 {"text": "🚀 គ្រប់គ្រង Robux Crash", "callback_data": "adm:crash"}
             ],
             [
+                {"text": "🏪 បិទ/បើក ហ្គេមនីមួយៗ", "callback_data": "adm:games"}
+            ],
+            [
+                {"text": "🏠 ម៉ឺនុយដើម (Main Menu)", "callback_data": "adm:home"}
+            ]
+        ]
+    }
+    return text, markup
+
+def _build_tg_cat_settings() -> tuple[str, Dict[str, Any]]:
+    maint_str = "🛠️ កំពុងជួសជុល (MAINTENANCE)" if settings.get("maintenance_mode") else "🟢 កំពុងដំណើរការ (ONLINE)"
+    fs_active = is_flash_sale_active()
+    bot_stk = get_total_inventory_stock()
+    text = (
+        f"⚙️ <b>[CATEGORY: ប្រព័ន្ធ ហាង & ស្តុក / STORE SETTINGS]</b>\n\n"
+        f"🌐 <b>ស្ថានភាពហាង៖</b> {maint_str}\n"
+        f"🤖 <b>ស្តុក Bot Robux៖</b> {bot_stk:,} R$\n"
+        f"⚡ <b>Flash Sale៖</b> {'🟢 កំពុងបើក' if fs_active else '⛔ បិទ'}\n\n"
+        f"👇 <i>សូមជ្រើសរើសការកំណត់ខាងក្រោម៖</i>"
+    )
+    markup = {
+        "inline_keyboard": [
+            [
+                {"text": "📦 Roblox Bot & Cookie", "callback_data": "adm:bot"},
                 {"text": f"⚡ Flash Sale ({'ON' if fs_active else 'OFF'})", "callback_data": "adm:fsale"}
             ],
             [
-                {"text": "📦 Roblox Bot & Cookie", "callback_data": "adm:bot"},
-                {"text": "🎟️ កូដបញ្ចុះតម្លៃ (Promo)", "callback_data": "adm:promos:0"}
+                {"text": "🎟️ កូដបញ្ចុះតម្លៃ (Promo)", "callback_data": "adm:promos:0"},
+                {"text": "🚫 Blacklist / ប្លុក", "callback_data": "adm:blk"}
             ],
             [
-                {"text": "🚫 Blacklist / ប្លុក", "callback_data": "adm:blk"},
-                {"text": "📢 ផ្សាយដំណឹង / បិទបើកហាង", "callback_data": "adm:store_ctrl"}
+                {"text": "📢 ផ្សាយដំណឹង / បិទបើកហាង", "callback_data": "adm:store_ctrl"},
+                {"text": "💾 Backup Data ភ្លាមៗ", "callback_data": "adm:backup_now"}
             ],
-            [{"text": "🔄 Refresh ផ្ទាំងបញ្ជា", "callback_data": "adm:home"}]
+            [
+                {"text": "🏠 ម៉ឺនុយដើម (Main Menu)", "callback_data": "adm:home"}
+            ]
         ]
     }
     return text, markup
@@ -3199,6 +3301,7 @@ def _build_tg_users_page(page: int = 0) -> tuple[str, Dict[str, Any]]:
         rows.append(nav)
     rows.append([
         {"text": "🔍 បញ្ចូល User ID", "callback_data": "adm:find"},
+        {"text": "⬅️ ផ្នែក Accounts", "callback_data": "adm:cat_acc"},
         {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}
     ])
     return text, {"inline_keyboard": rows}
@@ -3293,6 +3396,34 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         _tg_admin_state.pop(chat_id, None)
         text, markup = _build_tg_admin_home()
         await answer_callback_query(token, query_id, "Admin Panel refreshed")
+        if msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, text, markup)
+
+    elif sub == "cat_acc":
+        _tg_admin_state.pop(chat_id, None)
+        text, markup = _build_tg_cat_accounts()
+        await answer_callback_query(token, query_id, "")
+        if msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, text, markup)
+
+    elif sub == "cat_ord":
+        _tg_admin_state.pop(chat_id, None)
+        text, markup = _build_tg_cat_orders()
+        await answer_callback_query(token, query_id, "")
+        if msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, text, markup)
+
+    elif sub == "cat_games":
+        _tg_admin_state.pop(chat_id, None)
+        text, markup = _build_tg_cat_games()
+        await answer_callback_query(token, query_id, "")
+        if msg_id:
+            await edit_telegram_message(token, chat_id, msg_id, text, markup)
+
+    elif sub == "cat_settings":
+        _tg_admin_state.pop(chat_id, None)
+        text, markup = _build_tg_cat_settings()
+        await answer_callback_query(token, query_id, "")
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, text, markup)
 
