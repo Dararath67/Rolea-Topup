@@ -2,6 +2,14 @@
  * Rolea Topup - Customer Authentication, Wallet & Balance Manager
  */
 (function() {
+  // Enforce HTTPS across all pages
+  if (typeof window !== 'undefined' && window.location && window.location.protocol === 'http:') {
+    const hn = window.location.hostname;
+    if (hn !== 'localhost' && hn !== '127.0.0.1' && !hn.startsWith('192.168.') && !hn.startsWith('10.')) {
+      window.location.replace('https:' + window.location.href.substring(window.location.protocol.length));
+    }
+  }
+
   const TOKEN_KEY = 'rolea_token';
   const USER_CACHE_KEY = 'rolea_user_cache';
 

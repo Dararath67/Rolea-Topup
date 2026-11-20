@@ -5888,6 +5888,15 @@ async def security_and_no_cache_middleware(request: Request, call_next):
     if (host_hdr and not _HOST_HEADER_RE.match(host_hdr)) or (xf_host_hdr and not _HOST_HEADER_RE.match(xf_host_hdr)):
         return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid Host header"})
 
+    # 00. Force HTTPS redirection for HTTP traffic (301 Permanent Redirect)
+    xf_proto = (request.headers.get("x-forwarded-proto") or "").split(",")[0].strip().lower()
+    is_local_dev = any(h in host_hdr for h in ("localhost", "127.0.0.1", "0.0.0.0"))
+    if not is_local_dev and xf_proto == "http":
+        redir_target = f"https://{host_hdr or 'rolea-topup.vercel.app'}{request.url.path}"
+        if request.url.query:
+            redir_target += f"?{request.url.query}"
+        return RedirectResponse(url=redir_target, status_code=301)
+
     path = request.url.path
     raw_qs = request.url.query or ""
     norm_path, suspicious_path = _normalize_request_path(path)
@@ -6025,12 +6034,11 @@ async def security_and_no_cache_middleware(request: Request, call_next):
     response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
     response.headers["X-DNS-Prefetch-Control"] = "off"
     response.headers["X-Download-Options"] = "noopen"
-    response.headers["Content-Security-Policy"] = "frame-ancestors 'self'; object-src 'none'; base-uri 'self'"
+    response.headers["Content-Security-Policy"] = "upgrade-insecure-requests; frame-ancestors 'self'; object-src 'none'; base-uri 'self'"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=(), payment=(), usb=(), display-capture=()"
     response.headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
-    if _is_https_request(request):
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
     return response
 
 @app.exception_handler(ClientDisconnect)
