@@ -2,7 +2,6 @@
  * Rolea Topup - Customer Authentication, Wallet & Balance Manager
  */
 (function() {
-  let currentUser = null;
   const TOKEN_KEY = 'rolea_token';
   const USER_CACHE_KEY = 'rolea_user_cache';
 
@@ -19,6 +18,15 @@
       else localStorage.removeItem(USER_CACHE_KEY);
     } catch(e) {}
   }
+
+  // Pre-initialize currentUser from cache to eliminate UI flicker / false logouts
+  let currentUser = (function() {
+    try {
+      const tok = localStorage.getItem(TOKEN_KEY);
+      const cu = getCachedUser();
+      return (tok && cu) ? cu : null;
+    } catch(e) { return null; }
+  })();
 
   function notifyAuthReady() {
     window.__roleaAuthReady = true;
@@ -171,21 +179,32 @@
           cache: 'no-store',
           credentials: 'include'
         });
-        const j = await res.json();
-        if (res.ok && j.ok && j.user) {
-          currentUser = j.user;
-          setCachedUser(j.user);
-          renderNavbar();
-          notifyAuthReady();
-          return;
-        } else {
+        if (res.ok) {
+          const j = await res.json();
+          if (j && j.ok && j.user) {
+            currentUser = j.user;
+            setCachedUser(j.user);
+            setToken(t);
+            renderNavbar();
+            notifyAuthReady();
+            return;
+          }
+        }
+        if (res.status === 401) {
           currentUser = null;
           setCachedUser(null);
           setToken(null);
           t = null;
+        } else {
+          console.warn('Auth check non-401 response status:', res.status);
+          if (currentUser) {
+            renderNavbar();
+            notifyAuthReady();
+            return;
+          }
         }
       } catch (e) {
-        console.warn('Auth check offline');
+        console.warn('Auth check offline:', e);
         if (currentUser) {
           notifyAuthReady();
           return;
@@ -195,15 +214,21 @@
 
     // 2. If no local token, check if authenticated via Cookie rolea_token
     try {
-      const cRes = await fetch('/api/auth/me', { credentials: 'include' });
-      const cJ = await cRes.json();
-      if (cRes.ok && cJ.ok && cJ.user) {
-        currentUser = cJ.user;
-        setCachedUser(cJ.user);
-        if (cJ.token) setToken(cJ.token);
-        renderNavbar();
-        notifyAuthReady();
-        return;
+      const cRes = await fetch('/api/auth/me?t=' + Date.now(), {
+        credentials: 'include',
+        headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' },
+        cache: 'no-store'
+      });
+      if (cRes.ok) {
+        const cJ = await cRes.json();
+        if (cJ && cJ.ok && cJ.user) {
+          currentUser = cJ.user;
+          setCachedUser(cJ.user);
+          if (cJ.token) setToken(cJ.token);
+          renderNavbar();
+          notifyAuthReady();
+          return;
+        }
       }
     } catch (e) {}
 

@@ -87,6 +87,8 @@ SCRATCH_PATH = DATA_DIR / "scratch.json"
 BOX_PATH = DATA_DIR / "box.json"
 CRASH_PATH = DATA_DIR / "crash.json"
 FLASH_SALE_PATH = DATA_DIR / "flash_sale.json"
+SESSIONS_PATH = DATA_DIR / "sessions.json"
+TG_ADMIN_STATE_PATH = DATA_DIR / "tg_admin_state.json"
 
 # In-memory data store
 orders: List[Dict[str, Any]] = []
@@ -281,9 +283,10 @@ def _mysql_preload_all():
         except Exception as e:
             print(f"[MySQL] Preload failed: {e}")
 
-def _mysql_get(store_key: str) -> Optional[Any]:
-    if store_key in _mysql_preloaded_cache:
-        return _mysql_preloaded_cache[store_key]
+def _mysql_get(store_key: str, bypass_cache: bool = False) -> Optional[Any]:
+    if not bypass_cache and store_key in _mysql_preloaded_cache:
+        val = _mysql_preloaded_cache[store_key]
+        return copy.deepcopy(val) if isinstance(val, (dict, list)) else val
     if not _get_mysql_cfg() or pymysql is None:
         return None
     with _mysql_lock:
@@ -295,7 +298,9 @@ def _mysql_get(store_key: str) -> Optional[Any]:
                 cur.execute("SELECT payload FROM rolea_store WHERE store_key = %s", (store_key,))
                 row = cur.fetchone()
                 if row and row[0]:
-                    return json.loads(row[0])
+                    parsed = json.loads(row[0])
+                    _mysql_preloaded_cache[store_key] = copy.deepcopy(parsed) if isinstance(parsed, (dict, list)) else parsed
+                    return parsed
         except Exception as e:
             print(f"[MySQL] Read failed ({store_key}): {e}")
     return None
@@ -324,7 +329,7 @@ def _mysql_set(store_key: str, data: Any, sync: bool = False):
         return
     try:
         payload_str = json.dumps(data, ensure_ascii=False)
-        if sync or os.environ.get("VERCEL") or store_key in ("settings", "inventory", "packages", "admin_security", "blacklist"):
+        if sync or os.environ.get("VERCEL") or store_key in ("settings", "inventory", "packages", "admin_security", "blacklist", "sessions", "tg_admin_state"):
             _do_mysql_write(store_key, payload_str)
         else:
             _mysql_executor.submit(_do_mysql_write, store_key, payload_str)
@@ -604,9 +609,9 @@ def get_telegram_bot_token() -> str:
             return dec
     return tok
 
-def load_json(path: Path, default: Any) -> Any:
+def load_json(path: Path, default: Any, bypass_cache: bool = False) -> Any:
     key = path.stem
-    db_val = _mysql_get(key)
+    db_val = _mysql_get(key, bypass_cache=bypass_cache)
     if db_val is not None:
         try:
             with open(path, "w", encoding="utf-8") as f:
@@ -649,7 +654,7 @@ def save_json(path: Path, data: Any):
                 json.dump(data, f, indent=2, ensure_ascii=False)
         except Exception as ex2:
             print(f"Error saving {path}: {ex2}")
-    _mysql_preloaded_cache[path.stem] = data
+    _mysql_preloaded_cache[path.stem] = copy.deepcopy(data) if isinstance(data, (dict, list)) else data
     _mysql_set(path.stem, data)
     cache_invalidate_store(path.stem)
 
@@ -893,6 +898,40 @@ pending_crash_tickets: Dict[str, Dict[str, Any]] = {}
 
 def save_crash_data():
     save_json(CRASH_PATH, crash_data)
+
+sessions: Dict[str, Dict[str, Any]] = load_json(SESSIONS_PATH, {})
+def save_sessions():
+    save_json(SESSIONS_PATH, sessions)
+
+_tg_admin_state: Dict[str, Dict[str, Any]] = load_json(TG_ADMIN_STATE_PATH, {})
+def save_tg_admin_state():
+    save_json(TG_ADMIN_STATE_PATH, _tg_admin_state)
+
+def _set_tg_admin_state(chat_id: Union[str, int], state: Dict[str, Any]):
+    cid = str(chat_id)
+    _tg_admin_state[cid] = state
+    save_json(TG_ADMIN_STATE_PATH, _tg_admin_state)
+
+def _clear_tg_admin_state(chat_id: Union[str, int]):
+    cid = str(chat_id)
+    if cid in _tg_admin_state:
+        _tg_admin_state.pop(cid, None)
+        save_json(TG_ADMIN_STATE_PATH, _tg_admin_state)
+
+def _pop_tg_admin_state(chat_id: Union[str, int]) -> Optional[Dict[str, Any]]:
+    cid = str(chat_id)
+    if cid in _tg_admin_state:
+        st = _tg_admin_state.pop(cid)
+        save_json(TG_ADMIN_STATE_PATH, _tg_admin_state)
+        return st
+    fresh = load_json(TG_ADMIN_STATE_PATH, {})
+    if fresh and isinstance(fresh, dict) and cid in fresh:
+        st = fresh.pop(cid)
+        _tg_admin_state.clear()
+        _tg_admin_state.update(fresh)
+        save_json(TG_ADMIN_STATE_PATH, _tg_admin_state)
+        return st
+    return None
 
 def generate_crash_multiplier(house_edge_pct: float = 6.0, max_mult: float = 100.0) -> float:
     r = secrets.randbelow(1000000) / 1000000.0
@@ -1683,6 +1722,7 @@ def verify_password(plain_password: str, stored_hash: str) -> tuple[bool, bool]:
     return matched, matched
 
 def get_user_from_req(request: Request) -> Optional[Dict[str, Any]]:
+    global sessions, users
     token = None
     auth_header = request.headers.get("authorization")
     if auth_header and auth_header.startswith("Bearer "):
@@ -1692,18 +1732,38 @@ def get_user_from_req(request: Request) -> Optional[Dict[str, Any]]:
     elif "rolea_token" in request.cookies:
         token = request.cookies.get("rolea_token", "").strip()
 
-    if not token or token not in sessions:
+    if not token:
+        return None
+
+    # Multi-container resilience: if token is not in local memory, re-sync from MySQL / disk
+    if token not in sessions:
+        fresh_s = load_json(SESSIONS_PATH, None, bypass_cache=True)
+        if fresh_s and isinstance(fresh_s, dict):
+            sessions.update(fresh_s)
+
+    if token not in sessions:
         return None
 
     sess = sessions[token]
-    if sess.get("expiresAt", 0) < int(time.time() * 1000):
-        del sessions[token]
+    now_ms = int(time.time() * 1000)
+    if sess.get("expiresAt", 0) < now_ms:
+        sessions.pop(token, None)
+        save_sessions()
         return None
 
     user_id = sess.get("userId")
     for u in users:
         if u.get("id") == user_id:
             return u
+
+    # User may have been created or updated in another container; reload if needed
+    fresh_u = load_json(USERS_PATH, None)
+    if fresh_u and isinstance(fresh_u, list):
+        users = fresh_u
+        for u in users:
+            if u.get("id") == user_id:
+                return u
+
     return None
 
 def compute_emv_crc16(data: str) -> str:
@@ -2688,8 +2748,6 @@ async def handle_telegram_customer_callback(query: Dict[str, Any], token: str, d
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, text, markup)
 
-_tg_admin_state: Dict[str, Dict[str, Any]] = {}
-
 def _build_tg_stock_card(status_note: str = "") -> tuple[str, Dict[str, Any]]:
     global inventory, packages
     bots = inventory.get("bots", [])
@@ -3393,35 +3451,35 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
     status_note = ""
 
     if sub == "home":
-        _tg_admin_state.pop(chat_id, None)
+        _clear_tg_admin_state(chat_id)
         text, markup = _build_tg_admin_home()
         await answer_callback_query(token, query_id, "Admin Panel refreshed")
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, text, markup)
 
     elif sub == "cat_acc":
-        _tg_admin_state.pop(chat_id, None)
+        _clear_tg_admin_state(chat_id)
         text, markup = _build_tg_cat_accounts()
         await answer_callback_query(token, query_id, "")
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, text, markup)
 
     elif sub == "cat_ord":
-        _tg_admin_state.pop(chat_id, None)
+        _clear_tg_admin_state(chat_id)
         text, markup = _build_tg_cat_orders()
         await answer_callback_query(token, query_id, "")
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, text, markup)
 
     elif sub == "cat_games":
-        _tg_admin_state.pop(chat_id, None)
+        _clear_tg_admin_state(chat_id)
         text, markup = _build_tg_cat_games()
         await answer_callback_query(token, query_id, "")
         if msg_id:
             await edit_telegram_message(token, chat_id, msg_id, text, markup)
 
     elif sub == "cat_settings":
-        _tg_admin_state.pop(chat_id, None)
+        _clear_tg_admin_state(chat_id)
         text, markup = _build_tg_cat_settings()
         await answer_callback_query(token, query_id, "")
         if msg_id:
@@ -3509,6 +3567,8 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
             stale_tokens = [tok for tok, s in list(sessions.items()) if s.get("userId") == del_uid]
             for tok in stale_tokens:
                 sessions.pop(tok, None)
+            if stale_tokens:
+                save_sessions()
 
             # 2. Flag and disconnect any orders associated with this deleted user so they cannot resurrect the account
             for o in orders:
@@ -3549,28 +3609,28 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
         uid = parts[2] if len(parts) > 2 else ""
         ret_p = int(parts[3]) if len(parts) > 3 and parts[3].isdigit() else 0
         if sub == "find":
-            _tg_admin_state[chat_id] = {"mode": "find"}
+            _set_tg_admin_state(chat_id, {"mode": "find"})
             prompt = "🔍 <b>ស្វែងរកអតិថិជន (Find User)</b>\nសូម Reply សារនេះដោយបញ្ជូន <b>User ID</b> (ឧ. <code>usr_...</code>), ឈ្មោះ Username ឬ Email:"
         elif sub == "find_ord":
-            _tg_admin_state[chat_id] = {"mode": "find_ord"}
+            _set_tg_admin_state(chat_id, {"mode": "find_ord"})
             prompt = "🔎 <b>ស្វែងរក Order (Find Order)</b>\nសូម Reply សារនេះដោយបញ្ជូន <b>Order ID</b> (ឧ. <code>ORD-...</code> ឬ <code>SPIN...</code>):"
         elif sub == "cadd":
-            _tg_admin_state[chat_id] = {"mode": "cadd", "user_id": uid, "page": ret_p}
+            _set_tg_admin_state(chat_id, {"mode": "cadd", "user_id": uid, "page": ret_p})
             prompt = f"✏️ <b>បញ្ចូលទឹកប្រាក់តាមចិត្ត</b>\nសូម Reply សារនេះដោយបញ្ជូនចំនួនទឹកប្រាក់ USD ដែលត្រូវ <b>បន្ថែម</b> ទៅកាន់ User <code>{html.escape(uid, quote=False)}</code> (ឧ. <code>25</code>):"
         elif sub == "csub":
-            _tg_admin_state[chat_id] = {"mode": "csub", "user_id": uid, "page": ret_p}
+            _set_tg_admin_state(chat_id, {"mode": "csub", "user_id": uid, "page": ret_p})
             prompt = f"✏️ <b>កាត់ទឹកប្រាក់តាមចិត្ត</b>\nសូម Reply សារនេះដោយបញ្ជូនចំនួនទឹកប្រាក់ USD ដែលត្រូវ <b>កាត់ចេញពី</b> User <code>{html.escape(uid, quote=False)}</code> (ឧ. <code>5</code>):"
         elif sub == "promo_new":
-            _tg_admin_state[chat_id] = {"mode": "promo_new"}
+            _set_tg_admin_state(chat_id, {"mode": "promo_new"})
             prompt = "🎟️ <b>បង្កើតកូដបញ្ចុះតម្លៃថ្មី</b>\nសូម Reply សារនេះតាមទម្រង់ <code>CODE ចំនួន</code> (ឧ. <code>ROLEA10 10%</code> ឬ <code>SAVE5 $5</code>):"
         elif sub == "blk_u":
-            _tg_admin_state[chat_id] = {"mode": "blk_u"}
+            _set_tg_admin_state(chat_id, {"mode": "blk_u"})
             prompt = "🚫 <b>ប្លុកឈ្មោះ (Block Username)</b>\nសូម Reply សារនេះដោយបញ្ជូនឈ្មោះ Roblox Username ដែលត្រូវ Blacklist:"
         elif sub == "blk_ip":
-            _tg_admin_state[chat_id] = {"mode": "blk_ip"}
+            _set_tg_admin_state(chat_id, {"mode": "blk_ip"})
             prompt = "🚫 <b>ប្លុកអាសយដ្ឋាន IP (Block IP)</b>\nសូម Reply សារនេះដោយបញ្ជូន IP Address ដែលត្រូវ Blacklist:"
         else:
-            _tg_admin_state[chat_id] = {"mode": "bcast"}
+            _set_tg_admin_state(chat_id, {"mode": "bcast"})
             prompt = "📢 <b>ផ្ញើសារ Broadcast ទៅកាន់អតិថិជនទាំងអស់</b>\nសូម Reply សារនេះនូវខ្លឹមសារដែលត្រូវផ្ញើជូនអតិថិជនទាំងអស់តាម Telegram:"
         await answer_callback_query(token, query_id, "")
         await send_telegram_direct_message(token, chat_id, prompt, {"force_reply": True, "selective": True})
@@ -3714,7 +3774,7 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
             if not target:
                 await answer_callback_query(token, query_id, "រកមិនឃើញរង្វាន់នេះទេ។")
                 return
-            _tg_admin_state[chat_id] = {"mode": "spin_w_set", "slice_id": sid}
+            _set_tg_admin_state(chat_id, {"mode": "spin_w_set", "slice_id": sid})
             t_lbl = target.get("label", sid)
             t_w = float(target.get("weight", 0))
             prompt = (
@@ -3760,7 +3820,7 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
                 await answer_callback_query(token, query_id, "Invalid price")
         elif sub == "sc_p_custom":
             await answer_callback_query(token, query_id, "")
-            _tg_admin_state[chat_id] = {"mode": "scratch_price"}
+            _set_tg_admin_state(chat_id, {"mode": "scratch_price"})
             c_price = float(scratch_data.get("card_price_usd", 0.25))
             c_txt = (
                 "✏️ <b>កំណត់តម្លៃកាតកោស Scratch Card តាមចិត្ត៖</b>\n\n"
@@ -3989,7 +4049,7 @@ async def handle_telegram_admin_callback(query: Dict[str, Any], token: str, data
             status_note = "✅ បាន Sync ជាមួយគ្រប់ Bot ជោគជ័យ!" if sr.get("ok") else f"⚠️ Sync: {sr.get('error', 'បរាជ័យ')}"
             text, markup = _build_tg_stock_card(status_note)
         elif sub == "bot_add":
-            _tg_admin_state[chat_id] = {"mode": "bot_cookie_add"}
+            _set_tg_admin_state(chat_id, {"mode": "bot_cookie_add"})
             prompt = (
                 "➕ <b>បន្ថែម ROBLOX BOT & COOKIE ថ្មី</b>\n\n"
                 "សូម <b>Reply (ឆ្លើយតប)</b> សារនេះដោយផ្ញើកូដ <code>.ROBLOSECURITY</code> cookie របស់ Bot ថ្មី (Bot B / Bot C…):\n\n"
@@ -4557,6 +4617,8 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
         from_user = msg.get("from") or {}
         from_id = str(from_user.get("id") or "")
         from_uname = str(from_user.get("username") or "")
+        reply_to = msg.get("reply_to_message") or {}
+        reply_text = str(reply_to.get("text") or "")
 
         if text == "/admin" or text.startswith("/admin ") or text.startswith("/admin@"):
             if not is_telegram_admin(from_id, from_uname, chat_id):
@@ -4572,7 +4634,7 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                 markup = {"inline_keyboard": [[{"text": "បើក Admin ក្នុង Private Chat", "url": "https://t.me/RothzStore_bot?start=admin"}]]}
                 asyncio.create_task(send_telegram_direct_message(token, chat_id, warn_msg, markup))
             else:
-                _tg_admin_state.pop(chat_id, None)
+                _clear_tg_admin_state(chat_id)
                 adm_text, adm_markup = _build_tg_admin_home()
                 asyncio.create_task(send_telegram_direct_message(token, chat_id, adm_text, adm_markup))
         elif text == "/scratch" or text.startswith("/scratch ") or text.startswith("/scratch@"):
@@ -4776,14 +4838,60 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                     asyncio.create_task(send_telegram_direct_message(token, chat_id, "✅ <b>បានផ្ញើសារសាកល្បង Bug Alert ចូលគ្រុប Monitor log Rolea (<code>-1004361070205</code>) រួចរាល់!</b>"))
                 else:
                     asyncio.create_task(send_telegram_direct_message(token, chat_id, "⚠️ <b>ការផ្ញើ Bug Alert បរាជ័យ។ សូមពិនិត្យសិទ្ធិរបស់ Bot ក្នុងគ្រុប។</b>"))
-        elif is_telegram_admin(from_id, from_uname, chat_id) and chat_id in _tg_admin_state and text and not text.startswith("/"):
-            st_info = _tg_admin_state.pop(chat_id, {})
+        elif is_telegram_admin(from_id, from_uname, chat_id) and text and not text.startswith("/"):
+            st_info = _pop_tg_admin_state(chat_id)
+            if not st_info and reply_text:
+                if "ស្វែងរកអតិថិជន" in reply_text or "Find User" in reply_text:
+                    st_info = {"mode": "find"}
+                elif "ស្វែងរក Order" in reply_text or "Find Order" in reply_text:
+                    st_info = {"mode": "find_ord"}
+                elif "បញ្ចូលទឹកប្រាក់" in reply_text:
+                    m = re.search(r'usr_[a-zA-Z0-9]+', reply_text)
+                    st_info = {"mode": "cadd", "user_id": m.group(0) if m else "", "page": 0}
+                elif "កាត់ទឹកប្រាក់" in reply_text:
+                    m = re.search(r'usr_[a-zA-Z0-9]+', reply_text)
+                    st_info = {"mode": "csub", "user_id": m.group(0) if m else "", "page": 0}
+                elif "កូដបញ្ចុះតម្លៃ" in reply_text:
+                    st_info = {"mode": "promo_new"}
+                elif "ប្លុកឈ្មោះ" in reply_text:
+                    st_info = {"mode": "blk_u"}
+                elif "ប្លុកអាសយដ្ឋាន IP" in reply_text:
+                    st_info = {"mode": "blk_ip"}
+                elif "Broadcast" in reply_text:
+                    st_info = {"mode": "bcast"}
+                elif "Spin" in reply_text:
+                    st_info = {"mode": "spin_w_set"}
+                elif "Scratch" in reply_text:
+                    st_info = {"mode": "scratch_price"}
+                elif "Cookie" in reply_text or ".ROBLOSECURITY" in reply_text:
+                    st_info = {"mode": "bot_cookie_add"}
+
+            if not st_info:
+                clean_t = text.strip()
+                if clean_t.lower().startswith("usr_"):
+                    st_info = {"mode": "find"}
+                elif clean_t.upper().startswith(("ORD-", "WLT-", "SPIN-", "BOX-", "CRASH-", "PRE-")):
+                    st_info = {"mode": "find_ord"}
+                elif "@" in clean_t and "." in clean_t and " " not in clean_t:
+                    st_info = {"mode": "find"}
+
+            if not st_info:
+                return
+
             mode = st_info.get("mode")
             if mode == "find":
+                global users
                 q_low = text.strip().lower()
                 found = next((usr for usr in users if str(usr.get("id", "")).lower() == q_low or str(usr.get("username", "")).lower() == q_low or str(usr.get("email", "")).lower() == q_low), None)
                 if not found:
                     found = next((usr for usr in users if q_low in str(usr.get("id", "")).lower() or q_low in str(usr.get("username", "")).lower()), None)
+                if not found:
+                    fresh_u = load_json(USERS_PATH, None)
+                    if fresh_u and isinstance(fresh_u, list):
+                        users = fresh_u
+                        found = next((usr for usr in users if str(usr.get("id", "")).lower() == q_low or str(usr.get("username", "")).lower() == q_low or str(usr.get("email", "")).lower() == q_low), None)
+                        if not found:
+                            found = next((usr for usr in users if q_low in str(usr.get("id", "")).lower() or q_low in str(usr.get("username", "")).lower()), None)
                 if found:
                     card = _build_tg_user_card(str(found.get("id")), 0)
                     if card:
@@ -4926,8 +5034,14 @@ async def process_telegram_update(update: Dict[str, Any], token: str):
                 except Exception as ex:
                     asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ បរាជ័យក្នុងការតភ្ជាប់៖ {ex}"))
             elif mode == "find_ord":
+                global orders
                 q_ord = text.strip().lstrip("#").upper()
-                ord_obj = next((o for o in orders if str(o.get("order_id", "")).upper() in (q_ord, f"ORD-{q_ord}")), None)
+                ord_obj = next((o for o in orders if str(o.get("order_id", "")).upper() in (q_ord, f"ORD-{q_ord}") or q_ord in str(o.get("order_id", "")).upper()), None)
+                if not ord_obj:
+                    fresh_orders = load_json(DB_PATH, None)
+                    if fresh_orders and isinstance(fresh_orders, list):
+                        orders = fresh_orders
+                        ord_obj = next((o for o in orders if str(o.get("order_id", "")).upper() in (q_ord, f"ORD-{q_ord}") or q_ord in str(o.get("order_id", "")).upper()), None)
                 if not ord_obj:
                     asyncio.create_task(send_telegram_direct_message(token, chat_id, f"❌ រកមិនឃើញ Order <code>{html.escape(text, quote=False)}</code> ទេ។", {"inline_keyboard": [[{"text": "🔎 សាកល្បងម្តងទៀត", "callback_data": "adm:find_ord"}, {"text": "🏠 ម៉ឺនុយដើម", "callback_data": "adm:home"}]]}))
                 else:
@@ -8502,6 +8616,7 @@ async def register(request: Request):
         "userId": new_user["id"],
         "expiresAt": int((time.time() + 30 * 24 * 3600) * 1000)
     }
+    save_sessions()
 
     resp = JSONResponse(content={
         "ok": True,
@@ -8517,7 +8632,7 @@ async def register(request: Request):
     resp.set_cookie(
         key="rolea_token",
         value=token,
-        httponly=True,
+        httponly=False,
         samesite="lax",
         secure=_is_https_request(request),
         path="/",
@@ -8571,6 +8686,7 @@ async def login(request: Request):
         "userId": user["id"],
         "expiresAt": int((time.time() + 30 * 24 * 3600) * 1000)
     }
+    save_sessions()
 
     resp = JSONResponse(content={
         "ok": True,
@@ -8586,7 +8702,7 @@ async def login(request: Request):
     resp.set_cookie(
         key="rolea_token",
         value=token,
-        httponly=True,
+        httponly=False,
         samesite="lax",
         secure=_is_https_request(request),
         path="/",
@@ -8743,6 +8859,8 @@ async def customer_reset_password(request: Request):
     stale_tokens = [tok for tok, s in sessions.items() if s.get("userId") == user["id"]]
     for tok in stale_tokens:
         sessions.pop(tok, None)
+    if stale_tokens:
+        save_sessions()
 
     return {"ok": True, "message": "Password reset successfully! You can now sign in with your new password."}
 
@@ -8830,8 +8948,9 @@ async def auth_google(request: Request):
         "userId": user["id"],
         "expiresAt": int((time.time() + 30 * 24 * 3600) * 1000)
     }
+    save_sessions()
 
-    return {
+    resp = JSONResponse(content={
         "ok": True,
         "token": token,
         "user": {
@@ -8841,7 +8960,17 @@ async def auth_google(request: Request):
             "avatar": user.get("avatar"),
             "balance": user.get("balance", 0.0)
         }
-    }
+    })
+    resp.set_cookie(
+        key="rolea_token",
+        value=token,
+        httponly=False,
+        samesite="lax",
+        secure=_is_https_request(request),
+        path="/",
+        max_age=30 * 24 * 3600,
+    )
+    return resp
 
 @app.get("/api/auth/me")
 async def get_current_user(request: Request):
@@ -8858,7 +8987,12 @@ async def get_current_user(request: Request):
     elif "rolea_token" in request.cookies:
         token = request.cookies.get("rolea_token", "").strip()
 
-    return JSONResponse(
+    if token and token in sessions:
+        # Extend active session for another 30 days
+        sessions[token]["expiresAt"] = int((time.time() + 30 * 24 * 3600) * 1000)
+        save_sessions()
+
+    resp = JSONResponse(
         content={
             "ok": True,
             "token": token,
@@ -8867,11 +9001,23 @@ async def get_current_user(request: Request):
                 "username": user["username"],
                 "email": user["email"],
                 "balance": float(user.get("balance", 0.0)),
-                "avatar": user.get("avatar") or "/media/rolea-logo.webp"
+                "avatar": user.get("avatar") or "/media/rolea-logo.webp",
+                "role": user.get("role", "user")
             }
         },
         headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0", "Pragma": "no-cache"}
     )
+    if token:
+        resp.set_cookie(
+            key="rolea_token",
+            value=token,
+            httponly=False,
+            samesite="lax",
+            secure=_is_https_request(request),
+            path="/",
+            max_age=30 * 24 * 3600,
+        )
+    return resp
 
 @app.post("/api/auth/check-refund-autologin")
 async def check_refund_autologin(request: Request):
@@ -8927,6 +9073,7 @@ async def check_refund_autologin(request: Request):
                         "userId": target_user["id"],
                         "expiresAt": int((time.time() + 30 * 24 * 3600) * 1000)
                     }
+                    save_sessions()
 
                 resp = JSONResponse(content={
                     "ok": True,
@@ -8965,7 +9112,8 @@ async def logout(request: Request):
     elif "rolea_token" in request.cookies:
         token = request.cookies.get("rolea_token", "").strip()
     if token and token in sessions:
-        del sessions[token]
+        sessions.pop(token, None)
+        save_sessions()
     resp = JSONResponse(content={"ok": True})
     resp.delete_cookie("rolea_token", path="/")
     return resp
@@ -9011,6 +9159,8 @@ async def update_customer_profile(request: Request):
         stale = [tok for tok, s in sessions.items() if s.get("userId") == user["id"] and tok != cur_tok]
         for tok in stale:
             sessions.pop(tok, None)
+        if stale:
+            save_sessions()
 
     save_users()
     return {
@@ -9744,6 +9894,7 @@ async def get_order_status(order_id: str, request: Request):
                     "userId": ref_usr["id"],
                     "expiresAt": int((time.time() + 30 * 24 * 3600) * 1000)
                 }
+                save_sessions()
             order_status_payload["auto_login_token"] = auto_login_token
             order_status_payload["wallet_refunded"] = True
             order_status_payload["refunded_username"] = ref_usr.get("username")
@@ -9813,6 +9964,7 @@ async def claim_refund_wallet(request: Request):
         "userId": target_user["id"],
         "expiresAt": int((time.time() + 30 * 24 * 3600) * 1000)
     }
+    save_sessions()
 
     safe_user = {
         "id": target_user["id"],
@@ -9833,7 +9985,7 @@ async def claim_refund_wallet(request: Request):
     resp.set_cookie(
         key="rolea_token",
         value=token,
-        httponly=True,
+        httponly=False,
         samesite="lax",
         secure=_is_https_request(request),
         path="/",
@@ -12396,6 +12548,7 @@ async def admin_edit_user(request: Request):
         user.pop("password_plain", None)
         for tok in [t for t, s in sessions.items() if s.get("userId") == user.get("id")]:
             sessions.pop(tok, None)
+        save_sessions()
 
     save_users()
     return {
@@ -12425,6 +12578,8 @@ async def admin_delete_user(request: Request):
     stale_tokens = [tok for tok, s in list(sessions.items()) if s.get("userId") == del_uid]
     for tok in stale_tokens:
         sessions.pop(tok, None)
+    if stale_tokens:
+        save_sessions()
 
     # 2. Flag and disconnect any orders associated with this deleted user so they cannot resurrect the account
     for o in orders:
