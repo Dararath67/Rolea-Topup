@@ -1554,10 +1554,12 @@ def _check_and_enforce_wallet_guard(user: Dict[str, Any], spend_amount: float) -
             pass
 
     try:
-        vel_max = max(2, int(admin_security.get("wallet_velocity_max_tx_5m", 8) or 8))
+        vel_max = max(10, int(admin_security.get("wallet_velocity_max_tx_5m", 30) or 30))
     except (ValueError, TypeError):
-        vel_max = 8
-    if recent_5m_count >= vel_max:
+        vel_max = 30
+    # For micro game bets (<= $0.50), allow up to 50 rounds per 5 minutes without false positive auto-freeze
+    effective_max = 50 if spend_amount <= 0.50 else vel_max
+    if recent_5m_count >= effective_max:
         user["wallet_frozen"] = True
         user["wallet_freeze_reason"] = f"Auto-frozen: {recent_5m_count} rapid wallet spends within 5 min"
         save_users()
@@ -1704,14 +1706,28 @@ def get_user_from_req(request: Request) -> Optional[Dict[str, Any]]:
             return u
     return None
 
+def compute_emv_crc16(data: str) -> str:
+    crc = 0xFFFF
+    for ch in data.encode("utf-8"):
+        crc ^= (ch << 8)
+        for _ in range(8):
+            if crc & 0x8000:
+                crc = ((crc << 1) ^ 0x1021) & 0xFFFF
+            else:
+                crc = (crc << 1) & 0xFFFF
+    return f"{crc:04X}"
+
 def generate_khqr_data_url(khqr_payload: str) -> str:
+    payload = str(khqr_payload or "").strip()
+    if payload.endswith("6304"):
+        payload = payload + compute_emv_crc16(payload)
     qr = qrcode.QRCode(
         version=None,
         error_correction=qrcode.constants.ERROR_CORRECT_M,
         box_size=10,
         border=2,
     )
-    qr.add_data(khqr_payload)
+    qr.add_data(payload)
     qr.make(fit=True)
     img = qr.make_image(fill_color="#10234b", back_color="#ffffff")
     buf = io.BytesIO()
@@ -1761,6 +1777,8 @@ async def check_khqrpay_status(payment_id: str) -> Optional[Dict[str, Any]]:
     except Exception as err:
         print("[KHQRPay] Error checking payment status:", err)
     return None
+
+verify_khqrpay_order = check_khqrpay_status
 
 def format_ict_time(dt_val: Any = None) -> str:
     ict_tz = timezone(timedelta(hours=7))
@@ -5043,12 +5061,13 @@ def verify_khqr_bank_payment(live: Optional[Dict[str, Any]], expected_amount: fl
     if not isinstance(live, dict):
         return False, "invalid_payload"
     st = str(live.get("status", "")).lower().strip()
-    if st not in ("paid", "success", "completed"):
+    is_paid_status = (st in ("paid", "success", "completed")) or (live.get("paid") is True)
+    if not is_paid_status:
         return False, st or "pending"
 
     if expected_order_id:
-        live_oid = str(live.get("order_id") or "").strip().upper().lstrip("#")
-        exp_oid = str(expected_order_id).strip().upper().lstrip("#")
+        live_oid = str(live.get("order_id") or "").strip().upper().lstrip("#").replace("ORD-", "")
+        exp_oid = str(expected_order_id).strip().upper().lstrip("#").replace("ORD-", "")
         if live_oid and exp_oid and live_oid != exp_oid:
             return False, "order_id_mismatch"
 
@@ -7093,8 +7112,8 @@ async def check_scratch_ticket_status(scratch_id: str, request: Request):
 
     paid_status = False
     if t.get("khqrpay_id"):
-        v_res = await verify_khqrpay_order(t["khqrpay_id"])
-        if v_res and str(v_res.get("status", "")).lower() == "paid":
+        v_res = await check_khqrpay_status(t["khqrpay_id"])
+        if v_res and (v_res.get("paid") is True or str(v_res.get("status", "")).lower() in ("paid", "completed", "success")):
             paid_status = True
 
     if paid_status and not t.get("paid"):
@@ -7608,8 +7627,8 @@ async def get_box_ticket_status(ticket_id: str):
     is_paid = False
     if khqrpay_id:
         try:
-            status_data = await verify_khqrpay_order(khqrpay_id)
-            if status_data and status_data.get("status") in ("paid", "completed", "success"):
+            status_data = await check_khqrpay_status(khqrpay_id)
+            if status_data and (status_data.get("paid") is True or str(status_data.get("status", "")).lower() in ("paid", "completed", "success")):
                 is_paid = True
         except Exception:
             pass
@@ -8019,7 +8038,7 @@ async def get_crash_ticket(ticket_id: str):
         khqrpay_id = ticket.get("khqrpay_id")
         if khqrpay_id:
             status_res = await check_khqrpay_status(khqrpay_id)
-            if status_res and status_res.get("paid"):
+            if status_res and (status_res.get("paid") is True or str(status_res.get("status", "")).lower() in ("paid", "completed", "success")):
                 ticket["paid"] = True
 
     if ticket.get("paid"):
@@ -10429,7 +10448,7 @@ async def admin_order_action(request: Request):
             order["label"] = "Payment verified by Admin"
             if order.get("type") == "wallet_topup" and not order.get("wallet_credited"):
                 order["wallet_credited"] = True
-                u = next((usr for usr in users if usr.get("id") == order.get("user_id")), None)
+                u = next((usr for usr in users if usr.get("id") == order.get("user_id") or (order.get("buyer_account") and str(usr.get("username", "")).lower() == str(order.get("buyer_account", "")).lower())), None)
                 if u:
                     u["balance"] = round(float(u.get("balance", 0.0)) + float(order["amount"]), 2)
                     save_users()
@@ -10472,7 +10491,7 @@ async def admin_order_action(request: Request):
             asyncio.create_task(notify_customer_order_completed(order))
             if order.get("type") == "wallet_topup" and not order.get("wallet_credited"):
                 order["wallet_credited"] = True
-                u = next((usr for usr in users if usr.get("id") == order.get("user_id")), None)
+                u = next((usr for usr in users if usr.get("id") == order.get("user_id") or (order.get("buyer_account") and str(usr.get("username", "")).lower() == str(order.get("buyer_account", "")).lower())), None)
                 if u:
                     u["balance"] = round(float(u.get("balance", 0.0)) + float(order["amount"]), 2)
                     save_users()

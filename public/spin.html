@@ -1047,7 +1047,10 @@ function startKhqrPolling(spinId) {
   if (khqrPollTimer) clearInterval(khqrPollTimer);
   khqrPollTimer = setInterval(async () => {
     try {
-      const res = await fetch('/api/spin/ticket/' + spinId);
+      const res = await fetch('/api/spin/ticket/' + spinId + '?_t=' + Date.now(), {
+        headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' },
+        cache: 'no-store'
+      });
       const j = await res.json();
       if (res.ok && j.ok && j.paid && j.result) {
         clearInterval(khqrPollTimer);

@@ -1556,7 +1556,10 @@ function startKhqrPolling(scratchId) {
   if (khqrPollInterval) clearInterval(khqrPollInterval);
   khqrPollInterval = setInterval(async () => {
     try {
-      const res = await fetch('/api/scratch/ticket/' + scratchId);
+      const res = await fetch('/api/scratch/ticket/' + scratchId + '?_t=' + Date.now(), {
+        headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' },
+        cache: 'no-store'
+      });
       const j = await res.json();
       if (res.ok && j.ok && j.paid && j.card) {
         clearInterval(khqrPollInterval);

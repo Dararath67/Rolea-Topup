@@ -664,6 +664,7 @@ function post(u, b) {
   return fetch(u, {
     method: "POST",
     headers: headers,
+    credentials: "include",
     body: JSON.stringify(b)
   }).then(r => r.json().then(j => ({ ok: r.ok, j })));
 }
@@ -1258,7 +1259,13 @@ async function ps() {
   if (!cur || polling || document.hidden) return;
   polling = true;
   try {
-    const r = await fetch("/api/order-status/" + encodeURIComponent(cur.order_id));
+    const qParams = new URLSearchParams({ t: Date.now() });
+    if (cur.token) qParams.set('token', cur.token);
+    const r = await fetch("/api/order-status/" + encodeURIComponent(cur.order_id) + "?" + qParams.toString(), {
+      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' },
+      cache: 'no-store',
+      credentials: 'include'
+    });
     if (r.ok) sync(await r.json());
   } catch (e) {} finally {
     polling = false;

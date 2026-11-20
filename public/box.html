@@ -1337,7 +1337,10 @@ async function openBoxWithKHQR() {
 
 async function pollKHQRStatus(ticketId) {
   try {
-    const res = await fetch(`/api/box/ticket/${ticketId}?_t=` + Date.now());
+    const res = await fetch(`/api/box/ticket/${ticketId}?_t=` + Date.now(), {
+      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' },
+      cache: 'no-store'
+    });
     const j = await res.json();
     if (res.ok && j.ok && j.paid && j.opened) {
       clearInterval(khqrPollTimer);
