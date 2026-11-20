@@ -18,7 +18,7 @@
     "kicker": "TIKTOK · FOLLOWERS & LIKES",
     "unit": "Followers",
     "type": "smm",
-    "enabled": true,
+    "enabled": false,
     "logo": "/media/tiktok-thumb.svg",
     "banner": "/media/tiktok-banner.svg",
     "badge": "PROMO"

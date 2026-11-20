@@ -7929,7 +7929,7 @@ async function loadAdminCrashData() {
         hBody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:20px">No customer Crash rounds recorded yet.</td></tr>';
       } else {
         hBody.innerHTML = hist.slice(0, 50).map(h => {
-          const isWin = bool(h.won);
+          const isWin = Boolean(h.won);
           const resBadge = isWin
             ? `<span style="background:#dcfce7;color:#15803d;padding:3px 9px;border-radius:8px;font-weight:800">+${Number(h.robux || 0).toLocaleString()} Robux</span>`
             : '<span style="background:#fee2e2;color:#b91c1c;padding:3px 9px;border-radius:8px;font-weight:700">Crashed (0 R$)</span>';

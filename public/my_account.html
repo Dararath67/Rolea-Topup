@@ -929,7 +929,10 @@ async function loadDashboardData() {
   }
 
   try {
-    const res = await fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } });
+    const res = await fetch('/api/auth/me?t=' + Date.now(), {
+      headers: { 'Authorization': 'Bearer ' + token, 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' },
+      cache: 'no-store'
+    });
     const j = await res.json();
     if (!res.ok || !j.ok || !j.user) {
       document.getElementById('unauth-view').style.display = 'block';

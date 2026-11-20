@@ -80,6 +80,50 @@
   ],
   "history": [
     {
+      "spin_id": "SPINE92218EA",
+      "username": "mogak",
+      "label": "Thank You",
+      "robux": 0,
+      "price_usd": 0.0,
+      "payment_method": "Daily Free Spin",
+      "guard_triggered": false,
+      "order_id": null,
+      "created_at": "2026-11-19T13:57:47.296828+00:00"
+    },
+    {
+      "spin_id": "SPIND26699F1",
+      "username": "raphopsoeun",
+      "label": "Thank You",
+      "robux": 0,
+      "price_usd": 0.0,
+      "payment_method": "Daily Free Spin",
+      "guard_triggered": false,
+      "order_id": null,
+      "created_at": "2026-11-19T09:28:22.216332+00:00"
+    },
+    {
+      "spin_id": "SPINF26B0ECE",
+      "username": "ponpon",
+      "label": "Thank You",
+      "robux": 0,
+      "price_usd": 0.0,
+      "payment_method": "Daily Free Spin",
+      "guard_triggered": false,
+      "order_id": null,
+      "created_at": "2026-11-19T07:54:53.801946+00:00"
+    },
+    {
+      "spin_id": "SPINCA74508D",
+      "username": "zikkkkyy",
+      "label": "Thank You",
+      "robux": 0,
+      "price_usd": 0.0,
+      "payment_method": "Daily Free Spin",
+      "guard_triggered": false,
+      "order_id": null,
+      "created_at": "2026-11-18T16:25:22.123224+00:00"
+    },
+    {
       "spin_id": "SPIN3702A7EF",
       "username": "raphopsoeun",
       "label": "Thank You",

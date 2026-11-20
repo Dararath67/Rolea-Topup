@@ -8697,7 +8697,7 @@ async def auth_google(request: Request):
 async def get_current_user(request: Request):
     user = get_user_from_req(request)
     if not user:
-        return {"ok": False, "user": None}
+        return JSONResponse(status_code=401, content={"ok": False, "user": None}, headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0", "Pragma": "no-cache"})
 
     token = None
     auth_header = request.headers.get("authorization")
@@ -8708,17 +8708,20 @@ async def get_current_user(request: Request):
     elif "rolea_token" in request.cookies:
         token = request.cookies.get("rolea_token", "").strip()
 
-    return {
-        "ok": True,
-        "token": token,
-        "user": {
-            "id": user["id"],
-            "username": user["username"],
-            "email": user["email"],
-            "balance": user["balance"],
-            "avatar": user["avatar"]
-        }
-    }
+    return JSONResponse(
+        content={
+            "ok": True,
+            "token": token,
+            "user": {
+                "id": user["id"],
+                "username": user["username"],
+                "email": user["email"],
+                "balance": float(user.get("balance", 0.0)),
+                "avatar": user.get("avatar") or "/media/rolea-logo.webp"
+            }
+        },
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0", "Pragma": "no-cache"}
+    )
 
 @app.post("/api/auth/check-refund-autologin")
 async def check_refund_autologin(request: Request):
@@ -9472,7 +9475,7 @@ async def get_order_status(order_id: str, request: Request):
                             order["delivered"] = True
                             if not order.get("wallet_credited"):
                                 order["wallet_credited"] = True
-                                u = next((usr for usr in users if usr.get("id") == order.get("user_id")), None)
+                                u = next((usr for usr in users if usr.get("id") == order.get("user_id") or (order.get("buyer_account") and str(usr.get("username", "")).lower() == str(order.get("buyer_account", "")).lower())), None)
                                 if u:
                                     u["balance"] = round(float(u.get("balance", 0.0)) + float(order["amount"]), 2)
                                     save_users()
@@ -9535,7 +9538,7 @@ async def get_order_status(order_id: str, request: Request):
         except Exception:
             pass
 
-    ref_usr = next((u for u in users if u.get("id") == order.get("user_id")), None) if order.get("user_id") else None
+    ref_usr = next((u for u in users if u.get("id") == order.get("user_id") or (order.get("buyer_account") and str(u.get("username", "")).lower() == str(order.get("buyer_account", "")).lower())), None) if (order.get("user_id") or order.get("buyer_account")) else None
 
     order_status_payload = {
         "ok": True,
@@ -9564,7 +9567,8 @@ async def get_order_status(order_id: str, request: Request):
         "is_owner": bool(is_owner),
         "can_claim_wallet": bool(order.get("status") == "refunded" and order.get("wallet_refunded") and order.get("user_id")),
         "refunded_username": (ref_usr.get("username") if ref_usr else None),
-        "refunded_balance": (float(ref_usr.get("balance", 0.0)) if ref_usr else None)
+        "refunded_balance": (float(ref_usr.get("balance", 0.0)) if ref_usr else None),
+        "current_balance": (float(ref_usr.get("balance", 0.0)) if ref_usr else None)
     }
 
     # Auto-Login & Wallet Credit: ONLY authenticate if request has verified ownership (is_owner == True)
@@ -9601,7 +9605,7 @@ async def get_order_status(order_id: str, request: Request):
                 "avatar": ref_usr.get("avatar") or "/media/rolea-logo.webp"
             }
 
-    resp = JSONResponse(content=order_status_payload)
+    resp = JSONResponse(content=order_status_payload, headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0", "Pragma": "no-cache"})
     if auto_login_token:
         resp.set_cookie(
             key="rolea_token",
@@ -9701,16 +9705,17 @@ async def khqrpay_webhook(request: Request):
 
     payment_data = body.get("payment") if isinstance(body.get("payment"), dict) else body
     target_oid = str(payment_data.get("order_id") or body.get("order_id") or "").strip().upper().lstrip("#")
-    if not target_oid:
+    target_kid = str(payment_data.get("id") or body.get("id") or "").strip()
+    if not target_oid and not target_kid:
         return JSONResponse(status_code=400, content={"ok": False, "error": "Missing order_id"})
 
     async with _tx_lock:
-        order = next((o for o in orders if str(o.get("order_id", "")).strip().upper() in (target_oid, f"ORD-{target_oid}", target_oid.replace("ORD-", ""))), None)
+        order = next((o for o in orders if (target_oid and str(o.get("order_id", "")).strip().upper() in (target_oid, f"ORD-{target_oid}", target_oid.replace("ORD-", ""))) or (target_kid and str(o.get("khqrpay_id", "")).strip() == target_kid)), None)
         if not order:
             refreshed = load_json(DB_PATH, orders)
             if isinstance(refreshed, list):
                 orders[:] = refreshed
-                order = next((o for o in orders if str(o.get("order_id", "")).strip().upper() in (target_oid, f"ORD-{target_oid}", target_oid.replace("ORD-", ""))), None)
+                order = next((o for o in orders if (target_oid and str(o.get("order_id", "")).strip().upper() in (target_oid, f"ORD-{target_oid}", target_oid.replace("ORD-", ""))) or (target_kid and str(o.get("khqrpay_id", "")).strip() == target_kid)), None)
 
         if not order:
             return JSONResponse(status_code=404, content={"ok": False, "error": "Order not found"})
@@ -9724,7 +9729,7 @@ async def khqrpay_webhook(request: Request):
                 order["delivered"] = True
                 if not order.get("wallet_credited"):
                     order["wallet_credited"] = True
-                    u = next((usr for usr in users if usr.get("id") == order.get("user_id")), None)
+                    u = next((usr for usr in users if usr.get("id") == order.get("user_id") or (order.get("buyer_account") and str(usr.get("username", "")).lower() == str(order.get("buyer_account", "")).lower())), None)
                     if u:
                         u["balance"] = round(float(u.get("balance", 0.0)) + float(order["amount"]), 2)
                         save_users()

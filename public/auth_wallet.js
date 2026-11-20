@@ -22,8 +22,13 @@
 
   function notifyAuthReady() {
     window.__roleaAuthReady = true;
+    const detail = { user: currentUser, balance: currentUser ? Number(currentUser.balance || 0) : 0 };
     try {
-      document.dispatchEvent(new CustomEvent('rolea:auth-ready', { detail: { user: currentUser } }));
+      document.dispatchEvent(new CustomEvent('rolea:auth-ready', { detail }));
+      window.dispatchEvent(new CustomEvent('rolea:auth-ready', { detail }));
+      window.dispatchEvent(new CustomEvent('RoleaAuthReady', { detail }));
+      window.dispatchEvent(new CustomEvent('rolea-auth-change', { detail }));
+      window.dispatchEvent(new CustomEvent('rolea:balance-update', { detail: { balance: detail.balance } }));
     } catch(e) {}
     if (window.RoleaLoader && typeof window.RoleaLoader.onAuthReady === 'function') {
       try { window.RoleaLoader.onAuthReady(); } catch(e) {}
@@ -137,8 +142,17 @@
   }
 
   function setToken(token) {
-    if (token) localStorage.setItem(TOKEN_KEY, token);
-    else localStorage.removeItem(TOKEN_KEY);
+    if (token) {
+      localStorage.setItem(TOKEN_KEY, token);
+      try {
+        document.cookie = `rolea_token=${encodeURIComponent(token)}; path=/; max-age=2592000; SameSite=Lax`;
+      } catch(e) {}
+    } else {
+      localStorage.removeItem(TOKEN_KEY);
+      try {
+        document.cookie = 'rolea_token=; path=/; max-age=0; SameSite=Lax';
+      } catch(e) {}
+    }
   }
 
   function getAuthHeaders() {
@@ -152,8 +166,9 @@
     // 1. If we already have a local token, verify it with /api/auth/me
     if (t) {
       try {
-        const res = await fetch('/api/auth/me', {
-          headers: { 'Authorization': 'Bearer ' + t },
+        const res = await fetch('/api/auth/me?t=' + Date.now(), {
+          headers: { 'Authorization': 'Bearer ' + t, 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' },
+          cache: 'no-store',
           credentials: 'include'
         });
         const j = await res.json();
@@ -733,10 +748,15 @@
 
             <div id="wallet-custom-input-box" style="display:none;margin-bottom:14px">
               <label style="font-size:12px;font-weight:700;color:#475569">Custom Amount ($ USD)</label>
-              <input type="number" id="wallet-custom-amt" step="0.5" min="0.5" value="15.00" style="width:100%;padding:10px 14px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:16px;box-sizing:border-box">
+              <input type="number" id="wallet-custom-amt" step="0.5" min="0.5" value="15.00" oninput="window.RoleaAuth.onCustomAmtInput(this.value)" style="width:100%;padding:10px 14px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:16px;box-sizing:border-box">
             </div>
 
-            <button class="btn-rolea-submit" onclick="window.RoleaAuth.createWalletDeposit()">
+            <div id="wallet-preview-calc" style="background:#f0fdf4;border:1.5px dashed #86efac;border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:12.5px;color:#166534;display:flex;align-items:center;justify-content:space-between">
+              <span>Preview New Balance:</span>
+              <strong style="font-size:14px;color:#15803d" id="wallet-preview-new-bal">$${(Number(currentUser.balance || 0) + 1.00).toFixed(2)} USD (+ $1.00)</strong>
+            </div>
+
+            <button class="btn-rolea-submit" id="btn-create-wallet-deposit" onclick="window.RoleaAuth.createWalletDeposit()">
               Generate ABA KHQR Deposit QR
             </button>
           </div>
@@ -752,7 +772,11 @@
               Waiting for KHQR payment confirmation…
             </div>
             <div id="wallet-qr-ttl" style="margin-top:8px;display:inline-block;padding:4px 12px;border-radius:999px;background:#f1f5f9;color:#475569;font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums">Expires in 10:00</div>
-            <div style="margin-top:14px;display:flex;gap:10px">
+            <button id="wallet-btn-check-now" type="button" class="btn-rolea-submit" style="background:#059669;color:#fff;margin-top:12px;display:flex;align-items:center;justify-content:center;gap:8px" onclick="window.RoleaAuth.checkWalletDepositNow()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+              <span>Check Payment Status Now</span>
+            </button>
+            <div style="margin-top:10px;display:flex;gap:10px">
               <a id="wallet-aba-deeplink" href="#" class="btn-rolea-submit" style="background:#0056b3;text-decoration:none;display:none;flex:1;text-align:center">Open ABA App</a>
               <button class="btn-rolea-submit" style="background:#f1f5f9;color:#334155;flex:1" onclick="window.RoleaAuth.backToDepositAmount()">Cancel</button>
             </div>
@@ -765,6 +789,23 @@
   }
 
   let selectedDepositAmount = 1.00;
+  let activeDepositOrderId = null;
+  let activeDepositAmt = 1.00;
+
+  function updateWalletPreview(depositAmt) {
+    let deposit = parseFloat(depositAmt);
+    if (isNaN(deposit) || deposit < 0) deposit = 0;
+    const curBal = Number((currentUser && currentUser.balance) || 0);
+    const newBal = curBal + deposit;
+    const prevEl = document.getElementById('wallet-preview-new-bal');
+    if (prevEl) {
+      prevEl.textContent = `$${newBal.toFixed(2)} USD (+ $${deposit.toFixed(2)})`;
+    }
+  }
+
+  function onCustomAmtInput(val) {
+    updateWalletPreview(val);
+  }
 
   function selectTopupAmt(amt, btn) {
     document.querySelectorAll('.topup-amt-btn').forEach(b => b.classList.remove('selected'));
@@ -773,9 +814,80 @@
     if (amt === 'custom') {
       customBox.style.display = 'block';
       selectedDepositAmount = 'custom';
+      const cVal = document.getElementById('wallet-custom-amt') ? document.getElementById('wallet-custom-amt').value : 15;
+      updateWalletPreview(cVal);
     } else {
       customBox.style.display = 'none';
       selectedDepositAmount = amt;
+      updateWalletPreview(amt);
+    }
+  }
+
+  async function checkWalletDepositNow() {
+    if (!activeDepositOrderId) return;
+    const checkBtn = document.getElementById('wallet-btn-check-now');
+    if (checkBtn) {
+      checkBtn.disabled = true;
+      checkBtn.innerHTML = `
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" style="animation:spin 1s linear infinite"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>
+        <span>Checking Payment Status…</span>
+      `;
+    }
+
+    try {
+      const stRes = await fetch(`/api/order-status/${activeDepositOrderId}?t=${Date.now()}`, {
+        headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' },
+        cache: 'no-store'
+      });
+      const stData = await stRes.json();
+      if (stData.ok && (stData.paid || stData.status === 'completed')) {
+        if (walletPollingInterval) clearInterval(walletPollingInterval);
+        if (walletTtlInterval) clearInterval(walletTtlInterval);
+
+        const newBal = (stData.current_balance != null && !isNaN(Number(stData.current_balance)))
+          ? Number(stData.current_balance)
+          : (currentUser ? Math.round((Number(currentUser.balance || 0) + Number(activeDepositAmt)) * 100) / 100 : Number(activeDepositAmt));
+
+        if (currentUser) {
+          currentUser.balance = newBal;
+          setCachedUser(currentUser);
+        }
+
+        const balFmt = '$' + newBal.toFixed(2);
+        document.querySelectorAll('.wallet-val').forEach(el => el.textContent = balFmt);
+        const modalBal = document.getElementById('wallet-modal-cur-bal');
+        if (modalBal) modalBal.innerHTML = balFmt + ' <span style="font-size:14px;font-weight:700;opacity:0.9">USD</span>';
+        const usrBal = document.getElementById('usr-balance');
+        if (usrBal) usrBal.textContent = balFmt;
+
+        notifyAuthReady();
+        await checkCurrentUser();
+        closeModals();
+
+        await RoleaDialog.alert({
+          title: 'Deposit Successful!',
+          message: `$${Number(activeDepositAmt).toFixed(2)} USD has been credited to your Rolea Wallet! New balance: ${balFmt}`,
+          type: 'success',
+          confirmText: 'Awesome!'
+        });
+        return;
+      } else {
+        if (checkBtn) {
+          checkBtn.disabled = false;
+          checkBtn.innerHTML = `
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            <span>Check Payment Status Now</span>
+          `;
+        }
+      }
+    } catch(e) {
+      if (checkBtn) {
+        checkBtn.disabled = false;
+        checkBtn.innerHTML = `
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          <span>Check Payment Status Now</span>
+        `;
+      }
     }
   }
 
@@ -793,6 +905,12 @@
       return;
     }
 
+    const genBtn = document.getElementById('btn-create-wallet-deposit');
+    if (genBtn) {
+      genBtn.disabled = true;
+      genBtn.textContent = 'Generating ABA KHQR Deposit QR…';
+    }
+
     try {
       const res = await fetch('/api/wallet/topup', {
         method: 'POST',
@@ -801,6 +919,9 @@
       });
       const j = await res.json();
       if (res.ok && j.ok) {
+        activeDepositOrderId = j.order_id;
+        activeDepositAmt = amt;
+
         document.getElementById('wallet-step-select').style.display = 'none';
         document.getElementById('wallet-step-qr').style.display = 'block';
         document.getElementById('wallet-qr-amount').textContent = `$${Number(amt).toFixed(2)} USD`;
@@ -845,18 +966,40 @@
         if (walletPollingInterval) clearInterval(walletPollingInterval);
         walletPollingInterval = setInterval(async () => {
           try {
-            const stRes = await fetch(`/api/order-status/${j.order_id}`);
+            const stRes = await fetch(`/api/order-status/${j.order_id}?t=${Date.now()}`, {
+              headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' },
+              cache: 'no-store'
+            });
             const stData = await stRes.json();
             if (stData.ok && (stData.paid || stData.status === 'completed')) {
               clearInterval(walletPollingInterval);
               if (walletTtlInterval) clearInterval(walletTtlInterval);
+
+              const newBal = (stData.current_balance != null && !isNaN(Number(stData.current_balance)))
+                ? Number(stData.current_balance)
+                : (currentUser ? Math.round((Number(currentUser.balance || 0) + Number(amt)) * 100) / 100 : Number(amt));
+
+              if (currentUser) {
+                currentUser.balance = newBal;
+                setCachedUser(currentUser);
+              }
+
+              const balFmt = '$' + newBal.toFixed(2);
+              document.querySelectorAll('.wallet-val').forEach(el => el.textContent = balFmt);
+              const modalBal = document.getElementById('wallet-modal-cur-bal');
+              if (modalBal) modalBal.innerHTML = balFmt + ' <span style="font-size:14px;font-weight:700;opacity:0.9">USD</span>';
+              const usrBal = document.getElementById('usr-balance');
+              if (usrBal) usrBal.textContent = balFmt;
+
+              notifyAuthReady();
               await checkCurrentUser();
               closeModals();
+
               await RoleaDialog.alert({
-                title: 'Payment Confirmed!',
-                message: `$${Number(amt).toFixed(2)} USD has been added to your wallet!`,
+                title: 'Deposit Successful!',
+                message: `$${Number(amt).toFixed(2)} USD has been credited to your Rolea Wallet! New balance: ${balFmt}`,
                 type: 'success',
-                confirmText: 'Done'
+                confirmText: 'Awesome!'
               });
             } else if (stData.status === 'expired') {
               clearInterval(walletPollingInterval);
@@ -872,6 +1015,10 @@
         }, 2500);
 
       } else {
+        if (genBtn) {
+          genBtn.disabled = false;
+          genBtn.textContent = 'Generate ABA KHQR Deposit QR';
+        }
         RoleaDialog.alert({
           title: 'Deposit Failed',
           message: j.error || 'Failed to create deposit QR.',
@@ -879,6 +1026,10 @@
         });
       }
     } catch (e) {
+      if (genBtn) {
+        genBtn.disabled = false;
+        genBtn.textContent = 'Generate ABA KHQR Deposit QR';
+      }
       RoleaDialog.alert({
         title: 'Connection Error',
         message: 'Network error creating deposit. Please try again.',
@@ -1622,6 +1773,8 @@
     handleCustomGoogle,
     selectTopupAmt,
     createWalletDeposit,
+    checkWalletDepositNow,
+    onCustomAmtInput,
     backToDepositAmount,
     switchAuthTab,
     handleLogin,
