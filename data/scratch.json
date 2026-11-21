@@ -62,6 +62,26 @@
   "total_robux_awarded": 0,
   "history": [
     {
+      "scratch_id": "SCRATCH5FF590F4",
+      "username": "pheakitz",
+      "label": "Thank You",
+      "robux": 0,
+      "price_usd": 0.25,
+      "payment_method": "Daily Free Scratch",
+      "order_id": null,
+      "created_at": "2026-11-21T02:35:56.936025+00:00"
+    },
+    {
+      "scratch_id": "SCRATCH297312ED",
+      "username": "rrpop",
+      "label": "Thank You",
+      "robux": 0,
+      "price_usd": 0.25,
+      "payment_method": "Daily Free Scratch",
+      "order_id": null,
+      "created_at": "2026-11-20T10:47:56.496321+00:00"
+    },
+    {
       "scratch_id": "SCRATCHE3FB072C",
       "username": "rathadararat",
       "label": "50 Robux",

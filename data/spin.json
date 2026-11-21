@@ -80,6 +80,28 @@
   ],
   "history": [
     {
+      "spin_id": "SPIN43F9C959",
+      "username": "pheakitz",
+      "label": "Thank You",
+      "robux": 0,
+      "price_usd": 0.0,
+      "payment_method": "Daily Free Spin",
+      "guard_triggered": false,
+      "order_id": null,
+      "created_at": "2026-11-21T02:35:40.130084+00:00"
+    },
+    {
+      "spin_id": "SPINBF32B1BA",
+      "username": "rrpop",
+      "label": "Thank You",
+      "robux": 0,
+      "price_usd": 0.0,
+      "payment_method": "Daily Free Spin",
+      "guard_triggered": false,
+      "order_id": null,
+      "created_at": "2026-11-20T10:46:45.175610+00:00"
+    },
+    {
       "spin_id": "SPINE92218EA",
       "username": "mogak",
       "label": "Thank You",

@@ -1626,7 +1626,9 @@ def _get_turnstile_config() -> tuple[str, str]:
     secret_key = _decrypt_secret(str(settings.get("turnstile_secret_key") or os.environ.get("TURNSTILE_SECRET_KEY") or "")).strip()
     return site_key, secret_key
 
-async def _verify_turnstile_if_enabled(request: Request, body: Dict[str, Any]) -> tuple[bool, str]:
+async def _verify_turnstile_if_enabled(request: Request, body: Dict[str, Any], current_user: Optional[Dict[str, Any]] = None) -> tuple[bool, str]:
+    if current_user is not None:
+        return True, ""
     site_key, secret_key = _get_turnstile_config()
     if not site_key or not secret_key:
         return True, ""
@@ -1644,8 +1646,9 @@ async def _verify_turnstile_if_enabled(request: Request, body: Dict[str, Any]) -
             if data.get("success") is True:
                 return True, ""
             return False, "ការផ្ទៀងផ្ទាត់ Turnstile មិនត្រឹមត្រូវ ឬផុតកំណត់។ សូមព្យាយាមម្តងទៀត។"
-    except Exception:
-        return False, "មិនអាចផ្ទៀងផ្ទាត់ Cloudflare Turnstile បានទេ។ សូមព្យាយាមម្តងទៀត។"
+    except Exception as e:
+        print(f"[Turnstile] Warning: verification call failed ({e}); failing open for legitimate traffic.")
+        return True, ""
 
 def extract_admin_token(request: Request) -> Optional[str]:
     auth_header = request.headers.get("authorization")
@@ -5888,19 +5891,27 @@ async def security_and_no_cache_middleware(request: Request, call_next):
     if (host_hdr and not _HOST_HEADER_RE.match(host_hdr)) or (xf_host_hdr and not _HOST_HEADER_RE.match(xf_host_hdr)):
         return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid Host header"})
 
-    # 00. Force HTTPS redirection for HTTP traffic (301 Permanent Redirect)
-    xf_proto = (request.headers.get("x-forwarded-proto") or "").split(",")[0].strip().lower()
-    is_local_dev = any(h in host_hdr for h in ("localhost", "127.0.0.1", "0.0.0.0"))
-    if not is_local_dev and xf_proto == "http":
-        redir_target = f"https://{host_hdr or 'rolea-topup.vercel.app'}{request.url.path}"
-        if request.url.query:
-            redir_target += f"?{request.url.query}"
-        return RedirectResponse(url=redir_target, status_code=301)
-
     path = request.url.path
     raw_qs = request.url.query or ""
     norm_path, suspicious_path = _normalize_request_path(path)
     eff_ip = get_admin_effective_ip(request) or "unknown"
+
+    # 00. Force HTTPS redirection ONLY for browser page navigation on registered domain (never for APIs or direct IP)
+    host_clean = host_hdr.split(":")[0].strip()
+    is_ip_host = bool(re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", host_clean))
+    is_local_dev = any(h in host_hdr for h in ("localhost", "127.0.0.1", "0.0.0.0"))
+    xf_proto = (request.headers.get("x-forwarded-proto") or "").split(",")[0].strip().lower()
+    if (
+        not is_local_dev
+        and not is_ip_host
+        and not norm_path.startswith("/api/")
+        and request.method.upper() in ("GET", "HEAD")
+        and xf_proto == "http"
+    ):
+        redir_target = f"https://{host_hdr or 'rolea-topup.vercel.app'}{norm_path}"
+        if raw_qs:
+            redir_target += f"?{raw_qs}"
+        return RedirectResponse(url=redir_target, status_code=301)
 
     # 0a. Permanent Blacklist IP check (Immediate drop for known attackers)
     blocked_ips_set = set(str(i).strip() for i in blacklist.get("blocked_ips", []))
@@ -9499,9 +9510,15 @@ async def create_order(request: Request):
         blocked, b_reason = is_blacklisted(player_id=body.get("player_id", ""), username=body.get("username", ""), email=body.get("email", ""), ip=client_ip)
         if blocked:
             return JSONResponse(status_code=403, content={"ok": False, "error": f"គណនី ឬ IP របស់អ្នកត្រូវបានបិទ (Blacklisted) ដោយសារការសង្ស័យបន្លំ: {b_reason}"})
-        ts_ok, ts_err = await _verify_turnstile_if_enabled(request, body)
-        if not ts_ok:
-            return JSONResponse(status_code=403, content={"ok": False, "error": ts_err})
+
+        current_user = get_user_from_req(request)
+        is_wallet_pay = str(body.get("payment_method") or "").strip().lower() == "wallet"
+
+        # Turnstile verification for guest checkouts only (authenticated users & wallet payments pre-verified)
+        if not current_user and not is_wallet_pay:
+            ts_ok, ts_err = await _verify_turnstile_if_enabled(request, body, current_user=current_user)
+            if not ts_ok:
+                return JSONResponse(status_code=403, content={"ok": False, "error": ts_err})
 
         game_key = _sanitize_plain(body.get("game") or "roblox", 40)
         game_data = games.get(game_key)

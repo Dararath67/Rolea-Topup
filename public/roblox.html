@@ -534,6 +534,14 @@ function selectPayMethod(method) {
     wltEl.style.background = method === 'wallet' ? '#ecfdf5' : '#fff';
   }
   const user = window.RoleaAuth ? window.RoleaAuth.getUser() : null;
+  const tsBox = document.getElementById('ts-order-box');
+  if (tsBox) {
+    if (method === 'wallet' || user) {
+      tsBox.style.display = 'none';
+    } else if (window._roleaTurnstileSiteKey) {
+      tsBox.style.display = 'block';
+    }
+  }
   if (method === 'wallet' && !user) {
     if (window.RoleaAuth) window.RoleaAuth.openAuthModal('login');
   }
@@ -1289,8 +1297,14 @@ async function initTurnstileOrder() {
     const j = await r.json();
     const sk = j && j.turnstile_site_key;
     if (!sk) return;
+    window._roleaTurnstileSiteKey = sk;
     const box = document.getElementById('ts-order-box');
     if (!box) return;
+    const user = window.RoleaAuth ? window.RoleaAuth.getUser() : null;
+    if (selectedPaymentMethod === 'wallet' || user) {
+      box.style.display = 'none';
+      return;
+    }
     box.style.display = 'block';
     window.onloadTurnstileOrder = function () {
       if (!window.turnstile || window._roleaOrderTsId !== undefined) return;
