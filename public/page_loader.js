@@ -53,7 +53,7 @@
   if (!document.getElementById('rolea-snow-script')) {
     var snowScript = document.createElement('script');
     snowScript.id = 'rolea-snow-script';
-    snowScript.src = '/snow.js?v=20261116_v1';
+    snowScript.src = '/snow.js?v=20261121_v2';
     snowScript.defer = true;
     (document.head || document.documentElement).appendChild(snowScript);
   }
