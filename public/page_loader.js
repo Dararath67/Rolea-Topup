@@ -58,6 +58,38 @@
     (document.head || document.documentElement).appendChild(snowScript);
   }
 
+  // Festive Winter Santa Hat on Brand Logo (Real vector SVG, crisp on all screens)
+  var SANTA_HAT_SVG = '<svg viewBox="0 0 100 85" fill="none" xmlns="http://www.w3.org/2000/svg" class="rolea-santa-hat-svg"><defs><linearGradient id="rhRed" x1="20%" y1="10%" x2="80%" y2="90%"><stop offset="0%" stop-color="#f87171"/><stop offset="30%" stop-color="#ef4444"/><stop offset="70%" stop-color="#dc2626"/><stop offset="100%" stop-color="#991b1b"/></linearGradient><linearGradient id="rhRedDark" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#b91c1c"/><stop offset="100%" stop-color="#7f1d1d"/></linearGradient><linearGradient id="rhWhite" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#ffffff"/><stop offset="65%" stop-color="#f8fafc"/><stop offset="100%" stop-color="#cbd5e1"/></linearGradient><radialGradient id="rhPom" cx="38%" cy="32%" r="62%"><stop offset="0%" stop-color="#ffffff"/><stop offset="60%" stop-color="#f8fafc"/><stop offset="85%" stop-color="#e2e8f0"/><stop offset="100%" stop-color="#94a3b8"/></radialGradient><filter id="rhGlow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1.5" stdDeviation="1.6" flood-color="rgba(0,0,0,0.25)"/></filter></defs><g filter="url(#rhGlow)"><path d="M50 12 C62 8 74 15 78 26 C82 36 86 46 88 52 C82 50 75 44 71 36 C67 28 62 18 50 12 Z" fill="url(#rhRedDark)"/><path d="M19 58 C26 38 38 18 50 12 C56 16 64 26 68 34 C60 40 46 50 19 58 Z" fill="url(#rhRed)"/></g><g filter="url(#rhGlow)"><path d="M14 60 C14 53 22 52 28 54 C34 51 44 51 50 53 C56 51 66 51 72 54 C78 52 84 54 86 61 C86 67 79 71 72 69 C65 72 53 72 48 70 C41 73 31 73 24 69 C17 67 14 64 14 60 Z" fill="url(#rhWhite)"/></g><g filter="url(#rhGlow)"><circle cx="89" cy="54" r="10.5" fill="url(#rhPom)"/><circle cx="87" cy="52" r="3" fill="#ffffff" opacity="0.85"/></g></svg>';
+
+  function attachSantaHats() {
+    var logos = document.querySelectorAll('.brand-logo, .brand > img, .brand-link > img, .side-brand > img');
+    for (var i = 0; i < logos.length; i++) {
+      var img = logos[i];
+      if (!img || img.dataset.hasSantaHat || img.classList.contains('rolea-santa-hat-svg')) continue;
+      img.dataset.hasSantaHat = '1';
+      var parent = img.parentElement;
+      if (!parent) continue;
+
+      var wrap = document.createElement('span');
+      wrap.className = 'rolea-logo-hat-wrap';
+      img.parentNode.insertBefore(wrap, img);
+      wrap.appendChild(img);
+
+      var hat = document.createElement('span');
+      hat.className = 'rolea-santa-hat';
+      hat.setAttribute('aria-hidden', 'true');
+      hat.innerHTML = SANTA_HAT_SVG;
+      wrap.appendChild(hat);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attachSantaHats);
+  } else {
+    attachSantaHats();
+  }
+  window.addEventListener('load', attachSantaHats);
+
   function setLabel(text) {
     var sub = document.getElementById('rl-loader-sub');
     if (sub && text) sub.textContent = text;

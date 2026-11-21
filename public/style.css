@@ -1632,3 +1632,38 @@ h1, h2, h3, h4, h5, h6, .brand-name, .section-head h2, .topup-name, .step-title,
   background: rgba(255, 255, 255, 0.25) !important;
   color: #ffffff !important;
 }
+
+/* Festive Winter Santa Hat on Brand Logo */
+.rolea-logo-hat-wrap {
+  position: relative !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  vertical-align: middle !important;
+  flex-shrink: 0 !important;
+}
+.rolea-santa-hat {
+  position: absolute !important;
+  top: -11px !important;
+  left: -8px !important;
+  width: 28px !important;
+  height: 24px !important;
+  pointer-events: none !important;
+  user-select: none !important;
+  z-index: 10 !important;
+  transform: rotate(-12deg) !important;
+  transform-origin: bottom center !important;
+  transition: transform .3s cubic-bezier(.34,1.56,.64,1) !important;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,.28));
+}
+.rolea-santa-hat-svg {
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+  overflow: visible !important;
+}
+.brand:hover .rolea-santa-hat,
+.brand-link:hover .rolea-santa-hat,
+.side-brand:hover .rolea-santa-hat {
+  transform: rotate(-5deg) scale(1.1) !important;
+}
